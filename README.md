@@ -174,8 +174,9 @@ All agent traces are logged to [Langfuse](https://cloud.langfuse.com/) for monit
 
 | Tool | What It Was Used For |
 |------|---------------------|
-| Claude Code | Project architecture design, scaffolding, agent code generation, documentation |
-| <!-- TODO: Add others --> | <!-- TODO --> |
+| Claude Code (CLI) | Project architecture design, code generation, debugging, documentation |
+| GSD Framework | Project planning workflow — requirements, roadmap, phased execution, verification |
+| Claude Code (IDE) | In-editor code assistance via VS Code extension |
 
 ---
 
