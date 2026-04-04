@@ -11,12 +11,11 @@ An Agentic AI system that dynamically calculates fuel surcharges for Express log
 
 | Role | Student ID | Name |
 |------|-----------|------|
-| **IT Lead** | <!-- TODO: Add student ID --> | <!-- TODO: Add name --> |
-| Mgmt Member | <!-- TODO --> | <!-- TODO --> |
-| Mgmt Member | <!-- TODO --> | <!-- TODO --> |
-| Mgmt Member | <!-- TODO --> | <!-- TODO --> |
-| Mgmt Member | <!-- TODO --> | <!-- TODO --> |
-| Mgmt Member | <!-- TODO --> | <!-- TODO --> |
+| **Tech Lead** | 6810424009 | Panjapol Ampornratana |
+| Management Member | 6810424004 | Jirapa Panich |
+| Management Member | 6810424008 | Phanitphan Eaimnon |
+| Management Member | 6810424012 | Tanakrid Burutchat |
+| Management Member | 6810424020 | Phatthakan Phatthanuwat |
 
 ---
 
