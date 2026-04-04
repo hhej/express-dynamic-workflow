@@ -1,0 +1,161 @@
+# Requirements: Express Dynamic Surcharge Orchestrator
+
+**Defined:** 2025-04-04
+**Core Value:** The agent must transparently reason through fuel price, route, and shipping data to produce an accurate, explainable surcharge recommendation.
+
+## v1 Requirements
+
+Requirements for initial release. Each maps to roadmap phases.
+
+### Data Pipeline
+
+- [ ] **DATA-01**: Data pipeline seeds SQLite database with rate table (3 shipping types, 3 zones, multiple weight tiers)
+- [ ] **DATA-02**: fetch_fuel_prices.py fetches historical diesel prices from EPPO and stores in data/raw/
+- [ ] **DATA-03**: generate_rate_table.py creates simulated Express rate table with documented assumptions
+- [ ] **DATA-04**: seed_database.py loads CSVs into SQLite (data/express.db)
+- [ ] **DATA-05**: Zone definitions configured for Central Region (central-1, central-2, central-3) with province mappings
+
+### Agent Tools
+
+- [ ] **TOOL-01**: fetch_fuel_price tool retrieves live diesel price from EPPO/PTT with multi-level fallback (API -> scrape -> cached CSV -> last-known)
+- [ ] **TOOL-02**: calculate_route tool computes distance, duration, traffic severity, and zone via Google Maps API with 15-min caching
+- [ ] **TOOL-03**: lookup_rate tool queries SQLite rate table by shipping_type, zone, and weight_kg
+- [ ] **TOOL-04**: calculate_surcharge tool applies formula: fuel_delta_pct * multiplier[shipping_type] with traffic adjustment and cap/floor
+- [ ] **TOOL-05**: search_fuel_news tool searches fuel trends via Tavily API for reasoning context
+- [ ] **TOOL-06**: All tools use structured Pydantic input/output models for deterministic, testable responses
+
+### Agent Orchestration
+
+- [ ] **ORCH-01**: Planner agent detects user intent and routes to appropriate specialist agent(s) via conditional edges
+- [ ] **ORCH-02**: Fuel Agent node wraps fetch_fuel_price and search_fuel_news tools
+- [ ] **ORCH-03**: Route Agent node wraps calculate_route tool with zone mapping
+- [ ] **ORCH-04**: Pricing Agent node wraps lookup_rate and calculate_surcharge tools
+- [ ] **ORCH-05**: Response node formats final answer with surcharge breakdown table and reasoning
+- [ ] **ORCH-06**: Agent state schema (AgentState TypedDict) manages messages, fuel_data, route_data, shipping_type, weight_kg, surcharge_result, reasoning_trace, next_step
+- [ ] **ORCH-07**: Fuel Agent and Route Agent execute in parallel via LangGraph Send API
+- [ ] **ORCH-08**: Agentic retry loop with exponential backoff (max 2 retries per tool) and graceful fallback with explanation
+- [ ] **ORCH-09**: Human-in-the-loop approval gate for high-value shipments before finalizing surcharge
+- [ ] **ORCH-10**: Conversation memory via LangGraph SQLite checkpointer — follow-up queries reuse cached fuel/route data
+
+### Surcharge Logic
+
+- [ ] **CALC-01**: Three shipping types with distinct multipliers: Bounce (1.0x), Retail Standard (0.5x), Retail Fast (0.8x)
+- [ ] **CALC-02**: Surcharge formula uses configurable baseline diesel price (default 29.94 THB/L)
+- [ ] **CALC-03**: Traffic adjustment applied for Bounce shipments only (2% per severity level, 1-5 scale)
+- [ ] **CALC-04**: Surcharge cap at 15% maximum, floor at -5% minimum (configurable via env)
+
+### Backend API
+
+- [ ] **API-01**: POST /api/chat endpoint accepts user message and returns SSE stream of agent traces + response
+- [ ] **API-02**: GET /api/conversations lists all past conversation threads
+- [ ] **API-03**: GET /api/conversations/:id returns full conversation history for a thread
+- [ ] **API-04**: GET /api/fuel-prices?days=30 returns historical fuel price data for charts
+- [ ] **API-05**: POST /api/feedback accepts user feedback (score + reason) and forwards to Langfuse
+
+### Frontend
+
+- [ ] **UI-01**: Chat interface for natural language surcharge queries with SSE streaming display
+- [ ] **UI-02**: Reasoning trace panel showing agent steps, tool calls, and decisions for each query
+- [ ] **UI-03**: Surcharge breakdown table in chat responses (base rate, surcharge %, amount, total)
+- [ ] **UI-04**: Dashboard with fuel price trends and surcharge history charts (Recharts)
+- [ ] **UI-05**: User feedback buttons (thumbs up/down) on agent responses with reason selector on thumbs down
+- [ ] **UI-06**: Conversation history sidebar for resuming past threads
+
+### Observability
+
+- [ ] **OBS-01**: Langfuse callback handler traces all LLM calls, tool calls, and agent steps
+- [ ] **OBS-02**: User feedback scores forwarded to Langfuse Score API for evaluation tracking
+- [ ] **OBS-03**: Formula accuracy auto-eval: independent calculation vs agent output on every query
+
+### Documentation
+
+- [ ] **DOC-01**: README.md covers project overview, team, problem statement, agent design, data sources, setup instructions, AI tools used, limitations
+- [ ] **DOC-02**: docs/architecture.md finalized with accurate agent design diagrams
+- [ ] **DOC-03**: .env.example with all required API key placeholders
+- [ ] **DOC-04**: Data source documentation with URLs, assumptions for simulated data
+
+## v2 Requirements
+
+Deferred to future release. Tracked but not in current roadmap.
+
+### Extended Features
+
+- **V2-01**: What-if scenario queries ("What if diesel goes up 2 baht?") using conversation memory
+- **V2-02**: Multi-region support beyond Central Region
+- **V2-03**: Rate table versioning for historical surcharge accuracy
+- **V2-04**: Batch surcharge calculation for multiple routes simultaneously
+- **V2-05**: Email/scheduled surcharge reports for operations team
+
+## Out of Scope
+
+Explicitly excluded. Documented to prevent scope creep.
+
+| Feature | Reason |
+|---------|--------|
+| Rate table admin CRUD | Zero grading value; rate data seeded via scripts |
+| User authentication / OAuth | Not relevant to agent architecture grading |
+| Mobile native app | Web-first; responsive design sufficient |
+| Docker/Kubernetes deployment | Grading requires local reproducibility, not production infra |
+| Fine-tuning / custom model training | Gemini Flash free tier; prompt engineering is correct approach |
+| Complex RAG with vector store | Tabular data; SQLite + Tavily covers structured + unstructured |
+| Real-time webhook notifications | SSE streaming sufficient for demo |
+| Grafana/Prometheus monitoring | Langfuse covers observability needs |
+
+## Traceability
+
+Which phases cover which requirements. Updated during roadmap creation.
+
+| Requirement | Phase | Status |
+|-------------|-------|--------|
+| DATA-01 | TBD | Pending |
+| DATA-02 | TBD | Pending |
+| DATA-03 | TBD | Pending |
+| DATA-04 | TBD | Pending |
+| DATA-05 | TBD | Pending |
+| TOOL-01 | TBD | Pending |
+| TOOL-02 | TBD | Pending |
+| TOOL-03 | TBD | Pending |
+| TOOL-04 | TBD | Pending |
+| TOOL-05 | TBD | Pending |
+| TOOL-06 | TBD | Pending |
+| ORCH-01 | TBD | Pending |
+| ORCH-02 | TBD | Pending |
+| ORCH-03 | TBD | Pending |
+| ORCH-04 | TBD | Pending |
+| ORCH-05 | TBD | Pending |
+| ORCH-06 | TBD | Pending |
+| ORCH-07 | TBD | Pending |
+| ORCH-08 | TBD | Pending |
+| ORCH-09 | TBD | Pending |
+| ORCH-10 | TBD | Pending |
+| CALC-01 | TBD | Pending |
+| CALC-02 | TBD | Pending |
+| CALC-03 | TBD | Pending |
+| CALC-04 | TBD | Pending |
+| API-01 | TBD | Pending |
+| API-02 | TBD | Pending |
+| API-03 | TBD | Pending |
+| API-04 | TBD | Pending |
+| API-05 | TBD | Pending |
+| UI-01 | TBD | Pending |
+| UI-02 | TBD | Pending |
+| UI-03 | TBD | Pending |
+| UI-04 | TBD | Pending |
+| UI-05 | TBD | Pending |
+| UI-06 | TBD | Pending |
+| OBS-01 | TBD | Pending |
+| OBS-02 | TBD | Pending |
+| OBS-03 | TBD | Pending |
+| DOC-01 | TBD | Pending |
+| DOC-02 | TBD | Pending |
+| DOC-03 | TBD | Pending |
+| DOC-04 | TBD | Pending |
+
+**Coverage:**
+- v1 requirements: 43 total
+- Mapped to phases: 0
+- Unmapped: 43 (will be mapped during roadmap creation)
+
+---
+*Requirements defined: 2025-04-04*
+*Last updated: 2025-04-04 after initial definition*
