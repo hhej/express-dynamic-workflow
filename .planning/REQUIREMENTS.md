@@ -9,11 +9,11 @@ Requirements for initial release. Each maps to roadmap phases.
 
 ### Data Pipeline
 
-- [ ] **DATA-01**: Data pipeline seeds SQLite database with rate table (3 shipping types, 3 zones, multiple weight tiers)
-- [ ] **DATA-02**: fetch_fuel_prices.py fetches historical diesel prices from EPPO and stores in data/raw/
-- [ ] **DATA-03**: generate_rate_table.py creates simulated Express rate table with documented assumptions
-- [ ] **DATA-04**: seed_database.py loads CSVs into SQLite (data/express.db)
-- [ ] **DATA-05**: Zone definitions configured for Central Region (central-1, central-2, central-3) with province mappings
+- [x] **DATA-01**: Data pipeline seeds SQLite database with rate table (3 shipping types, 3 zones, multiple weight tiers)
+- [x] **DATA-02**: fetch_fuel_prices.py fetches historical diesel prices from EPPO and stores in data/raw/
+- [x] **DATA-03**: generate_rate_table.py creates simulated Express rate table with documented assumptions
+- [x] **DATA-04**: seed_database.py loads CSVs into SQLite (data/express.db)
+- [x] **DATA-05**: Zone definitions configured for Central Region (central-1, central-2, central-3) with province mappings
 
 ### Agent Tools
 
@@ -71,7 +71,7 @@ Requirements for initial release. Each maps to roadmap phases.
 
 - [ ] **DOC-01**: README.md covers project overview, team, problem statement, agent design, data sources, setup instructions, AI tools used, limitations
 - [ ] **DOC-02**: docs/architecture.md finalized with accurate agent design diagrams
-- [ ] **DOC-03**: .env.example with all required API key placeholders
+- [x] **DOC-03**: .env.example with all required API key placeholders
 - [ ] **DOC-04**: Data source documentation with URLs, assumptions for simulated data
 
 ## v2 Requirements
@@ -107,11 +107,11 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| DATA-01 | Phase 1 | Pending |
-| DATA-02 | Phase 1 | Pending |
-| DATA-03 | Phase 1 | Pending |
-| DATA-04 | Phase 1 | Pending |
-| DATA-05 | Phase 1 | Pending |
+| DATA-01 | Phase 1 | Complete |
+| DATA-02 | Phase 1 | Complete |
+| DATA-03 | Phase 1 | Complete |
+| DATA-04 | Phase 1 | Complete |
+| DATA-05 | Phase 1 | Complete |
 | TOOL-01 | Phase 2 | Pending |
 | TOOL-02 | Phase 2 | Pending |
 | TOOL-03 | Phase 2 | Pending |
@@ -148,7 +148,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | OBS-03 | Phase 5 | Pending |
 | DOC-01 | Phase 5 | Pending |
 | DOC-02 | Phase 5 | Pending |
-| DOC-03 | Phase 1 | Pending |
+| DOC-03 | Phase 1 | Complete |
 | DOC-04 | Phase 5 | Pending |
 
 **Coverage:**

@@ -33,7 +33,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 **Plans:** 3 plans
 
 Plans:
-- [ ] 01-01-PLAN.md — Data pipeline: requirements.txt, data generation scripts, seed CSVs, SQLite seeding, zone definitions
+- [x] 01-01-PLAN.md — Data pipeline: requirements.txt, data generation scripts, seed CSVs, SQLite seeding, zone definitions
 - [ ] 01-02-PLAN.md — Type foundations: Pydantic models, AgentState TypedDict, config module, validation tests
 - [ ] 01-03-PLAN.md — Surcharge formula: TDD implementation of pure calculate_surcharge function with hand-calculated tests
 
