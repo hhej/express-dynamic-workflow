@@ -39,10 +39,10 @@ Requirements for initial release. Each maps to roadmap phases.
 
 ### Surcharge Logic
 
-- [ ] **CALC-01**: Three shipping types with distinct multipliers: Bounce (1.0x), Retail Standard (0.5x), Retail Fast (0.8x)
-- [ ] **CALC-02**: Surcharge formula uses configurable baseline diesel price (default 29.94 THB/L)
-- [ ] **CALC-03**: Traffic adjustment applied for Bounce shipments only (2% per severity level, 1-5 scale)
-- [ ] **CALC-04**: Surcharge cap at 15% maximum, floor at -5% minimum (configurable via env)
+- [x] **CALC-01**: Three shipping types with distinct multipliers: Bounce (1.0x), Retail Standard (0.5x), Retail Fast (0.8x)
+- [x] **CALC-02**: Surcharge formula uses configurable baseline diesel price (default 29.94 THB/L)
+- [x] **CALC-03**: Traffic adjustment applied for Bounce shipments only (2% per severity level, 1-5 scale)
+- [x] **CALC-04**: Surcharge cap at 15% maximum, floor at -5% minimum (configurable via env)
 
 ### Backend API
 
@@ -128,10 +128,10 @@ Which phases cover which requirements. Updated during roadmap creation.
 | ORCH-08 | Phase 3 | Pending |
 | ORCH-09 | Phase 5 | Pending |
 | ORCH-10 | Phase 3 | Pending |
-| CALC-01 | Phase 1 | Pending |
-| CALC-02 | Phase 1 | Pending |
-| CALC-03 | Phase 1 | Pending |
-| CALC-04 | Phase 1 | Pending |
+| CALC-01 | Phase 1 | Complete |
+| CALC-02 | Phase 1 | Complete |
+| CALC-03 | Phase 1 | Complete |
+| CALC-04 | Phase 1 | Complete |
 | API-01 | Phase 3 | Pending |
 | API-02 | Phase 3 | Pending |
 | API-03 | Phase 3 | Pending |
