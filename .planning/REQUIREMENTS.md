@@ -9,11 +9,11 @@ Requirements for initial release. Each maps to roadmap phases.
 
 ### Data Pipeline
 
-- [ ] **DATA-01**: Data pipeline seeds SQLite database with rate table (3 shipping types, 3 zones, multiple weight tiers)
-- [ ] **DATA-02**: fetch_fuel_prices.py fetches historical diesel prices from EPPO and stores in data/raw/
-- [ ] **DATA-03**: generate_rate_table.py creates simulated Express rate table with documented assumptions
-- [ ] **DATA-04**: seed_database.py loads CSVs into SQLite (data/express.db)
-- [ ] **DATA-05**: Zone definitions configured for Central Region (central-1, central-2, central-3) with province mappings
+- [x] **DATA-01**: Data pipeline seeds SQLite database with rate table (3 shipping types, 3 zones, multiple weight tiers)
+- [x] **DATA-02**: fetch_fuel_prices.py fetches historical diesel prices from EPPO and stores in data/raw/
+- [x] **DATA-03**: generate_rate_table.py creates simulated Express rate table with documented assumptions
+- [x] **DATA-04**: seed_database.py loads CSVs into SQLite (data/express.db)
+- [x] **DATA-05**: Zone definitions configured for Central Region (central-1, central-2, central-3) with province mappings
 
 ### Agent Tools
 
@@ -22,7 +22,7 @@ Requirements for initial release. Each maps to roadmap phases.
 - [ ] **TOOL-03**: lookup_rate tool queries SQLite rate table by shipping_type, zone, and weight_kg
 - [ ] **TOOL-04**: calculate_surcharge tool applies formula: fuel_delta_pct * multiplier[shipping_type] with traffic adjustment and cap/floor
 - [ ] **TOOL-05**: search_fuel_news tool searches fuel trends via Tavily API for reasoning context
-- [ ] **TOOL-06**: All tools use structured Pydantic input/output models for deterministic, testable responses
+- [x] **TOOL-06**: All tools use structured Pydantic input/output models for deterministic, testable responses
 
 ### Agent Orchestration
 
@@ -31,7 +31,7 @@ Requirements for initial release. Each maps to roadmap phases.
 - [ ] **ORCH-03**: Route Agent node wraps calculate_route tool with zone mapping
 - [ ] **ORCH-04**: Pricing Agent node wraps lookup_rate and calculate_surcharge tools
 - [ ] **ORCH-05**: Response node formats final answer with surcharge breakdown table and reasoning
-- [ ] **ORCH-06**: Agent state schema (AgentState TypedDict) manages messages, fuel_data, route_data, shipping_type, weight_kg, surcharge_result, reasoning_trace, next_step
+- [x] **ORCH-06**: Agent state schema (AgentState TypedDict) manages messages, fuel_data, route_data, shipping_type, weight_kg, surcharge_result, reasoning_trace, next_step
 - [ ] **ORCH-07**: Fuel Agent and Route Agent execute in parallel via LangGraph Send API
 - [ ] **ORCH-08**: Agentic retry loop with exponential backoff (max 2 retries per tool) and graceful fallback with explanation
 - [ ] **ORCH-09**: Human-in-the-loop approval gate for high-value shipments before finalizing surcharge
@@ -39,10 +39,10 @@ Requirements for initial release. Each maps to roadmap phases.
 
 ### Surcharge Logic
 
-- [ ] **CALC-01**: Three shipping types with distinct multipliers: Bounce (1.0x), Retail Standard (0.5x), Retail Fast (0.8x)
-- [ ] **CALC-02**: Surcharge formula uses configurable baseline diesel price (default 29.94 THB/L)
-- [ ] **CALC-03**: Traffic adjustment applied for Bounce shipments only (2% per severity level, 1-5 scale)
-- [ ] **CALC-04**: Surcharge cap at 15% maximum, floor at -5% minimum (configurable via env)
+- [x] **CALC-01**: Three shipping types with distinct multipliers: Bounce (1.0x), Retail Standard (0.5x), Retail Fast (0.8x)
+- [x] **CALC-02**: Surcharge formula uses configurable baseline diesel price (default 29.94 THB/L)
+- [x] **CALC-03**: Traffic adjustment applied for Bounce shipments only (2% per severity level, 1-5 scale)
+- [x] **CALC-04**: Surcharge cap at 15% maximum, floor at -5% minimum (configurable via env)
 
 ### Backend API
 
@@ -71,7 +71,7 @@ Requirements for initial release. Each maps to roadmap phases.
 
 - [ ] **DOC-01**: README.md covers project overview, team, problem statement, agent design, data sources, setup instructions, AI tools used, limitations
 - [ ] **DOC-02**: docs/architecture.md finalized with accurate agent design diagrams
-- [ ] **DOC-03**: .env.example with all required API key placeholders
+- [x] **DOC-03**: .env.example with all required API key placeholders
 - [ ] **DOC-04**: Data source documentation with URLs, assumptions for simulated data
 
 ## v2 Requirements
@@ -107,31 +107,31 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| DATA-01 | Phase 1 | Pending |
-| DATA-02 | Phase 1 | Pending |
-| DATA-03 | Phase 1 | Pending |
-| DATA-04 | Phase 1 | Pending |
-| DATA-05 | Phase 1 | Pending |
+| DATA-01 | Phase 1 | Complete |
+| DATA-02 | Phase 1 | Complete |
+| DATA-03 | Phase 1 | Complete |
+| DATA-04 | Phase 1 | Complete |
+| DATA-05 | Phase 1 | Complete |
 | TOOL-01 | Phase 2 | Pending |
 | TOOL-02 | Phase 2 | Pending |
 | TOOL-03 | Phase 2 | Pending |
 | TOOL-04 | Phase 2 | Pending |
 | TOOL-05 | Phase 5 | Pending |
-| TOOL-06 | Phase 1 | Pending |
+| TOOL-06 | Phase 1 | Complete |
 | ORCH-01 | Phase 3 | Pending |
 | ORCH-02 | Phase 2 | Pending |
 | ORCH-03 | Phase 2 | Pending |
 | ORCH-04 | Phase 3 | Pending |
 | ORCH-05 | Phase 3 | Pending |
-| ORCH-06 | Phase 1 | Pending |
+| ORCH-06 | Phase 1 | Complete |
 | ORCH-07 | Phase 5 | Pending |
 | ORCH-08 | Phase 3 | Pending |
 | ORCH-09 | Phase 5 | Pending |
 | ORCH-10 | Phase 3 | Pending |
-| CALC-01 | Phase 1 | Pending |
-| CALC-02 | Phase 1 | Pending |
-| CALC-03 | Phase 1 | Pending |
-| CALC-04 | Phase 1 | Pending |
+| CALC-01 | Phase 1 | Complete |
+| CALC-02 | Phase 1 | Complete |
+| CALC-03 | Phase 1 | Complete |
+| CALC-04 | Phase 1 | Complete |
 | API-01 | Phase 3 | Pending |
 | API-02 | Phase 3 | Pending |
 | API-03 | Phase 3 | Pending |
@@ -148,7 +148,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | OBS-03 | Phase 5 | Pending |
 | DOC-01 | Phase 5 | Pending |
 | DOC-02 | Phase 5 | Pending |
-| DOC-03 | Phase 1 | Pending |
+| DOC-03 | Phase 1 | Complete |
 | DOC-04 | Phase 5 | Pending |
 
 **Coverage:**

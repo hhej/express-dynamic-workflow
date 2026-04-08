@@ -30,12 +30,12 @@ Decimal phases appear between their surrounding integers in numeric order.
   3. Surcharge formula implemented as a pure Python function with configurable baseline, shipping-type multipliers, traffic adjustment, and cap/floor -- passing unit tests for known inputs
   4. AgentState TypedDict and all Pydantic input/output models are defined and importable with no errors
   5. `.env.example` exists with all required API key placeholders documented
-**Plans**: TBD
+**Plans:** 3 plans
 
 Plans:
-- [ ] 01-01: TBD
-- [ ] 01-02: TBD
-- [ ] 01-03: TBD
+- [x] 01-01-PLAN.md — Data pipeline: requirements.txt, data generation scripts, seed CSVs, SQLite seeding, zone definitions
+- [x] 01-02-PLAN.md — Type foundations: Pydantic models, AgentState TypedDict, config module, validation tests
+- [x] 01-03-PLAN.md — Surcharge formula: TDD implementation of pure calculate_surcharge function with hand-calculated tests
 
 ### Phase 2: Tools & Agent Nodes
 **Goal**: Each tool (fuel fetch, route calc, rate lookup, surcharge calc) works independently with tests, and is wrapped in a LangGraph-compatible agent node
@@ -112,7 +112,7 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Foundation & Data Pipeline | 0/3 | Not started | - |
+| 1. Foundation & Data Pipeline | 0/3 | Planning complete | - |
 | 2. Tools & Agent Nodes | 0/3 | Not started | - |
 | 3. Graph Assembly & API Layer | 0/3 | Not started | - |
 | 4. Frontend & Reasoning Trace | 0/3 | Not started | - |
