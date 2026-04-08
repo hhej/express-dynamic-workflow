@@ -12,7 +12,12 @@ The agent must transparently reason through fuel price, route, and shipping data
 
 ### Validated
 
-(None yet — ship to validate)
+- [x] All agent responses use structured Pydantic output models for deterministic, testable results — Validated in Phase 1: Foundation & Data Pipeline
+- [x] Three shipping types supported: Bounce (B2B, 1.0x multiplier), Retail Standard (B2C 3-5 day, 0.5x), Retail Fast (B2C same/next-day, 0.8x) — Validated in Phase 1: Foundation & Data Pipeline
+- [x] Surcharge formula with configurable baseline, shipping type multipliers, traffic adjustment (Bounce only), and cap/floor (max 15%, min -5%) — Validated in Phase 1: Foundation & Data Pipeline
+- [x] Three Central Region zones: central-1 (Bangkok inner), central-2 (Bangkok outer), central-3 (extended central) — Validated in Phase 1: Foundation & Data Pipeline
+- [x] Rate table stored in SQLite with 3 shipping types, 3 zones, multiple weight tiers — Validated in Phase 1: Foundation & Data Pipeline
+- [x] Data pipeline: fetch_fuel_prices.py (daily EPPO), generate_rate_table.py (simulated), seed_database.py (CSV → SQLite) — Validated in Phase 1: Foundation & Data Pipeline
 
 ### Active
 
@@ -21,20 +26,14 @@ The agent must transparently reason through fuel price, route, and shipping data
 - [ ] Route Agent calculates distance and traffic via Google Maps API with 15-min caching
 - [ ] Pricing Agent computes surcharge using rate table lookup + formula with shipping type multipliers
 - [ ] Fuel and Route agents execute in parallel (LangGraph Send API) since they are independent
-- [ ] All agent responses use structured Pydantic output models for deterministic, testable results
 - [ ] Human-in-the-loop approval gate for high-value shipment surcharge recommendations
 - [ ] Agentic retry loop: agent autonomously retries with exponential backoff on tool failure, falls back gracefully
-- [ ] Three shipping types supported: Bounce (B2B, 1.0x multiplier), Retail Standard (B2C 3-5 day, 0.5x), Retail Fast (B2C same/next-day, 0.8x)
-- [ ] Surcharge formula with configurable baseline, shipping type multipliers, traffic adjustment (Bounce only), and cap/floor (max 15%, min -5%)
-- [ ] Three Central Region zones: central-1 (Bangkok inner), central-2 (Bangkok outer), central-3 (extended central)
-- [ ] Rate table stored in SQLite with 3 shipping types, 3 zones, multiple weight tiers
 - [ ] Conversation memory via LangGraph SQLite checkpointer — follow-up questions reuse cached data
 - [ ] Reasoning trace visible in UI — every agent step, tool call, and decision logged and displayed
 - [ ] Chat-based UI for querying surcharges with SSE streaming
 - [ ] Dashboard showing surcharge trends across routes, shipping types, and time periods (Recharts)
 - [ ] User feedback (thumbs up/down) forwarded to Langfuse for evaluation scoring
 - [ ] Tavily web search tool for fuel news context and trend reasoning
-- [ ] Data pipeline: fetch_fuel_prices.py (daily EPPO), generate_rate_table.py (simulated), seed_database.py (CSV → SQLite)
 - [ ] FastAPI backend with endpoints: POST /api/chat (SSE), GET /api/conversations, GET /api/fuel-prices, POST /api/feedback
 - [ ] Next.js 15 + React 19 + Tailwind CSS frontend
 
@@ -111,4 +110,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2025-04-04 after initialization*
+*Last updated: 2026-04-08 after Phase 1 completion*
