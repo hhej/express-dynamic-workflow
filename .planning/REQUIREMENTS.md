@@ -22,7 +22,7 @@ Requirements for initial release. Each maps to roadmap phases.
 - [ ] **TOOL-03**: lookup_rate tool queries SQLite rate table by shipping_type, zone, and weight_kg
 - [ ] **TOOL-04**: calculate_surcharge tool applies formula: fuel_delta_pct * multiplier[shipping_type] with traffic adjustment and cap/floor
 - [ ] **TOOL-05**: search_fuel_news tool searches fuel trends via Tavily API for reasoning context
-- [ ] **TOOL-06**: All tools use structured Pydantic input/output models for deterministic, testable responses
+- [x] **TOOL-06**: All tools use structured Pydantic input/output models for deterministic, testable responses
 
 ### Agent Orchestration
 
@@ -31,7 +31,7 @@ Requirements for initial release. Each maps to roadmap phases.
 - [ ] **ORCH-03**: Route Agent node wraps calculate_route tool with zone mapping
 - [ ] **ORCH-04**: Pricing Agent node wraps lookup_rate and calculate_surcharge tools
 - [ ] **ORCH-05**: Response node formats final answer with surcharge breakdown table and reasoning
-- [ ] **ORCH-06**: Agent state schema (AgentState TypedDict) manages messages, fuel_data, route_data, shipping_type, weight_kg, surcharge_result, reasoning_trace, next_step
+- [x] **ORCH-06**: Agent state schema (AgentState TypedDict) manages messages, fuel_data, route_data, shipping_type, weight_kg, surcharge_result, reasoning_trace, next_step
 - [ ] **ORCH-07**: Fuel Agent and Route Agent execute in parallel via LangGraph Send API
 - [ ] **ORCH-08**: Agentic retry loop with exponential backoff (max 2 retries per tool) and graceful fallback with explanation
 - [ ] **ORCH-09**: Human-in-the-loop approval gate for high-value shipments before finalizing surcharge
@@ -117,13 +117,13 @@ Which phases cover which requirements. Updated during roadmap creation.
 | TOOL-03 | Phase 2 | Pending |
 | TOOL-04 | Phase 2 | Pending |
 | TOOL-05 | Phase 5 | Pending |
-| TOOL-06 | Phase 1 | Pending |
+| TOOL-06 | Phase 1 | Complete |
 | ORCH-01 | Phase 3 | Pending |
 | ORCH-02 | Phase 2 | Pending |
 | ORCH-03 | Phase 2 | Pending |
 | ORCH-04 | Phase 3 | Pending |
 | ORCH-05 | Phase 3 | Pending |
-| ORCH-06 | Phase 1 | Pending |
+| ORCH-06 | Phase 1 | Complete |
 | ORCH-07 | Phase 5 | Pending |
 | ORCH-08 | Phase 3 | Pending |
 | ORCH-09 | Phase 5 | Pending |
