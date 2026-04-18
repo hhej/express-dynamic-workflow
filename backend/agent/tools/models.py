@@ -59,7 +59,7 @@ class FuelData(BaseModel):
         price: Current diesel B7 price in THB/L.
         date: Price date in YYYY-MM-DD format.
         unit: Price unit (default "THB/L").
-        source: Data source identifier ("eppo" or "ptt").
+        source: Data source identifier - eppo | ptt | eppo_live | eppo_cached_csv | hardcoded_baseline.
         baseline: Baseline diesel price for comparison.
         delta_pct: Percentage change from baseline.
     """
@@ -67,7 +67,14 @@ class FuelData(BaseModel):
     price: float = Field(description="Current diesel B7 price in THB/L")
     date: str = Field(description="Price date YYYY-MM-DD")
     unit: str = Field(default="THB/L")
-    source: str = Field(description="Data source: eppo or ptt")
+    source: str = Field(
+        description=(
+            "Data source identifier. Phase 1 values: 'eppo', 'ptt'. "
+            "Phase 2 adds: 'eppo_live' (live scrape), 'eppo_cached_csv' "
+            "(fallback to data/raw/eppo_diesel_prices.csv), "
+            "'hardcoded_baseline' (final fallback to BASELINE_DIESEL_PRICE)."
+        )
+    )
     baseline: float = Field(
         description="Baseline diesel price for comparison"
     )
