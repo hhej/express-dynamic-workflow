@@ -27,8 +27,8 @@ Requirements for initial release. Each maps to roadmap phases.
 ### Agent Orchestration
 
 - [ ] **ORCH-01**: Planner agent detects user intent and routes to appropriate specialist agent(s) via conditional edges
-- [ ] **ORCH-02**: Fuel Agent node wraps fetch_fuel_price and search_fuel_news tools
-- [ ] **ORCH-03**: Route Agent node wraps calculate_route tool with zone mapping
+- [x] **ORCH-02**: Fuel Agent node wraps fetch_fuel_price and search_fuel_news tools
+- [x] **ORCH-03**: Route Agent node wraps calculate_route tool with zone mapping
 - [ ] **ORCH-04**: Pricing Agent node wraps lookup_rate and calculate_surcharge tools
 - [ ] **ORCH-05**: Response node formats final answer with surcharge breakdown table and reasoning
 - [x] **ORCH-06**: Agent state schema (AgentState TypedDict) manages messages, fuel_data, route_data, shipping_type, weight_kg, surcharge_result, reasoning_trace, next_step
@@ -119,8 +119,8 @@ Which phases cover which requirements. Updated during roadmap creation.
 | TOOL-05 | Phase 5 | Pending |
 | TOOL-06 | Phase 1 | Complete |
 | ORCH-01 | Phase 3 | Pending |
-| ORCH-02 | Phase 2 | Pending |
-| ORCH-03 | Phase 2 | Pending |
+| ORCH-02 | Phase 2 | Complete |
+| ORCH-03 | Phase 2 | Complete |
 | ORCH-04 | Phase 3 | Pending |
 | ORCH-05 | Phase 3 | Pending |
 | ORCH-06 | Phase 1 | Complete |

@@ -53,7 +53,7 @@ Plans:
 - [x] 02-02-PLAN.md — TOOL-01: fetch_fuel_price 3-level fallback chain + tests
 - [x] 02-03-PLAN.md — TOOL-02: calculate_route with zone mapping, traffic bucketing, TTL cache + tests
 - [x] 02-04-PLAN.md — TOOL-03 + TOOL-04: lookup_rate SQLite query and calculate_surcharge @tool wrapper + tests
-- [ ] 02-05-PLAN.md — ORCH-02 + ORCH-03: Fuel Agent and Route Agent nodes with Gemini narration (D-11 fallback) + tests
+- [x] 02-05-PLAN.md — ORCH-02 + ORCH-03: Fuel Agent and Route Agent nodes with Gemini narration (D-11 fallback) + tests
 
 ### Phase 3: Graph Assembly & API Layer
 **Goal**: The full LangGraph StateGraph runs end-to-end -- planner routes to agents, agents produce a surcharge result, and FastAPI serves it via SSE streaming

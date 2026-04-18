@@ -2,15 +2,15 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-status: executing
-stopped_at: Completed 02-02-PLAN.md
-last_updated: "2026-04-18T07:55:40.628Z"
+status: verifying
+stopped_at: Completed 02-05-PLAN.md
+last_updated: "2026-04-18T08:03:26.926Z"
 last_activity: 2026-04-18
 progress:
   total_phases: 5
-  completed_phases: 1
+  completed_phases: 2
   total_plans: 8
-  completed_plans: 7
+  completed_plans: 8
   percent: 0
 ---
 
@@ -27,7 +27,7 @@ See: .planning/PROJECT.md (updated 2026-04-04)
 
 Phase: 02 (tools-agent-nodes) — EXECUTING
 Plan: 5 of 5
-Status: Ready to execute
+Status: Phase complete — ready for verification
 Last activity: 2026-04-18
 
 Progress: [░░░░░░░░░░] 0%
@@ -59,6 +59,7 @@ Progress: [░░░░░░░░░░] 0%
 | Phase 02 P04 | 4min | 2 tasks | 4 files |
 | Phase 02 P03 | 2min | 3 tasks | 3 files |
 | Phase 02 P02 | 3min | 2 tasks | 2 files |
+| Phase 02 P05 | 5min | 3 tasks | 7 files |
 
 ## Accumulated Context
 
@@ -88,6 +89,10 @@ Recent decisions affecting current work:
 - [Phase 02]: Plan 03 TOOL-02: province normalisation strips ' Province' suffix + lowercases — Pitfall 6 verified via 'Ayutthaya Province' fixture → central-2
 - [Phase 02]: fetch_fuel_price tool: 3-level fallback with NotImplementedError stub caught by Level-1 retry loop, CSV fallback active, baseline always reachable
 - [Phase 02]: pytest-httpx assert_all_responses_were_requested disabled module-wide in TOOL-01 tests -- stub raises before httpx call, mocks activate in Phase 5 when scrape un-stubbed
+- [Phase 02]: Plan 05: Raw model.invoke() + json.loads for agent narration instead of with_structured_output -- FakeMessagesListChatModel does not implement the structured helper; Rule 1 bug fix applied to both fuel and route nodes
+- [Phase 02]: Plan 05: route_agent_node raises ValueError when origin/destination missing from state (D-10) -- surfaces Phase 3 Planner pre-extraction contract violations eagerly
+- [Phase 02]: Plan 05: Fuel SYSTEM_PROMPT excludes search_fuel_news (TOOL-05 deferred to Phase 5 per Open Question 3) -- prevents hallucinated tool calls
+- [Phase 02]: Plan 05: D-11 fallback wraps whole Gemini path in try/except (Exception, ValidationError); trace status stays ok because narration is always produced (LLM or deterministic)
 
 ### Pending Todos
 
@@ -101,6 +106,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-04-18T07:55:36.217Z
-Stopped at: Completed 02-02-PLAN.md
+Last session: 2026-04-18T08:03:26.924Z
+Stopped at: Completed 02-05-PLAN.md
 Resume file: None
