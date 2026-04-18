@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-stopped_at: Completed 02-01-PLAN.md
-last_updated: "2026-04-18T07:50:36.212Z"
+stopped_at: Completed 02-04-PLAN.md
+last_updated: "2026-04-18T07:55:17.719Z"
 last_activity: 2026-04-18
 progress:
   total_phases: 5
   completed_phases: 1
   total_plans: 8
-  completed_plans: 4
+  completed_plans: 6
   percent: 0
 ---
 
@@ -26,7 +26,7 @@ See: .planning/PROJECT.md (updated 2026-04-04)
 ## Current Position
 
 Phase: 02 (tools-agent-nodes) — EXECUTING
-Plan: 2 of 5
+Plan: 4 of 5
 Status: Ready to execute
 Last activity: 2026-04-18
 
@@ -56,6 +56,8 @@ Progress: [░░░░░░░░░░] 0%
 | Phase 01 P02 | 4min | 2 tasks | 6 files |
 | Phase 01 P03 | 2min | 2 tasks | 2 files |
 | Phase 02 P01 | 5min | 3 tasks | 12 files |
+| Phase 02 P04 | 4min | 2 tasks | 4 files |
+| Phase 02 P03 | 2min | 3 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -77,6 +79,10 @@ Recent decisions affecting current work:
 - [Phase 02]: TRAFFIC_RATIO_BUCKETS parsed from comma-separated env (defaults 1.1/1.3/1.5/1.8) per D-06
 - [Phase 02]: ROUTE_CACHE_TTL_SECONDS default 900s per D-07 — balances Google Maps quota vs freshness
 - [Phase 02]: seeded_sqlite_path fixture copies real data/express.db — avoids test/prod seed drift
+- [Phase 02]: [Phase 02]: Sentinel-safe SQL — '? < weight_max_kg' excludes 999 sentinel naturally; no NULL/special-case needed (C-02, D-13)
+- [Phase 02]: [Phase 02]: @tool wrapper delegates to Phase 1 pure function (import alias _calc) — zero logic duplication, preserves existing 13 tests
+- [Phase 02]: [Phase 02]: rate_tier format '<min>+kg' for top tier, '<min>-<max>kg' otherwise — human-readable, hides sentinel 999 from reasoning traces
+- [Phase 02]: Plan 03 TOOL-02: lazy googlemaps client factory _client() enables clean mocker.patch.object seam — zero SDK-internal patching
 
 ### Pending Todos
 
@@ -90,6 +96,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-04-18T07:50:36.209Z
-Stopped at: Completed 02-01-PLAN.md
+Last session: 2026-04-18T07:55:01.489Z
+Stopped at: Completed 02-04-PLAN.md
 Resume file: None
