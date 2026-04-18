@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-stopped_at: Phase 2 context gathered
-last_updated: "2026-04-18T07:07:25.676Z"
-last_activity: 2026-04-08
+stopped_at: Completed 02-01-PLAN.md
+last_updated: "2026-04-18T07:50:36.212Z"
+last_activity: 2026-04-18
 progress:
   total_phases: 5
   completed_phases: 1
-  total_plans: 3
-  completed_plans: 3
+  total_plans: 8
+  completed_plans: 4
   percent: 0
 ---
 
@@ -21,14 +21,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-04-04)
 
 **Core value:** The agent must transparently reason through fuel price, route, and shipping data to produce an accurate, explainable surcharge recommendation.
-**Current focus:** Phase 1: Foundation & Data Pipeline
+**Current focus:** Phase 02 — tools-agent-nodes
 
 ## Current Position
 
-Phase: 2 of 5 (tools & agent nodes)
-Plan: Not started
+Phase: 02 (tools-agent-nodes) — EXECUTING
+Plan: 2 of 5
 Status: Ready to execute
-Last activity: 2026-04-08
+Last activity: 2026-04-18
 
 Progress: [░░░░░░░░░░] 0%
 
@@ -55,6 +55,7 @@ Progress: [░░░░░░░░░░] 0%
 | Phase 01 P01 | 4min | 2 tasks | 7 files |
 | Phase 01 P02 | 4min | 2 tasks | 6 files |
 | Phase 01 P03 | 2min | 2 tasks | 2 files |
+| Phase 02 P01 | 5min | 3 tasks | 12 files |
 
 ## Accumulated Context
 
@@ -70,6 +71,12 @@ Recent decisions affecting current work:
 - [Phase 01]: Zone multipliers 1.0/1.25/1.55 producing rate range 50-698 THB
 - [Phase 01]: Used from __future__ import annotations for Python 3.9 compat with modern type hint syntax
 - [Phase 01]: Exact cap boundary (== 0.15) treated as NOT capped -- only exceeding triggers cap
+- [Phase 02]: pytest-httpx chosen over responses lib (C-01) — httpx-native mocking for fuel tool tests
+- [Phase 02]: AgentState.reasoning_trace uses operator.add reducer (Pitfall 1) — parallel Send nodes append instead of overwrite
+- [Phase 02]: FuelData.source kept as str (no Enum) per D-03 — open value-set for future sources
+- [Phase 02]: TRAFFIC_RATIO_BUCKETS parsed from comma-separated env (defaults 1.1/1.3/1.5/1.8) per D-06
+- [Phase 02]: ROUTE_CACHE_TTL_SECONDS default 900s per D-07 — balances Google Maps quota vs freshness
+- [Phase 02]: seeded_sqlite_path fixture copies real data/express.db — avoids test/prod seed drift
 
 ### Pending Todos
 
@@ -83,6 +90,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-04-18T07:07:25.668Z
-Stopped at: Phase 2 context gathered
-Resume file: .planning/phases/02-tools-agent-nodes/02-CONTEXT.md
+Last session: 2026-04-18T07:50:36.209Z
+Stopped at: Completed 02-01-PLAN.md
+Resume file: None
