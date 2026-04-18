@@ -82,13 +82,13 @@ def test_gemini_failure_triggers_deterministic_fallback(
 ):
     mocker.patch.object(mod, "fetch_fuel_price", return_value=_FAKE_FUEL)
 
-    # Replace get_chat_model with a model whose structured-output chain raises.
+    # Replace get_chat_model with a model whose invoke raises (simulating a
+    # transient Gemini failure / unreachable API). Also models the case where
+    # .with_structured_output() is unavailable, since the node uses raw
+    # .invoke() + JSON parsing.
     class _BrokenLLM:
-        def with_structured_output(self, *a, **kw):
-            class _Runner:
-                def invoke(self, *a, **kw):
-                    raise RuntimeError("simulated Gemini failure")
-            return _Runner()
+        def invoke(self, *a, **kw):
+            raise RuntimeError("simulated Gemini failure")
 
     monkeypatch.setattr(mod, "get_chat_model", lambda **_: _BrokenLLM())
 
