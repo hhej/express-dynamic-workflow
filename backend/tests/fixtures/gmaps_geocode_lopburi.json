@@ -1,0 +1,12 @@
+[
+  {
+    "address_components": [
+      {"long_name": "Lop Buri", "short_name": "Lop Buri", "types": ["locality", "political"]},
+      {"long_name": "Lop Buri Province", "short_name": "Lop Buri", "types": ["administrative_area_level_1", "political"]},
+      {"long_name": "Thailand", "short_name": "TH", "types": ["country", "political"]}
+    ],
+    "formatted_address": "Lop Buri, Thailand",
+    "place_id": "ChIJjS9gz9BvGDERIE4b0UAAAAAA",
+    "types": ["locality", "political"]
+  }
+]

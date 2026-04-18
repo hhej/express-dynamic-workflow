@@ -1,0 +1,12 @@
+[
+  {
+    "address_components": [
+      {"long_name": "Ayutthaya", "short_name": "Ayutthaya", "types": ["locality", "political"]},
+      {"long_name": "Ayutthaya Province", "short_name": "Ayutthaya", "types": ["administrative_area_level_1", "political"]},
+      {"long_name": "Thailand", "short_name": "TH", "types": ["country", "political"]}
+    ],
+    "formatted_address": "Phra Nakhon Si Ayutthaya, Ayutthaya, Thailand",
+    "place_id": "ChIJxR3eW6qJHTERUwWsIQAAAAA",
+    "types": ["locality", "political"]
+  }
+]
