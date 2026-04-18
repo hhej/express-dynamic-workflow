@@ -12,6 +12,15 @@ from backend.agent.tools.models import FuelData
 from backend.config import BASELINE_DIESEL_PRICE
 
 
+# pytest-httpx asserts all registered responses must be consumed by default.
+# The live-scrape stub raises NotImplementedError BEFORE any httpx call, so
+# the registered mocks aren't hit. Disable that assertion module-wide -- the
+# tests don't depend on httpx requests actually being made; they just need
+# the Level 1 path to fail so the fallback chain is exercised. When the live
+# scrape is un-stubbed in Phase 5 polish, these mocks become active.
+pytestmark = pytest.mark.httpx_mock(assert_all_responses_were_requested=False)
+
+
 def test_falls_back_to_cached_csv_when_live_fails(httpx_mock, monkeypatch):
     """Level 1 fails 3x -> Level 2 CSV serves data."""
     # Skip sleeping to keep test fast.
