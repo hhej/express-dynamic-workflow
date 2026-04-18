@@ -18,7 +18,7 @@ Requirements for initial release. Each maps to roadmap phases.
 ### Agent Tools
 
 - [ ] **TOOL-01**: fetch_fuel_price tool retrieves live diesel price from EPPO/PTT with multi-level fallback (API -> scrape -> cached CSV -> last-known)
-- [ ] **TOOL-02**: calculate_route tool computes distance, duration, traffic severity, and zone via Google Maps API with 15-min caching
+- [x] **TOOL-02**: calculate_route tool computes distance, duration, traffic severity, and zone via Google Maps API with 15-min caching
 - [x] **TOOL-03**: lookup_rate tool queries SQLite rate table by shipping_type, zone, and weight_kg
 - [x] **TOOL-04**: calculate_surcharge tool applies formula: fuel_delta_pct * multiplier[shipping_type] with traffic adjustment and cap/floor
 - [ ] **TOOL-05**: search_fuel_news tool searches fuel trends via Tavily API for reasoning context
@@ -113,7 +113,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | DATA-04 | Phase 1 | Complete |
 | DATA-05 | Phase 1 | Complete |
 | TOOL-01 | Phase 2 | Pending |
-| TOOL-02 | Phase 2 | Pending |
+| TOOL-02 | Phase 2 | Complete |
 | TOOL-03 | Phase 2 | Complete |
 | TOOL-04 | Phase 2 | Complete |
 | TOOL-05 | Phase 5 | Pending |

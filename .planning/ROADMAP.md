@@ -50,7 +50,7 @@ Plans:
 
 Plans:
 - [x] 02-01-PLAN.md — Wave 0 foundation: deps, config, AgentState reducer fix, conftest + fixtures
-- [ ] 02-02-PLAN.md — TOOL-01: fetch_fuel_price 3-level fallback chain + tests
+- [x] 02-02-PLAN.md — TOOL-01: fetch_fuel_price 3-level fallback chain + tests
 - [x] 02-03-PLAN.md — TOOL-02: calculate_route with zone mapping, traffic bucketing, TTL cache + tests
 - [x] 02-04-PLAN.md — TOOL-03 + TOOL-04: lookup_rate SQLite query and calculate_surcharge @tool wrapper + tests
 - [ ] 02-05-PLAN.md — ORCH-02 + ORCH-03: Fuel Agent and Route Agent nodes with Gemini narration (D-11 fallback) + tests
