@@ -116,3 +116,12 @@ def test_gemini_failure_triggers_deterministic_fallback(
     entry = result["reasoning_trace"][0]
     assert entry["status"] == "ok"
     assert "central-1" in entry["reasoning"] or "15.2" in entry["reasoning"]
+
+
+@pytest.mark.skip(
+    reason="Wave 0 placeholder; D-13 implementation lands in Plan 03-02"
+)
+def test_fetched_at_added_to_dump():
+    # Implemented in Plan 03-02 -- route_agent_node decorates route_data dump
+    # with `fetched_at` (UTC ISO 8601) so planner_node can compute TTL skip.
+    ...

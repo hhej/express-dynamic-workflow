@@ -1,6 +1,7 @@
 [tool.pytest.ini_options]
 testpaths = ["backend/tests"]
 addopts = "-ra -q"
+asyncio_mode = "auto"
 filterwarnings = [
     "ignore::DeprecationWarning:google.*",
     "ignore::DeprecationWarning:pydantic.*",

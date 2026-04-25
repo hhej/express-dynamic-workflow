@@ -116,3 +116,12 @@ def test_reasoning_includes_trend_from_llm_when_successful(
 
     result = fuel_agent_node(sample_agent_state)
     assert "above_baseline" in result["reasoning_trace"][0]["reasoning"]
+
+
+@pytest.mark.skip(
+    reason="Wave 0 placeholder; D-13 implementation lands in Plan 03-02"
+)
+def test_fetched_at_added_to_dump():
+    # Implemented in Plan 03-02 -- fuel_agent_node decorates fuel_data dump
+    # with `fetched_at` (UTC ISO 8601) so planner_node can compute TTL skip.
+    ...
