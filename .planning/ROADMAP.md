@@ -137,3 +137,27 @@ Out-of-band items surfaced during execution (not part of the planned 5-phase mil
 - (b) Rename the product scope language from "Central Region" to "Bangkok Metro" across user-facing docs, narration docstrings, and runtime error messages — chosen, smaller blast radius, no rate-table/zone churn.
 
 **Decision**: Option (b). Internal zone identifiers `central-1/2/3` were intentionally NOT renamed to avoid churn in rate tables, fixtures, and lookup_rate logic. Option (a) remains open as a future expansion possibility for v2.0.
+
+### 999.1: Planner state merge on follow-up turns
+
+**Status**: Resolved 2026-04-25 via quick task `260425-vyj-fix-planner-bugs-999-1-state-merge-on-fo` (option b: post-process recompute).
+
+**Origin**: Live smoke testing on 2026-04-25 (prompt C) surfaced that on the same thread, "Calculate surcharge for 50kg retail_standard from Bangkok to Pathum Thani" followed by "What if I switched it to a Bounce shipment instead?" returned a clarification asking for weight/origin/destination instead of routing through fetch_route/fetch_fuel/calculate_price using the prior thread's values. Root cause: planner_node invoked the LLM with only the latest user message; the LLM returned null for unmentioned fields, populated missing_fields, and emitted next_step=clarify. The post-LLM `parsed.X or state.get("X")` merge filled extraction fields after the fact, but next_step and missing_fields were already decided.
+
+**Options considered**:
+- (a) Inject prior state into the LLM prompt context so the LLM sees state.shipping_type / weight_kg / origin / destination — heavier, requires SYSTEM_PROMPT changes plus a token-cost increase on every planner call, and trusts the LLM to do the right thing.
+- (b) After the existing `parsed.X or state.get("X")` merge produces final values, recompute missing_fields and next_step from the merged values. If the LLM said clarify but the merge has all fields, promote next_step to fetch_fuel and let the existing D-12 cache-aware override cascade further (fetch_route / calculate_price) — chosen, smaller blast radius, no prompt change, no token cost increase, deterministic.
+
+**Decision**: Option (b). The D-12 cache-aware override block was also updated to reference merged_origin/merged_destination (not parsed.origin/parsed.destination) so route-cache hits work on follow-ups where origin/destination were inherited from prior state. Option (a) remains open for future consideration if user_intent classification becomes unreliable on follow-ups.
+
+### 999.3: Planner trace tool_output narration mismatch
+
+**Status**: Resolved 2026-04-25 via quick task `260425-vyj-fix-planner-bugs-999-1-state-merge-on-fo` (folded into the same patch as 999.1).
+
+**Origin**: Live smoke testing on 2026-04-25 surfaced that the trace panel's planner step displayed `tool_output.next_step` values that did not match the actually-routed step. Root cause: planner_node emitted `parsed.model_dump()` as `tool_output`, capturing the raw LLM emission BEFORE the D-12 cache-aware override mutated the local `next_step` variable. The `reasoning` text was correct (already used post-override next_step); only `tool_output` was stale. Pure narration bug — no impact on graph routing — but undermined the agent's transparency promise.
+
+**Options considered**:
+- (a) Drop `tool_output` from planner trace entries entirely — would lose trace-panel detail.
+- (b) Construct `tool_output` as an explicit dict from the post-override next_step and merged extraction fields — chosen, preserves trace fidelity and matches what the function actually returns to the graph.
+
+**Decision**: Option (b). The trace tool_output dict now contains the same values that planner_node returns to the graph, eliminating any narration/routing skew.
