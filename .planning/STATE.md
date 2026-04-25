@@ -28,7 +28,7 @@ See: .planning/PROJECT.md (updated 2026-04-04)
 Phase: 4
 Plan: Not started
 Status: Phase complete — ready for verification
-Last activity: 2026-04-25
+Last activity: 2026-04-25 — Completed quick task 260425-vc6: rename Central Region → Bangkok Metro
 
 Progress: [░░░░░░░░░░] 0%
 
@@ -125,6 +125,12 @@ None yet.
 - Research flagged LOW confidence on package versions -- must verify at install time (Phase 1)
 - EPPO API response format undocumented -- may need reverse engineering (Phase 2)
 - Gemini structured output reliability unknown -- test early in Phase 2
+
+### Quick Tasks Completed
+
+| # | Description | Date | Commit | Directory |
+|---|-------------|------|--------|-----------|
+| 260425-vc6 | Rename product scope from Central Region to Bangkok Metro (resolves backlog 999.2-b) | 2026-04-25 | 4889bf6 | [260425-vc6-rename-product-scope-from-central-region](./quick/260425-vc6-rename-product-scope-from-central-region/) |
 
 ## Session Continuity
 
