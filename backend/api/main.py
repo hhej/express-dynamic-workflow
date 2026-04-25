@@ -17,6 +17,7 @@ from langgraph.checkpoint.sqlite.aio import AsyncSqliteSaver
 from backend.agent.graph import build_graph
 from backend.api.routes.chat import router as chat_router
 from backend.api.routes.conversations import router as conversations_router
+from backend.api.routes.fuel_prices import router as fuel_prices_router
 from backend.config import CHECKPOINT_PATH
 
 logger = logging.getLogger(__name__)
@@ -45,6 +46,7 @@ app = FastAPI(
 )
 app.include_router(chat_router)
 app.include_router(conversations_router)
+app.include_router(fuel_prices_router)
 
 
 @app.get("/health")
