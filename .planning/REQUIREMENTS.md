@@ -17,18 +17,18 @@ Requirements for initial release. Each maps to roadmap phases.
 
 ### Agent Tools
 
-- [ ] **TOOL-01**: fetch_fuel_price tool retrieves live diesel price from EPPO/PTT with multi-level fallback (API -> scrape -> cached CSV -> last-known)
-- [ ] **TOOL-02**: calculate_route tool computes distance, duration, traffic severity, and zone via Google Maps API with 15-min caching
-- [ ] **TOOL-03**: lookup_rate tool queries SQLite rate table by shipping_type, zone, and weight_kg
-- [ ] **TOOL-04**: calculate_surcharge tool applies formula: fuel_delta_pct * multiplier[shipping_type] with traffic adjustment and cap/floor
+- [x] **TOOL-01**: fetch_fuel_price tool retrieves live diesel price from EPPO/PTT with multi-level fallback (API -> scrape -> cached CSV -> last-known)
+- [x] **TOOL-02**: calculate_route tool computes distance, duration, traffic severity, and zone via Google Maps API with 15-min caching
+- [x] **TOOL-03**: lookup_rate tool queries SQLite rate table by shipping_type, zone, and weight_kg
+- [x] **TOOL-04**: calculate_surcharge tool applies formula: fuel_delta_pct * multiplier[shipping_type] with traffic adjustment and cap/floor
 - [ ] **TOOL-05**: search_fuel_news tool searches fuel trends via Tavily API for reasoning context
 - [x] **TOOL-06**: All tools use structured Pydantic input/output models for deterministic, testable responses
 
 ### Agent Orchestration
 
 - [ ] **ORCH-01**: Planner agent detects user intent and routes to appropriate specialist agent(s) via conditional edges
-- [ ] **ORCH-02**: Fuel Agent node wraps fetch_fuel_price and search_fuel_news tools
-- [ ] **ORCH-03**: Route Agent node wraps calculate_route tool with zone mapping
+- [x] **ORCH-02**: Fuel Agent node wraps fetch_fuel_price and search_fuel_news tools
+- [x] **ORCH-03**: Route Agent node wraps calculate_route tool with zone mapping
 - [ ] **ORCH-04**: Pricing Agent node wraps lookup_rate and calculate_surcharge tools
 - [ ] **ORCH-05**: Response node formats final answer with surcharge breakdown table and reasoning
 - [x] **ORCH-06**: Agent state schema (AgentState TypedDict) manages messages, fuel_data, route_data, shipping_type, weight_kg, surcharge_result, reasoning_trace, next_step
@@ -112,15 +112,15 @@ Which phases cover which requirements. Updated during roadmap creation.
 | DATA-03 | Phase 1 | Complete |
 | DATA-04 | Phase 1 | Complete |
 | DATA-05 | Phase 1 | Complete |
-| TOOL-01 | Phase 2 | Pending |
-| TOOL-02 | Phase 2 | Pending |
-| TOOL-03 | Phase 2 | Pending |
-| TOOL-04 | Phase 2 | Pending |
+| TOOL-01 | Phase 2 | Complete |
+| TOOL-02 | Phase 2 | Complete |
+| TOOL-03 | Phase 2 | Complete |
+| TOOL-04 | Phase 2 | Complete |
 | TOOL-05 | Phase 5 | Pending |
 | TOOL-06 | Phase 1 | Complete |
 | ORCH-01 | Phase 3 | Pending |
-| ORCH-02 | Phase 2 | Pending |
-| ORCH-03 | Phase 2 | Pending |
+| ORCH-02 | Phase 2 | Complete |
+| ORCH-03 | Phase 2 | Complete |
 | ORCH-04 | Phase 3 | Pending |
 | ORCH-05 | Phase 3 | Pending |
 | ORCH-06 | Phase 1 | Complete |

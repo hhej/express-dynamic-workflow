@@ -46,12 +46,14 @@ Plans:
   2. calculate_route tool returns distance, duration, traffic severity, and zone for a given origin/destination pair (tested with mocked Google Maps responses)
   3. lookup_rate tool queries SQLite and returns the correct rate for a given shipping_type + zone + weight combination
   4. Fuel Agent and Route Agent nodes can be invoked individually with a sample AgentState and produce correct state updates
-**Plans**: TBD
+**Plans**: 5 plans
 
 Plans:
-- [ ] 02-01: TBD
-- [ ] 02-02: TBD
-- [ ] 02-03: TBD
+- [x] 02-01-PLAN.md — Wave 0 foundation: deps, config, AgentState reducer fix, conftest + fixtures
+- [x] 02-02-PLAN.md — TOOL-01: fetch_fuel_price 3-level fallback chain + tests
+- [x] 02-03-PLAN.md — TOOL-02: calculate_route with zone mapping, traffic bucketing, TTL cache + tests
+- [x] 02-04-PLAN.md — TOOL-03 + TOOL-04: lookup_rate SQLite query and calculate_surcharge @tool wrapper + tests
+- [x] 02-05-PLAN.md — ORCH-02 + ORCH-03: Fuel Agent and Route Agent nodes with Gemini narration (D-11 fallback) + tests
 
 ### Phase 3: Graph Assembly & API Layer
 **Goal**: The full LangGraph StateGraph runs end-to-end -- planner routes to agents, agents produce a surcharge result, and FastAPI serves it via SSE streaming
@@ -63,7 +65,7 @@ Plans:
   3. Conversation memory works: a follow-up question in the same thread reuses previously fetched fuel/route data without re-calling tools
   4. POST /api/chat returns an SSE stream with agent trace events and final response readable by a browser fetch call
   5. GET /api/fuel-prices returns historical fuel price data as JSON
-**Plans**: TBD
+**Plans**: 5 plans
 
 Plans:
 - [ ] 03-01: TBD
@@ -80,7 +82,7 @@ Plans:
   3. Surcharge breakdown table appears in chat showing base rate, surcharge percentage, surcharge amount, and total
   4. Dashboard page displays fuel price trend chart and surcharge history using Recharts
   5. User can browse and resume past conversations via a sidebar
-**Plans**: TBD
+**Plans**: 5 plans
 **UI hint**: yes
 
 Plans:
@@ -98,7 +100,7 @@ Plans:
   3. Langfuse dashboard shows traced LLM calls, tool invocations, and user feedback scores for completed queries
   4. User feedback (thumbs up/down) on a response is visible in Langfuse as a score entry
   5. README.md, architecture.md, and data source docs are complete and accurate for submission
-**Plans**: TBD
+**Plans**: 5 plans
 
 Plans:
 - [ ] 05-01: TBD

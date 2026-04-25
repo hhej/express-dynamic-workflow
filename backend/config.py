@@ -23,3 +23,28 @@ SHIPPING_MULTIPLIERS: dict = {
 # Database paths
 DATABASE_PATH: str = os.environ.get("DATABASE_PATH", "data/express.db")
 CHECKPOINT_PATH: str = os.environ.get("CHECKPOINT_PATH", "data/checkpoints.db")
+
+# --- Phase 2: Tool & Agent Node configuration ---
+
+# API keys (env-only; no defaults -- tests mock, dev reads from .env)
+GOOGLE_MAPS_API_KEY: str = os.environ.get("GOOGLE_MAPS_API_KEY", "")
+GOOGLE_API_KEY: str = os.environ.get("GOOGLE_API_KEY", "")
+
+# Gemini model selection (ChatGoogleGenerativeAI target)
+GEMINI_MODEL: str = os.environ.get("GEMINI_MODEL", "gemini-2.0-flash")
+
+# Fuel scrape timeout (httpx, seconds) -- D-04
+FUEL_FETCH_TIMEOUT: float = float(os.environ.get("FUEL_FETCH_TIMEOUT", "10"))
+
+# Route cache TTL (seconds) -- D-07
+ROUTE_CACHE_TTL_SECONDS: int = int(
+    os.environ.get("ROUTE_CACHE_TTL_SECONDS", "900")
+)
+
+# Traffic-ratio bucket thresholds for severity 2..5 -- D-06
+# Comma-separated floats in env; parsed to list[float].
+# ratio < bucket[0] -> severity 1; < bucket[1] -> 2; ... ; >= bucket[-1] -> 5
+_traffic_raw = os.environ.get("TRAFFIC_RATIO_BUCKETS", "1.1,1.3,1.5,1.8")
+TRAFFIC_RATIO_BUCKETS: list = [
+    float(x.strip()) for x in _traffic_raw.split(",") if x.strip()
+]
