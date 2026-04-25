@@ -140,12 +140,17 @@ def test_emits_clarify_on_missing_fields(monkeypatch):
 
 
 def test_loop_budget_exhaustion_forces_respond(monkeypatch):
-    """D-04: when reasoning_trace already has >= PLANNER_MAX_ITERATIONS-1
-    entries, Planner returns next_step=respond WITHOUT calling Gemini."""
-    # PLANNER_MAX_ITERATIONS default is 6, so 5 prior trace entries triggers.
+    """D-04 (windowed per turn, 999.4): when the CURRENT turn already contains
+    >= PLANNER_MAX_ITERATIONS-1 planner-tagged entries (with no intervening
+    agent='response' entry), Planner returns next_step=respond WITHOUT calling
+    Gemini."""
+    # PLANNER_MAX_ITERATIONS default is 6, so 5 planner-tagged entries in the
+    # current turn (no response yet) triggers the guard.
     state = _user_state(
         "Anything",
-        reasoning_trace=[{"step": i + 1, "agent": "x"} for i in range(5)],
+        reasoning_trace=[
+            {"step": i + 1, "agent": "planner"} for i in range(5)
+        ],
     )
 
     mock_factory = MagicMock()
@@ -157,6 +162,53 @@ def test_loop_budget_exhaustion_forces_respond(monkeypatch):
     assert result["clarification_reason"] == "planner_loop_budget_exhausted"
     # No Gemini call should occur
     assert mock_factory.call_count == 0
+
+
+def test_loop_budget_resets_after_response_entry(monkeypatch):
+    """999.4: per-turn windowing — a 6-entry trace ending in agent='response'
+    means turn 2 starts fresh; planner_count_in_current_turn = 0, so the
+    guard MUST NOT fire and the LLM MUST be invoked."""
+    # Simulate a complete turn 1: planner + fuel + planner + route + pricing + response (6 entries).
+    # Note: agent values are the trace tags written by each node.
+    state = _user_state(
+        "What if Retail Standard?",
+        shipping_type="bounce",
+        weight_kg=15.0,
+        origin="Bangkok",
+        destination="Pathum Thani",
+        reasoning_trace=[
+            {"step": 1, "agent": "planner"},
+            {"step": 2, "agent": "fuel_agent"},
+            {"step": 3, "agent": "planner"},
+            {"step": 4, "agent": "route_agent"},
+            {"step": 5, "agent": "pricing_agent"},
+            {"step": 6, "agent": "response"},
+        ],
+    )
+    monkeypatch.setattr(
+        mod,
+        "get_chat_model",
+        lambda **_: _scripted_llm(
+            '{"user_intent": "followup_query", '
+            '"shipping_type": "retail_standard", "weight_kg": null, '
+            '"origin": null, "destination": null, '
+            '"missing_fields": ["weight_kg", "origin", "destination"], '
+            '"next_step": "clarify", '
+            '"clarification_reason": "missing_inputs"}'
+        ),
+    )
+
+    result = planner_node(state)
+
+    # Guard did NOT fire — clarification_reason is NOT the budget-exhaustion sentinel.
+    assert result.get("clarification_reason") != "planner_loop_budget_exhausted"
+    # LLM ran and the post-LLM merge promoted clarify -> fetch_fuel (999.1).
+    # Either way, the path through the LLM produced a real next_step (not the
+    # short-circuit "respond" + budget-exhausted clarification_reason).
+    assert result["next_step"] == "fetch_fuel"
+    # The new planner entry was appended (not the empty short-circuit return).
+    assert "reasoning_trace" in result
+    assert result["reasoning_trace"][0]["agent"] == "planner"
 
 
 def test_parse_failure_falls_back_to_clarify(monkeypatch):

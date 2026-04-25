@@ -4,9 +4,11 @@ Implements:
 - D-01: PlannerOutput Pydantic schema (next_step + extracted inputs).
 - D-02: One-retry Gemini parse fallback to next_step=clarify on persistent
   parse failure.
-- D-04: PLANNER_MAX_ITERATIONS loop budget — when reasoning_trace already has
-  >= PLANNER_MAX_ITERATIONS - 1 entries, force next_step=respond WITHOUT
-  calling Gemini.
+- D-04: PLANNER_MAX_ITERATIONS loop budget — when the CURRENT turn (entries
+  since last agent='response') already contains >= PLANNER_MAX_ITERATIONS - 1
+  planner-tagged entries, force next_step=respond WITHOUT calling Gemini.
+  Windowed per turn (999.4 fix 2026-04-25) so cross-turn reasoning_trace
+  accumulation doesn't short-circuit turn 2 of a same-thread conversation.
 - D-12: Cache-aware skip — when state.fuel_data is fresher than
   FUEL_DATA_TTL_SECONDS, override LLM-emitted next_step=fetch_fuel; when
   state.route_data origin/destination match the merged values, override
@@ -15,6 +17,8 @@ Implements:
   next_step from merged values so follow-up turns honour cached state.
 - 999.3 fix (2026-04-25): trace tool_output reflects post-override
   next_step and merged extraction fields, not the raw LLM emission.
+- 999.4 fix (2026-04-25): _loop_budget_exhausted now windows the count to
+  planner-tagged entries within the current turn, not the cumulative trace.
 
 Test seam: tests monkeypatch ``get_chat_model`` in this module's namespace
 and feed scripted ``FakeMessagesListChatModel`` instances; mirrors the
@@ -93,15 +97,27 @@ def _route_matches(
 
 
 def _loop_budget_exhausted(state: dict) -> bool:
-    """D-04: True when reasoning_trace already has >= MAX-1 entries.
+    """D-04: True when planner has run >= MAX-1 times in the CURRENT turn.
 
-    Rough proxy: 1 planner step + ≤4 specialist steps + 1 respond = ≤6
-    (PLANNER_MAX_ITERATIONS default). Once we have 5 entries, the *next*
-    planner invocation would push us over budget — force respond instead.
+    999.4 fix (2026-04-25): the reasoning_trace reducer is operator.add
+    (Phase 2 design — cumulative trace for the UI panel persists across
+    turns), so a length-only check would short-circuit turn 2 of a
+    same-thread conversation before the planner LLM is invoked. D-04's
+    documented intent is to cap planner *iterations within one user
+    request*, so we window the count to "entries since the most recent
+    agent='response' entry" (or the entire trace if no response yet).
     """
-    return (
-        len(state.get("reasoning_trace") or []) >= PLANNER_MAX_ITERATIONS - 1
+    trace = state.get("reasoning_trace") or []
+    last_response_idx = -1
+    for i in range(len(trace) - 1, -1, -1):
+        if trace[i].get("agent") == "response":
+            last_response_idx = i
+            break
+    current_turn = trace[last_response_idx + 1:]
+    planner_count = sum(
+        1 for e in current_turn if e.get("agent") == "planner"
     )
+    return planner_count >= PLANNER_MAX_ITERATIONS - 1
 
 
 def _parse_structured(raw: str) -> PlannerOutput:
