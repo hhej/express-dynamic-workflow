@@ -9,8 +9,12 @@ Implements:
   calling Gemini.
 - D-12: Cache-aware skip — when state.fuel_data is fresher than
   FUEL_DATA_TTL_SECONDS, override LLM-emitted next_step=fetch_fuel; when
-  state.route_data origin/destination match the parsed values, override
+  state.route_data origin/destination match the merged values, override
   next_step=fetch_route.
+- 999.1 fix (2026-04-25): post-LLM recompute of missing_fields and
+  next_step from merged values so follow-up turns honour cached state.
+- 999.3 fix (2026-04-25): trace tool_output reflects post-override
+  next_step and merged extraction fields, not the raw LLM emission.
 
 Test seam: tests monkeypatch ``get_chat_model`` in this module's namespace
 and feed scripted ``FakeMessagesListChatModel`` instances; mirrors the
@@ -180,35 +184,65 @@ def planner_node(state: dict) -> dict:
 
     assert parsed is not None  # for type checkers; loop break/return covers all paths
 
-    # D-12 cache-aware override on parsed.next_step.
+    # 999.1 fix: merge parsed (latest user message) with prior state values
+    # BEFORE deciding next_step. The LLM only sees the latest user message,
+    # so on follow-up turns it emits null for unmentioned fields and routes
+    # to clarify; the post-LLM merge fills the gaps from prior state and
+    # the recompute below promotes next_step accordingly.
+    merged_shipping = parsed.shipping_type or state.get("shipping_type")
+    merged_weight = (
+        parsed.weight_kg
+        if parsed.weight_kg is not None
+        else state.get("weight_kg")
+    )
+    merged_origin = parsed.origin or state.get("origin")
+    merged_destination = parsed.destination or state.get("destination")
+
+    # 999.1 fix: recompute missing_fields from merged values, not from the
+    # LLM's per-message emission.
+    missing: List[str] = []
+    if not merged_shipping:
+        missing.append("shipping_type")
+    if merged_weight is None:
+        missing.append("weight_kg")
+    if not merged_origin:
+        missing.append("origin")
+    if not merged_destination:
+        missing.append("destination")
+
+    # 999.1 fix: if the LLM said clarify but the merged state has all four
+    # fields, promote next_step to fetch_fuel so the existing D-12 override
+    # below can cascade to fetch_route / calculate_price based on cache state.
     next_step = parsed.next_step
+    if next_step == "clarify" and not missing:
+        next_step = "fetch_fuel"
+
+    # D-12 cache-aware override on (possibly promoted) next_step. Uses
+    # merged_origin/merged_destination so route-cache hits work on
+    # follow-ups where origin/destination were inherited from prior state.
     if next_step == "fetch_fuel" and _fuel_fresh(state):
         # Fuel is cached and fresh — advance to next logical step.
-        if _route_matches(state, parsed.origin, parsed.destination):
+        if _route_matches(state, merged_origin, merged_destination):
             # Route also cached: only need pricing (assuming inputs present).
-            if parsed.shipping_type and parsed.weight_kg is not None:
+            if merged_shipping and merged_weight is not None:
                 next_step = "calculate_price"
             else:
                 next_step = "clarify"
         else:
             next_step = "fetch_route"
     elif next_step == "fetch_route" and _route_matches(
-        state, parsed.origin, parsed.destination
+        state, merged_origin, merged_destination
     ):
         next_step = "calculate_price" if _fuel_fresh(state) else "fetch_fuel"
 
     prior = len(state.get("reasoning_trace") or [])
     return {
         "user_intent": parsed.user_intent,
-        "shipping_type": parsed.shipping_type or state.get("shipping_type"),
-        "weight_kg": (
-            parsed.weight_kg
-            if parsed.weight_kg is not None
-            else state.get("weight_kg")
-        ),
-        "origin": parsed.origin or state.get("origin"),
-        "destination": parsed.destination or state.get("destination"),
-        "missing_fields": parsed.missing_fields,
+        "shipping_type": merged_shipping,
+        "weight_kg": merged_weight,
+        "origin": merged_origin,
+        "destination": merged_destination,
+        "missing_fields": missing,
         "clarification_reason": parsed.clarification_reason,
         "next_step": next_step,
         "reasoning_trace": [
@@ -217,7 +251,19 @@ def planner_node(state: dict) -> dict:
                 "agent": "planner",
                 "tool": None,
                 "tool_input": {},
-                "tool_output": parsed.model_dump(),
+                # 999.3 fix: trace tool_output reflects post-override
+                # next_step + merged extraction fields, not the raw LLM
+                # emission. Mirrors what this function returns to the graph.
+                "tool_output": {
+                    "user_intent": parsed.user_intent,
+                    "shipping_type": merged_shipping,
+                    "weight_kg": merged_weight,
+                    "origin": merged_origin,
+                    "destination": merged_destination,
+                    "missing_fields": missing,
+                    "next_step": next_step,
+                    "clarification_reason": parsed.clarification_reason,
+                },
                 "reasoning": (
                     f"Intent={parsed.user_intent}; routing to {next_step}"
                 ),

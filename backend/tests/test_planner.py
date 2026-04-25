@@ -173,3 +173,177 @@ def test_parse_failure_falls_back_to_clarify(monkeypatch):
 
     assert result["next_step"] == "clarify"
     assert result["clarification_reason"] == "planner_parse_failed"
+
+
+# ---------------------------------------------------------------------------
+# 999.1 / 999.3 regression tests (added 2026-04-25 via quick task 260425-vyj)
+# ---------------------------------------------------------------------------
+
+
+def test_followup_merges_prior_state_promotes_clarify_to_fetch(monkeypatch):
+    """999.1: on a parameter-switch follow-up, the LLM emits clarify-with-nulls
+    because it only sees the latest user message; the post-LLM merge fills the
+    gaps from prior state, and the recompute MUST promote next_step to
+    fetch_fuel (no caches in state) instead of clarify."""
+    state = _user_state(
+        "What if Retail Standard?",
+        shipping_type="bounce",
+        weight_kg=15.0,
+        origin="Bangkok",
+        destination="Pathum Thani",
+    )
+    monkeypatch.setattr(
+        mod,
+        "get_chat_model",
+        lambda **_: _scripted_llm(
+            '{"user_intent": "followup_query", '
+            '"shipping_type": "retail_standard", "weight_kg": null, '
+            '"origin": null, "destination": null, '
+            '"missing_fields": ["weight_kg", "origin", "destination"], '
+            '"next_step": "clarify", '
+            '"clarification_reason": "missing_inputs"}'
+        ),
+    )
+
+    result = planner_node(state)
+
+    # 999.1: promoted from clarify to fetch_fuel (no caches in state).
+    assert result["next_step"] == "fetch_fuel"
+    # 999.1: missing_fields recomputed from merged values, not from LLM emission.
+    assert result["missing_fields"] == []
+    # Merge produces the new shipping_type from LLM + inherited fields from state.
+    assert result["shipping_type"] == "retail_standard"
+    assert result["weight_kg"] == 15.0
+    assert result["origin"] == "Bangkok"
+    assert result["destination"] == "Pathum Thani"
+
+
+def test_followup_with_full_cache_routes_calculate_price(monkeypatch):
+    """999.1 + D-12: full prior state with fresh fuel_data and matching
+    route_data; LLM emits clarify-with-nulls (parameter-switch reproducer);
+    promotion to fetch_fuel + D-12 cascade should route to calculate_price."""
+    state = _user_state(
+        "What if Retail Standard?",
+        shipping_type="bounce",
+        weight_kg=15.0,
+        origin="Bangkok",
+        destination="Pathum Thani",
+        fuel_data={
+            "price": 31.0,
+            "baseline": 29.94,
+            "delta_pct": 0.0354,
+            "date": "2026-04-25",
+            "unit": "THB/L",
+            "source": "eppo_live",
+            "fetched_at": _now_iso_z(),
+        },
+        route_data={
+            "origin": "Bangkok",
+            "destination": "Pathum Thani",
+            "distance_km": 32.0,
+            "duration_min": 45,
+            "traffic_severity": 2,
+            "zone": "central-1",
+        },
+    )
+    monkeypatch.setattr(
+        mod,
+        "get_chat_model",
+        lambda **_: _scripted_llm(
+            '{"user_intent": "followup_query", '
+            '"shipping_type": "retail_standard", "weight_kg": null, '
+            '"origin": null, "destination": null, '
+            '"missing_fields": ["weight_kg", "origin", "destination"], '
+            '"next_step": "clarify", '
+            '"clarification_reason": "missing_inputs"}'
+        ),
+    )
+
+    result = planner_node(state)
+
+    # D-12 cascade: clarify -> fetch_fuel (promotion) -> fuel_fresh skip ->
+    # _route_matches uses merged_origin/destination -> calculate_price.
+    assert result["next_step"] == "calculate_price"
+    assert result["shipping_type"] == "retail_standard"
+    assert result["weight_kg"] == 15.0
+    assert result["origin"] == "Bangkok"
+    assert result["destination"] == "Pathum Thani"
+
+
+def test_trace_tool_output_reflects_post_override_next_step(monkeypatch):
+    """999.3: D-12 overrides LLM-emitted fetch_fuel to fetch_route (route not
+    cached, fuel fresh); the trace tool_output MUST reflect the post-override
+    next_step ('fetch_route'), not the raw LLM emission ('fetch_fuel')."""
+    state = _user_state(
+        "Surcharge for 15kg Bounce Bangkok to Nonthaburi",
+        fuel_data={
+            "price": 31.0,
+            "baseline": 29.94,
+            "delta_pct": 0.0354,
+            "date": "2026-04-25",
+            "unit": "THB/L",
+            "source": "eppo_live",
+            "fetched_at": _now_iso_z(),
+        },
+    )
+    monkeypatch.setattr(
+        mod,
+        "get_chat_model",
+        lambda **_: _scripted_llm(
+            '{"user_intent": "surcharge_query", '
+            '"shipping_type": "bounce", "weight_kg": 15, '
+            '"origin": "Bangkok", "destination": "Nonthaburi", '
+            '"missing_fields": [], '
+            '"next_step": "fetch_fuel", '
+            '"clarification_reason": null}'
+        ),
+    )
+
+    result = planner_node(state)
+
+    assert result["next_step"] == "fetch_route"
+    # 999.3 fix: trace tool_output reflects the actually-routed step,
+    # not the raw LLM emission.
+    trace_output = result["reasoning_trace"][0]["tool_output"]
+    assert trace_output["next_step"] == "fetch_route"
+    # Merged extraction fields are present (==parsed values for this case).
+    assert trace_output["shipping_type"] == "bounce"
+    assert trace_output["weight_kg"] == 15
+    assert trace_output["origin"] == "Bangkok"
+    assert trace_output["destination"] == "Nonthaburi"
+
+
+def test_trace_tool_output_reflects_merged_inherited_fields(monkeypatch):
+    """999.3 + 999.1: state has prior weight_kg=15; LLM emits null weight_kg
+    plus missing_fields=['weight_kg'] plus next_step=clarify. The trace
+    tool_output MUST reflect the merged weight_kg (15.0) and the recomputed
+    empty missing_fields list, not the raw LLM emission."""
+    state = _user_state(
+        "Bounce Bangkok to Nonthaburi",
+        weight_kg=15.0,
+    )
+    monkeypatch.setattr(
+        mod,
+        "get_chat_model",
+        lambda **_: _scripted_llm(
+            '{"user_intent": "followup_query", '
+            '"shipping_type": "bounce", "weight_kg": null, '
+            '"origin": "Bangkok", "destination": "Nonthaburi", '
+            '"missing_fields": ["weight_kg"], '
+            '"next_step": "clarify", '
+            '"clarification_reason": "missing_weight"}'
+        ),
+    )
+
+    result = planner_node(state)
+
+    # 999.1: promotion to fetch_fuel (no caches; merge fills weight_kg).
+    assert result["next_step"] == "fetch_fuel"
+    trace_output = result["reasoning_trace"][0]["tool_output"]
+    # 999.3: trace shows merged weight, not the LLM's null.
+    assert trace_output["weight_kg"] == 15.0
+    # 999.3: trace shows recomputed empty missing_fields, not the LLM's
+    # ["weight_kg"].
+    assert trace_output["missing_fields"] == []
+    # 999.3: trace next_step matches the post-override return value.
+    assert trace_output["next_step"] == "fetch_fuel"
