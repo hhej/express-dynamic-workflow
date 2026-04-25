@@ -161,3 +161,11 @@ Out-of-band items surfaced during execution (not part of the planned 5-phase mil
 - (b) Construct `tool_output` as an explicit dict from the post-override next_step and merged extraction fields — chosen, preserves trace fidelity and matches what the function actually returns to the graph.
 
 **Decision**: Option (b). The trace tool_output dict now contains the same values that planner_node returns to the graph, eliminating any narration/routing skew.
+
+### 999.4: D-04 loop budget windowed per turn (cross-turn short-circuit bug)
+
+**Status**: Resolved 2026-04-25 via quick task `260425-x2i-fix-d-04-loop-budget-guard-to-window-per`.
+
+**Origin**: Live smoke retest 2026-04-25 of 999.1 fix exposed that turn 2 of a same-thread conversation never reached the planner — the cumulative reasoning_trace from turn 1 (operator.add reducer) tripped D-04's `len(trace) >= MAX-1` guard before turn 2's planner could run. Result: response node re-rendered turn 1's cached surcharge_result instead of recomputing for the new user message. Symptom matched the original 999.1 surface bug, but the root cause was the budget guard, not the merge logic.
+
+**Fix**: `_loop_budget_exhausted` now counts only `agent == "planner"` entries in the current turn (entries since the most recent `agent == "response"` entry). Matches D-04's documented intent of capping planner *iterations within one user request*.
