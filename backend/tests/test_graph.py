@@ -508,13 +508,12 @@ async def test_followup_param_switch_routes_through_pricing(
     from backend.agent.nodes import route_agent as route_mod
     from backend.agent.nodes import pricing_agent as pricing_mod
 
-    # The default PLANNER_MAX_ITERATIONS=6 (D-04) means turn 1 alone fills
-    # reasoning_trace to ~7 entries, which would short-circuit turn 2's
-    # planner via _loop_budget_exhausted before the LLM is ever called.
-    # That's the unrelated D-04 guard, not the 999.1 bug under test — bump
-    # the budget for this test so the planner LLM IS invoked on turn 2 and
-    # the 999.1 merge/promotion logic actually runs.
-    monkeypatch.setattr(planner_mod, "PLANNER_MAX_ITERATIONS", 100)
+    # D-04 loop budget is now windowed per turn (999.4 fix 2026-04-25):
+    # turn 1's reasoning_trace ending in agent='response' resets the
+    # planner-iteration count for turn 2, so default PLANNER_MAX_ITERATIONS=6
+    # no longer short-circuits the follow-up planner LLM call. No monkeypatch
+    # needed — passing this test against the default budget is the strongest
+    # signal the D-04 fix actually closes the cross-turn short-circuit gap.
 
     turn1 = [
         _planner_response(
