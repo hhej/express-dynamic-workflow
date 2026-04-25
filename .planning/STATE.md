@@ -28,7 +28,7 @@ See: .planning/PROJECT.md (updated 2026-04-04)
 Phase: 4
 Plan: Not started
 Status: Phase complete — ready for verification
-Last activity: 2026-04-25 — Completed quick task 260425-vyj: fix planner bugs 999.1 and 999.3
+Last activity: 2026-04-25 — Completed quick task 260425-x2i: fix D-04 loop-budget guard (999.4)
 
 Progress: [░░░░░░░░░░] 0%
 
@@ -132,6 +132,7 @@ None yet.
 |---|-------------|------|--------|--------|-----------|
 | 260425-vc6 | Rename product scope from Central Region to Bangkok Metro (resolves backlog 999.2-b) | 2026-04-25 | 4889bf6 |  | [260425-vc6-rename-product-scope-from-central-region](./quick/260425-vc6-rename-product-scope-from-central-region/) |
 | 260425-vyj | Fix planner bugs 999.1 (state merge on follow-ups) and 999.3 (stale next_step in trace) | 2026-04-25 | 231a54b | Verified | [260425-vyj-fix-planner-bugs-999-1-state-merge-on-fo](./quick/260425-vyj-fix-planner-bugs-999-1-state-merge-on-fo/) |
+| 260425-x2i | Fix D-04 loop-budget guard to window per turn (resolves 999.4 — cross-turn short-circuit) | 2026-04-25 | bd27c33 | Smoke-confirmed | [260425-x2i-fix-d-04-loop-budget-guard-to-window-per](./quick/260425-x2i-fix-d-04-loop-budget-guard-to-window-per/) |
 
 ## Session Continuity
 
