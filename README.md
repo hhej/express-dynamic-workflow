@@ -7,6 +7,20 @@ An Agentic AI system that dynamically calculates fuel surcharges for Express log
 
 ---
 
+## Build Status
+
+| Phase | Scope | Status |
+|-------|-------|--------|
+| **1. Foundation & Data Pipeline** | SQLite seed, Pydantic models, AgentState, surcharge formula | ✅ Complete |
+| **2. Tools & Agent Nodes** | `fetch_fuel_price`, `calculate_route`, `lookup_rate`, `calculate_surcharge`, Fuel/Route nodes with Gemini narration | ✅ Complete |
+| **3. Graph Assembly & API Layer** | LangGraph StateGraph + AsyncSqliteSaver, FastAPI `/api/chat` (SSE), `/api/conversations`, `/api/fuel-prices` | ✅ Complete |
+| **4. Frontend & Reasoning Trace** | Next.js chat UI, trace panel, dashboard, conversation sidebar | ⏳ Pending |
+| **5. Polish, Observability & Docs** | Parallel Fuel+Route (Send API), HITL gate, Tavily search, Langfuse, final docs | ⏳ Pending |
+
+Backend test suite: **103 passing** (`backend/tests/`). The agent graph runs end-to-end and is reachable via the FastAPI streaming endpoint.
+
+---
+
 ## Team Members
 
 | Role | Student ID | Name |
@@ -57,6 +71,47 @@ The system uses a **LangGraph multi-agent graph** with four specialist nodes:
 | **Pricing Agent** | Computes surcharge using rate tables and fuel data | `lookup_rate`, `calculate_surcharge` |
 
 The planner checks conversation memory before invoking agents — if fuel data was fetched recently, it skips the Fuel Agent and routes directly to pricing. This makes follow-up questions fast and efficient.
+
+### Graph Flow
+
+```mermaid
+flowchart TD
+    Start([User query<br/>POST /api/chat]) --> Planner{{Planner Node<br/>parse intent · check memory · route}}
+
+    Planner -->|fetch_fuel| Fuel[Fuel Agent<br/>fetch_fuel_price · search_fuel_news]
+    Planner -->|fetch_route| Route[Route Agent<br/>calculate_route]
+    Planner -->|calculate_price| Pricing[Pricing Agent<br/>lookup_rate · calculate_surcharge]
+    Planner -->|clarify / respond| Response[Response Node<br/>final prose + breakdown table]
+
+    Fuel -->|state update| Planner
+    Route -->|state update| Planner
+    Pricing -->|surcharge_result| Response
+
+    Response --> Stream([SSE stream<br/>meta · trace · answer · done])
+    Stream --> End([Client])
+
+    Checkpointer[(AsyncSqliteSaver<br/>data/checkpoints.db)] -.thread state.- Planner
+    Checkpointer -.persist.- Response
+
+    subgraph Tools[Tool Layer]
+        FuelTool[(EPPO / PTT<br/>+ cached CSV)]
+        MapsTool[(Google Maps<br/>Directions API)]
+        RateDB[(SQLite<br/>data/express.db)]
+    end
+
+    Fuel -.-> FuelTool
+    Route -.-> MapsTool
+    Pricing -.-> RateDB
+
+    classDef agent fill:#1f2937,stroke:#60a5fa,color:#f9fafb
+    classDef io fill:#0f172a,stroke:#34d399,color:#f9fafb
+    classDef store fill:#111827,stroke:#fbbf24,color:#f9fafb
+    class Planner,Fuel,Route,Pricing,Response agent
+    class Start,Stream,End io
+    class Checkpointer,FuelTool,MapsTool,RateDB store
+```
+
+Conditional edges return to the Planner after each specialist node so it can decide the next hop based on the updated state (e.g. once `fuel_data` and `route_data` are populated, route to Pricing). On tool failure, an error sink wraps the node and a `RetryPolicy` retries with exponential backoff before forcing a Response with a graceful explanation.
 
 See [docs/architecture.md](docs/architecture.md) for the full technical architecture including agent state, graph flow, and surcharge calculation logic.
 
