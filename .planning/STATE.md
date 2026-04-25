@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-stopped_at: "Completed 03-02-PLAN.md (Wave 2 nodes: Planner+Pricing+Response+D-13)"
-last_updated: "2026-04-25T03:52:20.440Z"
+stopped_at: "Completed 03-03-PLAN.md (Wave 3 graph: build_graph + retry topology + 7 integration tests)"
+last_updated: "2026-04-25T04:04:39.165Z"
 last_activity: 2026-04-25
 progress:
   total_phases: 5
   completed_phases: 2
   total_plans: 13
-  completed_plans: 10
+  completed_plans: 11
   percent: 0
 ---
 
@@ -26,7 +26,7 @@ See: .planning/PROJECT.md (updated 2026-04-04)
 ## Current Position
 
 Phase: 03 (graph-assembly-api-layer) — EXECUTING
-Plan: 3 of 5
+Plan: 4 of 5
 Status: Ready to execute
 Last activity: 2026-04-25
 
@@ -62,6 +62,7 @@ Progress: [░░░░░░░░░░] 0%
 | Phase 02 P05 | 5min | 3 tasks | 7 files |
 | Phase 03 P01 | 8min | 3 tasks | 14 files |
 | Phase 03 P02 | 6min | 2 tasks | 13 files |
+| Phase 03 P03 | 7min | 2 tasks | 5 files |
 
 ## Accumulated Context
 
@@ -101,6 +102,10 @@ Recent decisions affecting current work:
 - [Phase 03]: Plan 03-02: Response Node uses deterministic prose (no Gemini call in v1) per RESEARCH OQ 3/5 -- final hop renders prose+table from Python f-strings, fully testable, saves Gemini quota for Planner+Fuel+Route+Pricing
 - [Phase 03]: Plan 03-02: PlannerOutput.next_step Literal includes 'search_context' even though v1 prompt instructs LLM never to emit it -- keeping it in schema means stray emission validates instead of triggering D-02 parse_failed cycle (Phase 5 enables search without re-touching schema)
 - [Phase 03]: Plan 03-02: D-13 fetched_at attached to fuel_data/route_data AFTER model_dump() (state-level annotation, not Pydantic field) -- preserves clean tool-output schema; trace_entry.tool_output reflects exactly what tool returned
+- [Phase 03]: Plan 03-03: _wrap_error_sink uses per-state attempt counter (id(state)) to re-raise transient errors until max_attempts is reached -- without this RetryPolicy never sees retryable exceptions and D-22 retry behaviour fails
+- [Phase 03]: Plan 03-03: Pricing Agent intentionally NOT wrapped in error sink -- D-09 mandates ValueError from lookup_rate must bubble uncaught; wrapper would re-raise ValueError but skipping the wrap removes a stack frame and clarifies test failures
+- [Phase 03]: Plan 03-03: Planner short-circuits on state.errors BEFORE D-04 loop-budget guard and BEFORE Gemini call -- reconciles D-03 planner-loop topology with D-24 error-sink force-respond, prevents infinite loop on persistent transient failures
+- [Phase 03]: Plan 03-03: AgentState.final_payload added as Optional[dict] TypedDict field -- response_node output otherwise dropped by StateGraph(AgentState) merge; Plan 03-04 SSE handler will detect this key via astream_events
 
 ### Pending Todos
 
@@ -114,6 +119,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-04-25T03:52:20.437Z
-Stopped at: Completed 03-02-PLAN.md (Wave 2 nodes: Planner+Pricing+Response+D-13)
+Last session: 2026-04-25T04:04:39.162Z
+Stopped at: Completed 03-03-PLAN.md (Wave 3 graph: build_graph + retry topology + 7 integration tests)
 Resume file: None
