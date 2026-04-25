@@ -480,3 +480,167 @@ async def test_followup_only_runs_pricing(
     # Both caches reused on turn 2.
     assert fuel_calls["n"] == 1
     assert route_calls["n"] == 1
+
+
+# ---------------------------------------------------------------------------
+# Test 8: 999.1 E2E regression — parameter-switch follow-up routes through
+# pricing despite the LLM emitting clarify-with-nulls (added 2026-04-25 via
+# quick task 260425-vyj).
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_followup_param_switch_routes_through_pricing(
+    monkeypatch, mocker, in_memory_checkpointer,
+):
+    """999.1 E2E: turn 1 populates fuel_data + route_data + shipping_type
+    on thread t-vyj-followup. Turn 2 sends "What if I switched it to a
+    Bounce shipment instead?"; the planner LLM (only seeing the latest
+    user message) emits next_step=clarify with shipping_type=bounce and
+    null weight_kg/origin/destination. Without the 999.1 fix the graph
+    routes to clarify and surcharge_result stays None. With the fix the
+    post-LLM merge fills the gaps from prior state, the recompute
+    promotes next_step to fetch_fuel, the D-12 cascade hits the fuel +
+    route caches, and the graph routes through pricing.
+    """
+    from backend.agent.nodes import planner as planner_mod
+    from backend.agent.nodes import fuel_agent as fuel_mod
+    from backend.agent.nodes import route_agent as route_mod
+    from backend.agent.nodes import pricing_agent as pricing_mod
+
+    # D-04 loop budget is now windowed per turn (999.4 fix 2026-04-25):
+    # turn 1's reasoning_trace ending in agent='response' resets the
+    # planner-iteration count for turn 2, so default PLANNER_MAX_ITERATIONS=6
+    # no longer short-circuits the follow-up planner LLM call. No monkeypatch
+    # needed — passing this test against the default budget is the strongest
+    # signal the D-04 fix actually closes the cross-turn short-circuit gap.
+
+    turn1 = [
+        _planner_response(
+            "fetch_fuel", shipping_type="retail_standard",
+            weight_kg=50.0, origin="Bangkok",
+            destination="Pathum Thani",
+        ),
+        _planner_response(
+            "fetch_route", shipping_type="retail_standard",
+            weight_kg=50.0, origin="Bangkok",
+            destination="Pathum Thani",
+        ),
+        _planner_response(
+            "calculate_price", shipping_type="retail_standard",
+            weight_kg=50.0, origin="Bangkok",
+            destination="Pathum Thani",
+        ),
+        _planner_response(
+            "respond", shipping_type="retail_standard",
+            weight_kg=50.0, origin="Bangkok",
+            destination="Pathum Thani",
+        ),
+    ]
+    # Turn 2 reproducer shape: only shipping_type extracted, others null,
+    # next_step=clarify, user_intent=followup_query — exactly what the
+    # live LLM emitted on 2026-04-25 smoke testing.
+    turn2 = [
+        _planner_response(
+            "clarify",
+            user_intent="followup_query",
+            shipping_type="bounce",
+            weight_kg=None, origin=None, destination=None,
+            missing_fields=["weight_kg", "origin", "destination"],
+            clarification_reason="missing_inputs",
+        ),
+        _planner_response(
+            "respond",
+            user_intent="followup_query",
+            shipping_type="bounce",
+            weight_kg=50.0, origin="Bangkok",
+            destination="Pathum Thani",
+        ),
+    ]
+    planner_responses = turn1 + turn2
+
+    monkeypatch.setattr(
+        planner_mod, "get_chat_model",
+        _stateful_factory(*planner_responses),
+    )
+    monkeypatch.setattr(
+        fuel_mod, "get_chat_model",
+        _stateful_factory(_NARR, _NARR),
+    )
+    monkeypatch.setattr(
+        route_mod, "get_chat_model",
+        _stateful_factory(_NARR_R, _NARR_R),
+    )
+    monkeypatch.setattr(
+        pricing_mod, "get_chat_model",
+        _stateful_factory(_NARR_P, _NARR_P),
+    )
+
+    fuel_calls = {"n": 0}
+    route_calls = {"n": 0}
+    lookup_calls = {"n": 0}
+
+    def count_fuel():
+        fuel_calls["n"] += 1
+        return FuelData(
+            price=31.0, date="2026-04-25", source="eppo_live",
+            baseline=29.94, delta_pct=0.0354,
+        )
+
+    def count_route(origin, destination):
+        route_calls["n"] += 1
+        return RouteData(
+            origin=origin, destination=destination,
+            distance_km=32.0, duration_min=45,
+            traffic_severity=2, zone="central-1",
+        )
+
+    def count_lookup(*args, **kwargs):
+        lookup_calls["n"] += 1
+        return RateResult(
+            base_rate=300.0, currency="THB", rate_tier="26-50kg",
+        )
+
+    mocker.patch.object(fuel_mod, "fetch_fuel_price", side_effect=count_fuel)
+    mocker.patch.object(route_mod, "calculate_route", side_effect=count_route)
+    mocker.patch.object(
+        pricing_mod, "lookup_rate", side_effect=count_lookup,
+    )
+
+    graph = build_graph(checkpointer=in_memory_checkpointer)
+    cfg = {"configurable": {"thread_id": "t-vyj-followup"}}
+
+    # Turn 1 — establishes caches.
+    state = _empty_state(
+        "Calculate surcharge for 50kg retail_standard from "
+        "Bangkok to Pathum Thani"
+    )
+    result1 = await graph.ainvoke(state, config=cfg)
+    assert result1["surcharge_result"] is not None
+    assert fuel_calls["n"] == 1
+    assert route_calls["n"] == 1
+    assert lookup_calls["n"] == 1
+
+    # Turn 2 — parameter-switch follow-up; reproduces the 999.1 bug shape.
+    followup = {
+        "messages": [
+            {
+                "role": "user",
+                "content": "What if I switched it to a Bounce shipment "
+                           "instead?",
+            }
+        ]
+    }
+    result2 = await graph.ainvoke(followup, config=cfg)
+
+    # Headline assertion: graph routed through pricing despite the LLM's
+    # clarify emission (without the 999.1 fix this would be None).
+    assert result2["surcharge_result"] is not None
+    assert result2["shipping_type"] == "bounce"
+    # D-12 cache hits: fuel + route NOT re-fetched on turn 2.
+    assert fuel_calls["n"] == 1
+    assert route_calls["n"] == 1
+    # Rate re-looked-up because shipping_type changed.
+    assert lookup_calls["n"] == 2
+    # Final payload renders successfully.
+    assert result2["final_payload"]["status"] == "ok"

@@ -4,7 +4,7 @@
 
 ### Overview
 
-This system is an **Agentic AI product** that dynamically calculates fuel surcharges for Express logistics operations in Thailand's Central Region. The agent reasons over live fuel prices, route data, and internal rate tables to produce surcharge recommendations — it is the core decision-making product, not a feature on a dashboard.
+This system is an **Agentic AI product** that dynamically calculates fuel surcharges for Express logistics operations in Thailand's Bangkok Metro. The agent reasons over live fuel prices, route data, and internal rate tables to produce surcharge recommendations — it is the core decision-making product, not a feature on a dashboard.
 
 ---
 

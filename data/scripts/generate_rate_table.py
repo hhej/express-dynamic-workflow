@@ -1,6 +1,6 @@
 """Generate Express rate table CSV with documented assumptions.
 
-Base rates modeled on Thai Express domestic pricing for Central Region.
+Base rates modeled on Thai Express domestic pricing for Bangkok Metro.
 Bounce is same-day courier, retail_standard is 2-3 day, retail_fast is
 next-day. Zone multipliers reflect increasing distance from Bangkok hub.
 
@@ -22,7 +22,7 @@ import pandas as pd
 # Shipping types offered by Express
 SHIPPING_TYPES: list[str] = ["bounce", "retail_standard", "retail_fast"]
 
-# Zone definitions for Central Region
+# Zone definitions for Bangkok Metro
 ZONES: list[str] = ["central-1", "central-2", "central-3"]
 
 # Weight tiers in kg (min, max)

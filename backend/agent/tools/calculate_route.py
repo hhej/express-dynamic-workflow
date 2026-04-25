@@ -87,7 +87,7 @@ def _zone_for_destination(destination: str) -> str:
 
     Raises:
         ValueError: if the destination can't be geocoded or doesn't map to
-            a Central Region zone.
+            a Bangkok Metro zone.
     """
     results = _client().geocode(destination)
     if not results:
@@ -97,7 +97,7 @@ def _zone_for_destination(destination: str) -> str:
             norm = _normalize_province(comp["long_name"])
             if norm in _ZONE_INDEX:
                 return _ZONE_INDEX[norm]
-    raise ValueError(f"No Central Region zone for {destination!r}")
+    raise ValueError(f"No Bangkok Metro zone for {destination!r}")
 
 
 def calculate_route(origin: str, destination: str) -> RouteData:
@@ -112,7 +112,7 @@ def calculate_route(origin: str, destination: str) -> RouteData:
         and zone (central-1/2/3).
 
     Raises:
-        ValueError: No route found, or destination outside Central Region.
+        ValueError: No route found, or destination outside Bangkok Metro.
     """
     key = (origin, destination)
     cached = _route_cache.get(key)
