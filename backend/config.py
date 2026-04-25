@@ -48,3 +48,15 @@ _traffic_raw = os.environ.get("TRAFFIC_RATIO_BUCKETS", "1.1,1.3,1.5,1.8")
 TRAFFIC_RATIO_BUCKETS: list = [
     float(x.strip()) for x in _traffic_raw.split(",") if x.strip()
 ]
+
+# --- Phase 3: Graph & API configuration ---
+
+# Fuel data freshness TTL for D-12 cache-aware planner skip (seconds).
+FUEL_DATA_TTL_SECONDS: int = int(
+    os.environ.get("FUEL_DATA_TTL_SECONDS", "3600")
+)
+
+# D-04 max planner-loop iterations per request (1 init + ≤4 specialists + 1 respond).
+PLANNER_MAX_ITERATIONS: int = int(
+    os.environ.get("PLANNER_MAX_ITERATIONS", "6")
+)

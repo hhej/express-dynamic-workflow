@@ -30,6 +30,8 @@ out/
 # SQLite databases (generated at runtime)
 data/express.db
 data/checkpoints.db
+data/checkpoints.db-shm
+data/checkpoints.db-wal
 
 # IDE
 .vscode/

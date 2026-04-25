@@ -18,17 +18,17 @@ The agent must transparently reason through fuel price, route, and shipping data
 - [x] Three Central Region zones: central-1 (Bangkok inner), central-2 (Bangkok outer), central-3 (extended central) — Validated in Phase 1: Foundation & Data Pipeline
 - [x] Rate table stored in SQLite with 3 shipping types, 3 zones, multiple weight tiers — Validated in Phase 1: Foundation & Data Pipeline
 - [x] Data pipeline: fetch_fuel_prices.py (daily EPPO), generate_rate_table.py (simulated), seed_database.py (CSV → SQLite) — Validated in Phase 1: Foundation & Data Pipeline
+- [x] Planner agent orchestrates specialist sub-agents via LangGraph conditional routing — Validated in Phase 3: Graph Assembly & API Layer
+- [x] Pricing Agent computes surcharge using rate table lookup + formula with shipping type multipliers — Validated in Phase 3: Graph Assembly & API Layer
+- [x] Agentic retry loop: agent autonomously retries with exponential backoff on tool failure, falls back gracefully — Validated in Phase 3: Graph Assembly & API Layer
+- [x] Conversation memory via LangGraph SQLite checkpointer — follow-up questions reuse cached data — Validated in Phase 3: Graph Assembly & API Layer
 
 ### Active
 
-- [ ] Planner agent orchestrates specialist sub-agents via LangGraph conditional routing
 - [ ] Fuel Agent fetches live diesel prices from EPPO/PTT API with multi-level fallback chain (API → scrape → cached CSV → last-known)
 - [ ] Route Agent calculates distance and traffic via Google Maps API with 15-min caching
-- [ ] Pricing Agent computes surcharge using rate table lookup + formula with shipping type multipliers
 - [ ] Fuel and Route agents execute in parallel (LangGraph Send API) since they are independent
 - [ ] Human-in-the-loop approval gate for high-value shipment surcharge recommendations
-- [ ] Agentic retry loop: agent autonomously retries with exponential backoff on tool failure, falls back gracefully
-- [ ] Conversation memory via LangGraph SQLite checkpointer — follow-up questions reuse cached data
 - [ ] Reasoning trace visible in UI — every agent step, tool call, and decision logged and displayed
 - [ ] Chat-based UI for querying surcharges with SSE streaming
 - [ ] Dashboard showing surcharge trends across routes, shipping types, and time periods (Recharts)
@@ -110,4 +110,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-04-08 after Phase 1 completion*
+*Last updated: 2026-04-25 after Phase 3 completion (Graph Assembly & API Layer)*

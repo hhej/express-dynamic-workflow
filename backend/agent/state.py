@@ -42,3 +42,28 @@ class AgentState(TypedDict):
 
     next_step: str
     """Routing key for conditional edges."""
+
+    origin: Optional[str]
+    """Origin location extracted by Planner (D-05). Read by route_agent_node."""
+
+    destination: Optional[str]
+    """Destination location extracted by Planner (D-05)."""
+
+    user_intent: Optional[str]
+    """Planner-classified intent: surcharge_query | followup_query | clarification | out_of_scope (D-07)."""
+
+    missing_fields: List[str]
+    """Fields the user did not provide; populated by Planner for clarify path (D-05)."""
+
+    clarification_reason: Optional[str]
+    """Why Planner emitted next_step='clarify' (e.g., 'missing_weight', 'planner_parse_failed') (D-05/D-06)."""
+
+    errors: Annotated[List[dict], operator.add]
+    """Retry-exhausted error sink (D-24). Uses operator.add reducer so multiple
+    nodes can append. Entry shape: {node, exception_type, message, timestamp}."""
+
+    final_payload: Optional[dict]
+    """Final user-facing payload rendered by response_node (D-10). Shape:
+    {markdown: str, surcharge_result: dict|None, capped: bool,
+    status: 'ok'|'partial'|'clarify'}. Plan 03-04 SSE handler detects this
+    key via astream_events to emit the final response chunk."""

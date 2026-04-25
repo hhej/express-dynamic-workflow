@@ -131,7 +131,15 @@ def route_agent_node(state: dict) -> dict:
         "status": "ok",
     }
 
+    # D-13: stamp fetched_at (UTC ISO-8601 'Z') into the dumped dict so
+    # planner_node can detect cache-fresh route data. The trace entry's
+    # tool_output above intentionally uses the un-annotated dump — the
+    # fetched_at field is a state-level annotation, not a tool return.
+    route_dump = route_data.model_dump()
+    route_dump["fetched_at"] = datetime.now(timezone.utc).isoformat().replace(
+        "+00:00", "Z"
+    )
     return {
-        "route_data": route_data.model_dump(),
+        "route_data": route_dump,
         "reasoning_trace": [trace_entry],
     }

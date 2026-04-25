@@ -13,7 +13,10 @@ import sys
 from pathlib import Path
 from typing import Any
 
+import aiosqlite
 import pytest
+import pytest_asyncio
+from langgraph.checkpoint.sqlite.aio import AsyncSqliteSaver
 
 _FIXTURES_DIR = Path(__file__).parent / "fixtures"
 
@@ -82,3 +85,23 @@ def seeded_sqlite_path(tmp_path: Path) -> Path:
     target = tmp_path / "express_test.db"
     target.write_bytes(source.read_bytes())
     return target
+
+
+@pytest_asyncio.fixture
+async def in_memory_checkpointer():
+    """An AsyncSqliteSaver backed by an in-memory SQLite DB.
+
+    Tables are created via `setup()` before yield; the connection is
+    closed in teardown. Used by graph integration tests (D-25) and
+    API tests (D-26) to avoid checkpoint pollution across tests.
+
+    Implementation note: aiosqlite.connect returns an awaitable Connection
+    that becomes "alive" only when entered as an async context manager (or
+    awaited). AsyncSqliteSaver.setup() relies on conn.is_alive(), so we
+    must use `async with` here -- raw `await aiosqlite.connect(...)` does
+    NOT activate the connection thread.
+    """
+    async with aiosqlite.connect(":memory:") as conn:
+        saver = AsyncSqliteSaver(conn)
+        await saver.setup()
+        yield saver
