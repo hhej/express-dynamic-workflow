@@ -2,7 +2,7 @@
 
 ## What This Is
 
-An Agentic AI product that dynamically calculates fuel surcharges for Express logistics operations in Thailand's Central Region. The agent reasons over live fuel prices, route data, and internal rate tables to produce surcharge recommendations — it is the core decision-making product, not a feature on a dashboard. Built as a MADT7204 course project demonstrating multi-agent AI architecture with real-world logistics impact.
+An Agentic AI product that dynamically calculates fuel surcharges for Express logistics operations in Thailand's Bangkok Metro. The agent reasons over live fuel prices, route data, and internal rate tables to produce surcharge recommendations — it is the core decision-making product, not a feature on a dashboard. Built as a MADT7204 course project demonstrating multi-agent AI architecture with real-world logistics impact.
 
 ## Core Value
 
@@ -15,7 +15,7 @@ The agent must transparently reason through fuel price, route, and shipping data
 - [x] All agent responses use structured Pydantic output models for deterministic, testable results — Validated in Phase 1: Foundation & Data Pipeline
 - [x] Three shipping types supported: Bounce (B2B, 1.0x multiplier), Retail Standard (B2C 3-5 day, 0.5x), Retail Fast (B2C same/next-day, 0.8x) — Validated in Phase 1: Foundation & Data Pipeline
 - [x] Surcharge formula with configurable baseline, shipping type multipliers, traffic adjustment (Bounce only), and cap/floor (max 15%, min -5%) — Validated in Phase 1: Foundation & Data Pipeline
-- [x] Three Central Region zones: central-1 (Bangkok inner), central-2 (Bangkok outer), central-3 (extended central) — Validated in Phase 1: Foundation & Data Pipeline
+- [x] Three Bangkok Metro zones: central-1 (Bangkok inner), central-2 (Bangkok outer), central-3 (extended central) — Validated in Phase 1: Foundation & Data Pipeline
 - [x] Rate table stored in SQLite with 3 shipping types, 3 zones, multiple weight tiers — Validated in Phase 1: Foundation & Data Pipeline
 - [x] Data pipeline: fetch_fuel_prices.py (daily EPPO), generate_rate_table.py (simulated), seed_database.py (CSV → SQLite) — Validated in Phase 1: Foundation & Data Pipeline
 - [x] Planner agent orchestrates specialist sub-agents via LangGraph conditional routing — Validated in Phase 3: Graph Assembly & API Layer
@@ -39,7 +39,7 @@ The agent must transparently reason through fuel price, route, and shipping data
 
 ### Out of Scope
 
-- Multi-region support beyond Central Region — scope limited for course timeline
+- Multi-region support beyond Bangkok Metro — scope limited for course timeline
 - Real-time webhook push notifications — polling/SSE sufficient for demo
 - Mobile native app — web-first, responsive design only
 - OAuth/social login — not relevant to agent architecture grading

@@ -3,7 +3,7 @@
 
 **Express Dynamic Surcharge Orchestrator**
 
-An Agentic AI product that dynamically calculates fuel surcharges for Express logistics operations in Thailand's Central Region. The agent reasons over live fuel prices, route data, and internal rate tables to produce surcharge recommendations — it is the core decision-making product, not a feature on a dashboard. Built as a MADT7204 course project demonstrating multi-agent AI architecture with real-world logistics impact.
+An Agentic AI product that dynamically calculates fuel surcharges for Express logistics operations in Thailand's Bangkok Metro. The agent reasons over live fuel prices, route data, and internal rate tables to produce surcharge recommendations — it is the core decision-making product, not a feature on a dashboard. Built as a MADT7204 course project demonstrating multi-agent AI architecture with real-world logistics impact.
 
 **Core Value:** The agent must transparently reason through fuel price, route, and shipping data to produce an accurate, explainable surcharge recommendation — visible reasoning is what makes this agentic, not just automated.
 
@@ -70,7 +70,7 @@ An Agentic AI product that dynamically calculates fuel surcharges for Express lo
 ## Data Sources & External APIs
 - EPPO (Thailand Department of Energy Business) - Public data source or scraping
 - PTT Price Board - Alternative live API/web scraping source
-- Google Maps Directions API - Distance, duration, and traffic data for Thailand Central Region
+- Google Maps Directions API - Distance, duration, and traffic data for Thailand's Bangkok Metro
 - Tavily Search API - Web search for fuel market news and trend analysis
 - Google AI Studio (Gemini 2.0 Flash) - Free tier with 15 RPM limit noted as constraint
 ## Database Schema

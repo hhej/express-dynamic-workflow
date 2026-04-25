@@ -1,9 +1,9 @@
 # Express Dynamic Surcharge Orchestrator
 
-An Agentic AI system that dynamically calculates fuel surcharges for Express logistics operations in Thailand's Central Region, based on real-time oil prices, route data, and shipping type.
+An Agentic AI system that dynamically calculates fuel surcharges for Express logistics operations in Thailand's Bangkok Metro, based on real-time oil prices, route data, and shipping type.
 
 **Course**: MADT7204 — Vibe Coding Project  
-**Scope**: Bangkok + Central Region (Nonthaburi, Pathum Thani, Samut Prakan, Nakhon Pathom, Samut Sakhon, Ayutthaya)
+**Scope**: Bangkok Metro (Nonthaburi, Pathum Thani, Samut Prakan, Nakhon Pathom, Samut Sakhon, Ayutthaya)
 
 ---
 
@@ -121,7 +121,7 @@ See [docs/architecture.md](docs/architecture.md) for the full technical architec
 
 | Source | Type | What It Provides | Used By |
 |--------|------|-----------------|---------|
-| [EPPO](https://www.eppo.go.th/) (Dept. of Energy Business) | Public/Government | Daily diesel retail prices, Central Region | Fuel Agent |
+| [EPPO](https://www.eppo.go.th/) (Dept. of Energy Business) | Public/Government | Daily diesel retail prices, Bangkok Metro | Fuel Agent |
 | PTT Price Board | Live API/Scrape | Current fuel prices by type | Fuel Agent |
 | Express Rate Table | Simulated | Base shipping rates for 3 types x 3 zones x weight tiers | Pricing Agent |
 | Google Maps Directions API | Live API | Route distance + travel time + traffic | Route Agent |
@@ -242,7 +242,7 @@ All agent traces are logged to [Langfuse](https://cloud.langfuse.com/) for monit
 - **Rate table**: Simulated based on assumptions — not actual Express pricing
 - **Surcharge caps**: Fixed at 15% max / -5% min — a production system would need configurable per-customer caps
 - **LLM rate limits**: Gemini free tier allows 15 RPM — sufficient for demo but not production traffic
-- **Central Region only**: Does not cover northern, southern, or northeastern Thailand
+- **Bangkok Metro only**: Does not cover northern, southern, or northeastern Thailand
 
 ## Future Improvements
 
