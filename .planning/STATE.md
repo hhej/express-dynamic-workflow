@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-stopped_at: "Completed 03-03-PLAN.md (Wave 3 graph: build_graph + retry topology + 7 integration tests)"
-last_updated: "2026-04-25T04:04:39.165Z"
+stopped_at: "Completed 03-04-PLAN.md (Wave 4 chat SSE: FastAPI lifespan + AsyncSqliteSaver + POST /api/chat with D-18 envelope sequence + 3 integration tests)"
+last_updated: "2026-04-25T04:14:03.567Z"
 last_activity: 2026-04-25
 progress:
   total_phases: 5
   completed_phases: 2
   total_plans: 13
-  completed_plans: 11
+  completed_plans: 12
   percent: 0
 ---
 
@@ -26,7 +26,7 @@ See: .planning/PROJECT.md (updated 2026-04-04)
 ## Current Position
 
 Phase: 03 (graph-assembly-api-layer) — EXECUTING
-Plan: 4 of 5
+Plan: 5 of 5
 Status: Ready to execute
 Last activity: 2026-04-25
 
@@ -63,6 +63,7 @@ Progress: [░░░░░░░░░░] 0%
 | Phase 03 P01 | 8min | 3 tasks | 14 files |
 | Phase 03 P02 | 6min | 2 tasks | 13 files |
 | Phase 03 P03 | 7min | 2 tasks | 5 files |
+| Phase 03 P04 | 4min | 2 tasks | 8 files |
 
 ## Accumulated Context
 
@@ -106,6 +107,10 @@ Recent decisions affecting current work:
 - [Phase 03]: Plan 03-03: Pricing Agent intentionally NOT wrapped in error sink -- D-09 mandates ValueError from lookup_rate must bubble uncaught; wrapper would re-raise ValueError but skipping the wrap removes a stack frame and clarifies test failures
 - [Phase 03]: Plan 03-03: Planner short-circuits on state.errors BEFORE D-04 loop-budget guard and BEFORE Gemini call -- reconciles D-03 planner-loop topology with D-24 error-sink force-respond, prevents infinite loop on persistent transient failures
 - [Phase 03]: Plan 03-03: AgentState.final_payload added as Optional[dict] TypedDict field -- response_node output otherwise dropped by StateGraph(AgentState) merge; Plan 03-04 SSE handler will detect this key via astream_events
+- [Phase 03]: Plan 03-04: Lifespan stores BOTH checkpointer AND graph on app.state -- Plan 03-05 GET /api/conversations needs direct saver access for thread enumeration; graph.aget_state alone retrieves only one thread's snapshot
+- [Phase 03]: Plan 03-04: Chat handler filters astream_events on (on_chain_end + node-name allow-list) -- on_chain_start has no useful payload, on_chain_stream fragments single trace entries; one SSE trace event per node completion is the contract
+- [Phase 03]: Plan 03-04: Manual SSE framing via raw StreamingResponse + format_sse() bytes helper -- EventSourceResponse not available in FastAPI 0.128.8 (Pitfall 5); explicit Cache-Control: no-cache + X-Accel-Buffering: no headers required
+- [Phase 03]: Plan 03-04: Test fixture explicitly delenv()s CHECKPOINT_PATH on cleanup BEFORE reloading config -- Rule 1 fix; without it, importlib.reload re-reads the still-set monkeypatched env var and tmp-path leaks into later tests like test_checkpoint_path_default
 
 ### Pending Todos
 
@@ -119,6 +124,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-04-25T04:04:39.162Z
-Stopped at: Completed 03-03-PLAN.md (Wave 3 graph: build_graph + retry topology + 7 integration tests)
+Last session: 2026-04-25T04:13:49.009Z
+Stopped at: Completed 03-04-PLAN.md (Wave 4 chat SSE: FastAPI lifespan + AsyncSqliteSaver + POST /api/chat with D-18 envelope sequence + 3 integration tests)
 Resume file: None
