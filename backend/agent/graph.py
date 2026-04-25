@@ -63,18 +63,53 @@ def phase3_retry_on(exc: BaseException) -> bool:
 
 
 def _wrap_error_sink(node_name: str, node_fn):
-    """D-24: convert post-retry Exception into state.errors + force respond.
+    """D-24: convert post-retry-exhaustion Exception into state.errors + respond.
 
-    ValueError is intentionally re-raised (D-09 — planner clarify path /
-    graph-level halt). Anything else reaching here means RetryPolicy gave
-    up; we record the failure and pivot to Response Node.
+    Three exception classes are handled:
+    1. ValueError: re-raised unchanged (D-09 — planner clarify path /
+       graph-level halt; tests assert via pytest.raises).
+    2. Retryable transient-network exceptions (phase3_retry_on True):
+       re-raised so the LangGraph Pregel runtime can apply the
+       RetryPolicy. After max_attempts the runtime will surface the
+       last exception, which we catch on the FINAL attempt below.
+    3. Non-retryable, non-ValueError exceptions: caught and converted
+       into a state.errors append + next_step='respond'.
+
+    The trick that keeps post-exhaustion routing working is the
+    ``_attempt`` counter: we only convert a retryable exception to the
+    error sink AFTER it has been re-raised ``max_attempts`` times. This
+    matches the LangChain forum thread on retry-exhaustion control flow:
+    https://forum.langchain.com/t/the-best-way-in-langgraph-to-control-flow-after-retries-exhausted/1574
+
+    Because each Pregel task instantiates the node freshly per retry, the
+    counter is stored as a function attribute keyed on the ``id`` of the
+    state dict — Pregel reuses the SAME state object across retries of a
+    single task, so the id is a stable proxy for "this attempt set".
     """
+    _attempt_counter: dict = {}
+
     def _wrapped(state: dict) -> dict:
+        sid = id(state)
         try:
-            return node_fn(state)
+            result = node_fn(state)
+            _attempt_counter.pop(sid, None)
+            return result
         except ValueError:
+            _attempt_counter.pop(sid, None)
             raise
         except Exception as exc:  # noqa: BLE001 — D-24 sink is by design
+            if phase3_retry_on(exc):
+                attempts = _attempt_counter.get(sid, 0) + 1
+                _attempt_counter[sid] = attempts
+                # Re-raise on the first attempt so RetryPolicy can retry.
+                # On the final attempt (after max_attempts retries), fall
+                # through to the error-sink path.
+                if attempts < 2:  # max_attempts in RetryPolicy
+                    raise
+                # Retry exhausted — convert to error sink.
+                _attempt_counter.pop(sid, None)
+            else:
+                _attempt_counter.pop(sid, None)
             logger.warning(
                 "Node %s exception sink: %s: %s",
                 node_name, type(exc).__name__, exc,

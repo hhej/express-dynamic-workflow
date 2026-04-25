@@ -1,48 +1,482 @@
-"""Wave 0 placeholder tests for graph assembly (ORCH-06, ORCH-08, ORCH-10).
+"""Integration tests for the assembled StateGraph (ORCH-08, ORCH-10).
 
-Real implementations land in Plan 03-03 (graph). These stubs ensure the
-test names are grep-discoverable and the file is collected by pytest from
-day one.
+Covers:
+- D-23 retry filter unit (test_value_error_skips_retry)
+- D-22 RetryPolicy retries httpx.HTTPError exactly once (test_retry_policy_retries_httpx_error)
+- D-24 retry-exhaustion sink routes to Response with status='partial'
+  (test_retry_exhaustion_routes_to_response_partial)
+- ORCH-10 baseline checkpointer persistence (test_checkpointer_persists_across_invocations)
+- D-12 cache reuse end-to-end via checkpointer (test_followup_reuses_cached_fuel)
+- Cross-cutting happy path (test_full_surcharge_query_integration)
+- Cross-cutting cache demo for route counter (test_followup_only_runs_pricing)
 """
 from __future__ import annotations
 
+import json
+from datetime import datetime, timezone
+
+import httpx
 import pytest
-
-pytestmark = pytest.mark.skip(
-    reason="Wave 0 placeholder; implementation lands in Plan 03-03"
+from langchain_core.language_models.fake_chat_models import (
+    FakeMessagesListChatModel,
 )
+from langchain_core.messages import AIMessage
+
+from backend.agent.graph import build_graph, phase3_retry_on
+from backend.agent.tools.models import FuelData, RateResult, RouteData
 
 
-def test_retry_policy_retries_httpx_error():
-    # Implemented in Plan 03-03
-    ...
+def _scripted_llm(*responses_json: str) -> FakeMessagesListChatModel:
+    return FakeMessagesListChatModel(
+        responses=[AIMessage(content=r) for r in responses_json]
+    )
 
 
-def test_retry_exhaustion_routes_to_response_partial():
-    # Implemented in Plan 03-03
-    ...
+def _stateful_factory(*responses_json: str):
+    """Build a get_chat_model replacement that returns the SAME shared
+    FakeMessagesListChatModel on every call.
+
+    FakeMessagesListChatModel cycles through its responses list, so a
+    shared instance plays back the script in order across multiple node
+    invocations. The lambda-based factory used elsewhere in the suite
+    would instantiate a fresh model on every call and replay only the
+    FIRST response — that would break planner-loop scripting.
+    """
+    shared = _scripted_llm(*responses_json)
+
+    def factory(**_):
+        return shared
+
+    return factory
+
+
+def _planner_response(
+    next_step: str,
+    *,
+    user_intent: str = "surcharge_query",
+    shipping_type: str | None = "bounce",
+    weight_kg: float | None = 15.0,
+    origin: str | None = "Bangkok",
+    destination: str | None = "Nonthaburi",
+    missing_fields: list[str] | None = None,
+    clarification_reason: str | None = None,
+) -> str:
+    return json.dumps({
+        "user_intent": user_intent,
+        "shipping_type": shipping_type,
+        "weight_kg": weight_kg,
+        "origin": origin,
+        "destination": destination,
+        "missing_fields": missing_fields or [],
+        "next_step": next_step,
+        "clarification_reason": clarification_reason,
+    })
+
+
+_NARR = '{"summary": "OK", "trend": "above_baseline"}'
+_NARR_R = '{"summary": "OK", "traffic_label": "moderate"}'
+_NARR_P = '{"summary": "Total 132 THB"}'
+
+
+def _empty_state(message: str) -> dict:
+    return {
+        "messages": [{"role": "user", "content": message}],
+        "fuel_data": None,
+        "route_data": None,
+        "shipping_type": None,
+        "weight_kg": None,
+        "surcharge_result": None,
+        "reasoning_trace": [],
+        "next_step": "",
+        "origin": None,
+        "destination": None,
+        "user_intent": None,
+        "missing_fields": [],
+        "clarification_reason": None,
+        "errors": [],
+        "final_payload": None,
+    }
+
+
+# ---------------------------------------------------------------------------
+# Test 1: D-23 retry filter unit test
+# ---------------------------------------------------------------------------
 
 
 def test_value_error_skips_retry():
-    # Implemented in Plan 03-03
-    ...
+    """phase3_retry_on filter MUST return False on ValueError/RuntimeError
+    and True on the enumerated transient-network classes."""
+    assert phase3_retry_on(ValueError("nope")) is False
+    assert phase3_retry_on(RuntimeError("nope")) is False
+    assert phase3_retry_on(httpx.HTTPError("x")) is True
+    assert phase3_retry_on(httpx.TimeoutException("x")) is True
 
 
-def test_checkpointer_persists_across_invocations():
-    # Implemented in Plan 03-03
-    ...
+# ---------------------------------------------------------------------------
+# Test 2: RetryPolicy retries httpx.HTTPError exactly once
+# ---------------------------------------------------------------------------
 
 
-def test_followup_reuses_cached_fuel():
-    # Implemented in Plan 03-03
-    ...
+@pytest.mark.asyncio
+async def test_retry_policy_retries_httpx_error(monkeypatch, mocker):
+    """D-22 + D-23: a transient httpx.HTTPError on fetch_fuel_price should
+    cause the fuel_agent node to retry exactly once (max_attempts=2 means
+    1 retry after the original attempt) and then succeed."""
+    from backend.agent.nodes import planner as planner_mod
+    from backend.agent.nodes import fuel_agent as fuel_mod
+
+    # Planner: routes fetch_fuel then respond after fuel returns.
+    planner_llm_responses = [
+        _planner_response("fetch_fuel"),
+        _planner_response("respond"),
+    ]
+    monkeypatch.setattr(
+        planner_mod, "get_chat_model",
+        _stateful_factory(*planner_llm_responses),
+    )
+    monkeypatch.setattr(
+        fuel_mod, "get_chat_model",
+        _stateful_factory(_NARR),
+    )
+
+    call_counter = {"n": 0}
+    fake_fuel = FuelData(
+        price=31.0, date="2026-04-25", source="eppo_live",
+        baseline=29.94, delta_pct=0.0354,
+    )
+
+    def flaky_fetch():
+        call_counter["n"] += 1
+        if call_counter["n"] == 1:
+            raise httpx.HTTPError("transient")
+        return fake_fuel
+
+    mocker.patch.object(fuel_mod, "fetch_fuel_price", side_effect=flaky_fetch)
+
+    graph = build_graph(checkpointer=None)
+    state = _empty_state("Surcharge for 15kg Bounce Bangkok to Nonthaburi")
+    result = await graph.ainvoke(state)
+
+    # RetryPolicy retried the httpx.HTTPError exactly once -> 2 total calls.
+    assert call_counter["n"] == 2
+    assert result["fuel_data"]["price"] == 31.0
 
 
-def test_full_surcharge_query_integration():
-    # Implemented in Plan 03-03
-    ...
+# ---------------------------------------------------------------------------
+# Test 3: D-24 retry-exhaustion sink routes to Response with status='partial'
+# ---------------------------------------------------------------------------
 
 
-def test_followup_only_runs_pricing():
-    # Implemented in Plan 03-03
-    ...
+@pytest.mark.asyncio
+async def test_retry_exhaustion_routes_to_response_partial(monkeypatch, mocker):
+    """When fetch_fuel_price persistently raises httpx.HTTPError, RetryPolicy
+    exhausts; the D-24 wrapper writes errors[] and forces next_step='respond';
+    Response Node then renders status='partial'."""
+    from backend.agent.nodes import planner as planner_mod
+    from backend.agent.nodes import fuel_agent as fuel_mod
+
+    monkeypatch.setattr(
+        planner_mod, "get_chat_model",
+        _stateful_factory(_planner_response("fetch_fuel")),
+    )
+    monkeypatch.setattr(
+        fuel_mod, "get_chat_model",
+        _stateful_factory(_NARR),
+    )
+    mocker.patch.object(
+        fuel_mod, "fetch_fuel_price",
+        side_effect=httpx.HTTPError("permanent"),
+    )
+
+    graph = build_graph(checkpointer=None)
+    state = _empty_state("Surcharge for 15kg Bounce Bangkok to Nonthaburi")
+    result = await graph.ainvoke(state)
+
+    assert len(result["errors"]) >= 1
+    assert result["errors"][0]["node"] == "fuel_agent"
+    assert result["errors"][0]["exception_type"] == "HTTPError"
+    # Response Node ran with status="partial"
+    assert result["final_payload"]["status"] == "partial"
+
+
+# ---------------------------------------------------------------------------
+# Test 4: ORCH-10 baseline — checkpointer persists state across invocations
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_checkpointer_persists_across_invocations(
+    monkeypatch, mocker, in_memory_checkpointer,
+):
+    """Full happy-path chain runs once with thread_id=t1; aget_state then
+    returns the persisted snapshot (fuel_data + route_data) without
+    re-running the graph."""
+    from backend.agent.nodes import planner as planner_mod
+    from backend.agent.nodes import fuel_agent as fuel_mod
+    from backend.agent.nodes import route_agent as route_mod
+    from backend.agent.nodes import pricing_agent as pricing_mod
+
+    planner_responses = [
+        _planner_response("fetch_fuel"),
+        _planner_response("fetch_route"),
+        _planner_response("calculate_price"),
+        _planner_response("respond"),
+    ]
+    monkeypatch.setattr(planner_mod, "get_chat_model",
+                        _stateful_factory(*planner_responses))
+    monkeypatch.setattr(fuel_mod, "get_chat_model",
+                        _stateful_factory(_NARR))
+    monkeypatch.setattr(route_mod, "get_chat_model",
+                        _stateful_factory(_NARR_R))
+    monkeypatch.setattr(pricing_mod, "get_chat_model",
+                        _stateful_factory(_NARR_P))
+    mocker.patch.object(
+        fuel_mod, "fetch_fuel_price",
+        return_value=FuelData(price=31.0, date="2026-04-25",
+                              source="eppo_live", baseline=29.94,
+                              delta_pct=0.0354),
+    )
+    mocker.patch.object(
+        route_mod, "calculate_route",
+        return_value=RouteData(origin="Bangkok",
+                               destination="Nonthaburi",
+                               distance_km=18.0, duration_min=30,
+                               traffic_severity=2, zone="central-1"),
+    )
+    mocker.patch.object(
+        pricing_mod, "lookup_rate",
+        return_value=RateResult(base_rate=120.0, currency="THB",
+                                rate_tier="11-25kg"),
+    )
+
+    graph = build_graph(checkpointer=in_memory_checkpointer)
+    cfg = {"configurable": {"thread_id": "t1"}}
+    state = _empty_state("15kg Bounce Bangkok Nonthaburi")
+    result1 = await graph.ainvoke(state, config=cfg)
+    assert result1["surcharge_result"] is not None
+
+    # Read snapshot — state survives in checkpointer
+    snapshot = await graph.aget_state(cfg)
+    assert snapshot.values["fuel_data"]["price"] == 31.0
+    assert snapshot.values["route_data"]["zone"] == "central-1"
+
+
+# ---------------------------------------------------------------------------
+# Test 5: D-12 cache reuse end-to-end — follow-up turn skips fetch_fuel
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_followup_reuses_cached_fuel(
+    monkeypatch, mocker, in_memory_checkpointer,
+):
+    """Turn 1: full chain populates fuel_data with fetched_at.
+    Turn 2 (same thread_id): planner emits next_step='calculate_price'
+    directly (cache fresh); fetch_fuel_price MUST NOT be called again."""
+    from backend.agent.nodes import planner as planner_mod
+    from backend.agent.nodes import fuel_agent as fuel_mod
+    from backend.agent.nodes import route_agent as route_mod
+    from backend.agent.nodes import pricing_agent as pricing_mod
+
+    planner_responses = [
+        _planner_response("fetch_fuel"),
+        _planner_response("fetch_route"),
+        _planner_response("calculate_price"),
+        _planner_response("respond"),
+        # Turn 2:
+        _planner_response("calculate_price", shipping_type="retail_fast"),
+        _planner_response("respond", shipping_type="retail_fast"),
+    ]
+    monkeypatch.setattr(planner_mod, "get_chat_model",
+                        _stateful_factory(*planner_responses))
+    monkeypatch.setattr(fuel_mod, "get_chat_model",
+                        _stateful_factory(_NARR, _NARR))
+    monkeypatch.setattr(route_mod, "get_chat_model",
+                        _stateful_factory(_NARR_R, _NARR_R))
+    monkeypatch.setattr(pricing_mod, "get_chat_model",
+                        _stateful_factory(_NARR_P, _NARR_P))
+
+    fuel_calls = {"n": 0}
+
+    def count_fetch():
+        fuel_calls["n"] += 1
+        return FuelData(
+            price=31.0, date="2026-04-25", source="eppo_live",
+            baseline=29.94, delta_pct=0.0354,
+        )
+
+    mocker.patch.object(fuel_mod, "fetch_fuel_price", side_effect=count_fetch)
+    mocker.patch.object(
+        route_mod, "calculate_route",
+        return_value=RouteData(origin="Bangkok",
+                               destination="Nonthaburi",
+                               distance_km=18.0, duration_min=30,
+                               traffic_severity=2, zone="central-1"),
+    )
+    mocker.patch.object(
+        pricing_mod, "lookup_rate",
+        return_value=RateResult(base_rate=120.0, currency="THB",
+                                rate_tier="11-25kg"),
+    )
+
+    graph = build_graph(checkpointer=in_memory_checkpointer)
+    cfg = {"configurable": {"thread_id": "t-followup"}}
+    state = _empty_state("15kg Bounce Bangkok Nonthaburi")
+    await graph.ainvoke(state, config=cfg)
+    assert fuel_calls["n"] == 1
+
+    # Turn 2: append a follow-up message; checkpoint replay supplies
+    # fuel_data/route_data automatically.
+    followup = {
+        "messages": [
+            {"role": "user", "content": "What about Retail Fast?"}
+        ]
+    }
+    await graph.ainvoke(followup, config=cfg)
+    # fetch_fuel_price MUST NOT have been called again (D-12 cache reuse).
+    assert fuel_calls["n"] == 1
+
+
+# ---------------------------------------------------------------------------
+# Test 6: Cross-cutting happy path — full markdown rendered with all 4 rows
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_full_surcharge_query_integration(
+    monkeypatch, mocker, in_memory_checkpointer,
+):
+    """End-to-end: planner -> fuel -> route -> pricing -> response with all
+    tools mocked. Final markdown contains the 4 D-11 row labels, status='ok',
+    and surcharge_result has a non-None total."""
+    from backend.agent.nodes import planner as planner_mod
+    from backend.agent.nodes import fuel_agent as fuel_mod
+    from backend.agent.nodes import route_agent as route_mod
+    from backend.agent.nodes import pricing_agent as pricing_mod
+
+    planner_responses = [
+        _planner_response("fetch_fuel"),
+        _planner_response("fetch_route"),
+        _planner_response("calculate_price"),
+        _planner_response("respond"),
+    ]
+    monkeypatch.setattr(planner_mod, "get_chat_model",
+                        _stateful_factory(*planner_responses))
+    monkeypatch.setattr(fuel_mod, "get_chat_model",
+                        _stateful_factory(_NARR))
+    monkeypatch.setattr(route_mod, "get_chat_model",
+                        _stateful_factory(_NARR_R))
+    monkeypatch.setattr(pricing_mod, "get_chat_model",
+                        _stateful_factory(_NARR_P))
+    mocker.patch.object(
+        fuel_mod, "fetch_fuel_price",
+        return_value=FuelData(price=31.0, date="2026-04-25",
+                              source="eppo_live", baseline=29.94,
+                              delta_pct=0.0354),
+    )
+    mocker.patch.object(
+        route_mod, "calculate_route",
+        return_value=RouteData(origin="Bangkok",
+                               destination="Nonthaburi",
+                               distance_km=18.0, duration_min=30,
+                               traffic_severity=2, zone="central-1"),
+    )
+    mocker.patch.object(
+        pricing_mod, "lookup_rate",
+        return_value=RateResult(base_rate=120.0, currency="THB",
+                                rate_tier="11-25kg"),
+    )
+
+    graph = build_graph(checkpointer=in_memory_checkpointer)
+    cfg = {"configurable": {"thread_id": "t-happy"}}
+    state = _empty_state("15kg Bounce Bangkok Nonthaburi")
+    result = await graph.ainvoke(state, config=cfg)
+
+    assert result["surcharge_result"] is not None
+    assert result["surcharge_result"]["total"] is not None
+    payload = result["final_payload"]
+    assert payload["status"] == "ok"
+    md = payload["markdown"]
+    assert "| Base rate |" in md
+    assert "| Surcharge % |" in md
+    assert "| Surcharge amount |" in md
+    assert "| Total |" in md
+
+
+# ---------------------------------------------------------------------------
+# Test 7: Cross-cutting cache demo — route also cached on follow-up
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_followup_only_runs_pricing(
+    monkeypatch, mocker, in_memory_checkpointer,
+):
+    """Same scaffolding as test 5; additionally asserts route_calls == 1
+    after turn 2 (route_data also cached, planner D-12 override skips
+    fetch_route)."""
+    from backend.agent.nodes import planner as planner_mod
+    from backend.agent.nodes import fuel_agent as fuel_mod
+    from backend.agent.nodes import route_agent as route_mod
+    from backend.agent.nodes import pricing_agent as pricing_mod
+
+    planner_responses = [
+        _planner_response("fetch_fuel"),
+        _planner_response("fetch_route"),
+        _planner_response("calculate_price"),
+        _planner_response("respond"),
+        # Turn 2:
+        _planner_response("calculate_price", shipping_type="retail_fast"),
+        _planner_response("respond", shipping_type="retail_fast"),
+    ]
+    monkeypatch.setattr(planner_mod, "get_chat_model",
+                        _stateful_factory(*planner_responses))
+    monkeypatch.setattr(fuel_mod, "get_chat_model",
+                        _stateful_factory(_NARR, _NARR))
+    monkeypatch.setattr(route_mod, "get_chat_model",
+                        _stateful_factory(_NARR_R, _NARR_R))
+    monkeypatch.setattr(pricing_mod, "get_chat_model",
+                        _stateful_factory(_NARR_P, _NARR_P))
+
+    fuel_calls = {"n": 0}
+    route_calls = {"n": 0}
+
+    def count_fuel():
+        fuel_calls["n"] += 1
+        return FuelData(
+            price=31.0, date="2026-04-25", source="eppo_live",
+            baseline=29.94, delta_pct=0.0354,
+        )
+
+    def count_route(origin, destination):
+        route_calls["n"] += 1
+        return RouteData(
+            origin=origin, destination=destination,
+            distance_km=18.0, duration_min=30,
+            traffic_severity=2, zone="central-1",
+        )
+
+    mocker.patch.object(fuel_mod, "fetch_fuel_price", side_effect=count_fuel)
+    mocker.patch.object(route_mod, "calculate_route", side_effect=count_route)
+    mocker.patch.object(
+        pricing_mod, "lookup_rate",
+        return_value=RateResult(base_rate=120.0, currency="THB",
+                                rate_tier="11-25kg"),
+    )
+
+    graph = build_graph(checkpointer=in_memory_checkpointer)
+    cfg = {"configurable": {"thread_id": "t-followup-2"}}
+    state = _empty_state("15kg Bounce Bangkok Nonthaburi")
+    await graph.ainvoke(state, config=cfg)
+    assert fuel_calls["n"] == 1
+    assert route_calls["n"] == 1
+
+    followup = {
+        "messages": [
+            {"role": "user", "content": "What about Retail Fast?"}
+        ]
+    }
+    await graph.ainvoke(followup, config=cfg)
+    # Both caches reused on turn 2.
+    assert fuel_calls["n"] == 1
+    assert route_calls["n"] == 1

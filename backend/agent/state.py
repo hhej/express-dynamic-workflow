@@ -61,3 +61,9 @@ class AgentState(TypedDict):
     errors: Annotated[List[dict], operator.add]
     """Retry-exhausted error sink (D-24). Uses operator.add reducer so multiple
     nodes can append. Entry shape: {node, exception_type, message, timestamp}."""
+
+    final_payload: Optional[dict]
+    """Final user-facing payload rendered by response_node (D-10). Shape:
+    {markdown: str, surcharge_result: dict|None, capped: bool,
+    status: 'ok'|'partial'|'clarify'}. Plan 03-04 SSE handler detects this
+    key via astream_events to emit the final response chunk."""

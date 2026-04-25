@@ -128,6 +128,13 @@ def planner_node(state: dict) -> dict:
         for the D-04 budget-exhausted path or the D-02 parse-failed
         fallback — both are explicit operational fallbacks.
     """
+    # D-24: if a downstream node's error sink already populated state.errors,
+    # immediately route to respond so the Response Node can render
+    # status='partial'. This guard runs BEFORE the Gemini call so we don't
+    # consume a planner-loop iteration on a state we know is already done.
+    if state.get("errors"):
+        return {"next_step": "respond"}
+
     # D-04 loop budget guard runs BEFORE any Gemini call.
     if _loop_budget_exhausted(state):
         return {
