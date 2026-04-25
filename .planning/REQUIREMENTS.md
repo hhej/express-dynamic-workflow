@@ -47,9 +47,9 @@ Requirements for initial release. Each maps to roadmap phases.
 ### Backend API
 
 - [x] **API-01**: POST /api/chat endpoint accepts user message and returns SSE stream of agent traces + response
-- [ ] **API-02**: GET /api/conversations lists all past conversation threads
-- [ ] **API-03**: GET /api/conversations/:id returns full conversation history for a thread
-- [ ] **API-04**: GET /api/fuel-prices?days=30 returns historical fuel price data for charts
+- [x] **API-02**: GET /api/conversations lists all past conversation threads
+- [x] **API-03**: GET /api/conversations/:id returns full conversation history for a thread
+- [x] **API-04**: GET /api/fuel-prices?days=30 returns historical fuel price data for charts
 - [ ] **API-05**: POST /api/feedback accepts user feedback (score + reason) and forwards to Langfuse
 
 ### Frontend
@@ -133,9 +133,9 @@ Which phases cover which requirements. Updated during roadmap creation.
 | CALC-03 | Phase 1 | Complete |
 | CALC-04 | Phase 1 | Complete |
 | API-01 | Phase 3 | Complete |
-| API-02 | Phase 3 | Pending |
-| API-03 | Phase 3 | Pending |
-| API-04 | Phase 3 | Pending |
+| API-02 | Phase 3 | Complete |
+| API-03 | Phase 3 | Complete |
+| API-04 | Phase 3 | Complete |
 | API-05 | Phase 5 | Pending |
 | UI-01 | Phase 4 | Pending |
 | UI-02 | Phase 4 | Pending |

@@ -72,7 +72,7 @@ Plans:
 - [x] 03-02-PLAN.md — Planner + Pricing + Response nodes (ORCH-01/04/05) + D-13 fetched_at injection in fuel/route nodes
 - [x] 03-03-PLAN.md — Graph assembly: build_graph + RetryPolicy + AsyncSqliteSaver topology (ORCH-08/10) + 7 integration tests
 - [x] 03-04-PLAN.md — FastAPI app shell + POST /api/chat SSE handler (API-01) with meta/trace/answer/error/done envelope
-- [ ] 03-05-PLAN.md — GET /api/conversations + /api/conversations/:id + /api/fuel-prices (API-02, API-03, API-04)
+- [x] 03-05-PLAN.md — GET /api/conversations + /api/conversations/:id + /api/fuel-prices (API-02, API-03, API-04)
 
 ### Phase 4: Frontend & Reasoning Trace
 **Goal**: Users interact with the surcharge agent through a chat interface that streams responses and displays every reasoning step transparently
