@@ -28,7 +28,7 @@ See: .planning/PROJECT.md (updated 2026-04-04)
 Phase: 4
 Plan: Not started
 Status: Phase complete — ready for verification
-Last activity: 2026-04-25 — Completed quick task 260425-vc6: rename Central Region → Bangkok Metro
+Last activity: 2026-04-25 — Completed quick task 260425-vyj: fix planner bugs 999.1 and 999.3
 
 Progress: [░░░░░░░░░░] 0%
 
@@ -128,9 +128,10 @@ None yet.
 
 ### Quick Tasks Completed
 
-| # | Description | Date | Commit | Directory |
-|---|-------------|------|--------|-----------|
-| 260425-vc6 | Rename product scope from Central Region to Bangkok Metro (resolves backlog 999.2-b) | 2026-04-25 | 4889bf6 | [260425-vc6-rename-product-scope-from-central-region](./quick/260425-vc6-rename-product-scope-from-central-region/) |
+| # | Description | Date | Commit | Status | Directory |
+|---|-------------|------|--------|--------|-----------|
+| 260425-vc6 | Rename product scope from Central Region to Bangkok Metro (resolves backlog 999.2-b) | 2026-04-25 | 4889bf6 |  | [260425-vc6-rename-product-scope-from-central-region](./quick/260425-vc6-rename-product-scope-from-central-region/) |
+| 260425-vyj | Fix planner bugs 999.1 (state merge on follow-ups) and 999.3 (stale next_step in trace) | 2026-04-25 | 231a54b | Verified | [260425-vyj-fix-planner-bugs-999-1-state-merge-on-fo](./quick/260425-vyj-fix-planner-bugs-999-1-state-merge-on-fo/) |
 
 ## Session Continuity
 
