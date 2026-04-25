@@ -121,3 +121,19 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5
 | 3. Graph Assembly & API Layer | 0/3 | Not started | - |
 | 4. Frontend & Reasoning Trace | 0/3 | Not started | - |
 | 5. Polish, Observability & Docs | 0/3 | Not started | - |
+
+## Backlog
+
+Out-of-band items surfaced during execution (not part of the planned 5-phase milestone).
+
+### 999.2: Scope-naming mismatch — "Central Region" vs Bangkok Metro
+
+**Status**: Resolved 2026-04-25 via quick task `260425-vc6-rename-product-scope-from-central-region` (option b: rename docs to match code).
+
+**Origin**: Live smoke testing on 2026-04-25 surfaced that the rate table and zone classifier only cover Bangkok metro provinces (Nonthaburi, Pathum Thani, Samut Prakan, Nakhon Pathom, Samut Sakhon, Ayutthaya), despite user-facing docs and runtime error messages calling the scope "Central Region".
+
+**Options considered**:
+- (a) Expand zones to cover the full Thai Central Region (north to Lop Buri, west to Kanchanaburi, etc.) — deferred as a v2.0 possibility; would require new zone definitions, rate table rows, and Google Maps coverage testing.
+- (b) Rename the product scope language from "Central Region" to "Bangkok Metro" across user-facing docs, narration docstrings, and runtime error messages — chosen, smaller blast radius, no rate-table/zone churn.
+
+**Decision**: Option (b). Internal zone identifiers `central-1/2/3` were intentionally NOT renamed to avoid churn in rate tables, fixtures, and lookup_rate logic. Option (a) remains open as a future expansion possibility for v2.0.
