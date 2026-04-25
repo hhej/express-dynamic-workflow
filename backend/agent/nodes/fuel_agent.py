@@ -124,7 +124,15 @@ def fuel_agent_node(state: dict) -> dict:
         "status": "ok",
     }
 
+    # D-13: stamp fetched_at (UTC ISO-8601 'Z') into the dumped dict so
+    # planner_node can compute the FUEL_DATA_TTL_SECONDS skip. The
+    # FuelData Pydantic model itself does not carry this field — it is a
+    # state-level annotation, not part of the tool's return shape.
+    fuel_dump = fuel_data.model_dump()
+    fuel_dump["fetched_at"] = datetime.now(timezone.utc).isoformat().replace(
+        "+00:00", "Z"
+    )
     return {
-        "fuel_data": fuel_data.model_dump(),
+        "fuel_data": fuel_dump,
         "reasoning_trace": [trace_entry],
     }

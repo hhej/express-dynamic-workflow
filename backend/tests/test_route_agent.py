@@ -118,10 +118,24 @@ def test_gemini_failure_triggers_deterministic_fallback(
     assert "central-1" in entry["reasoning"] or "15.2" in entry["reasoning"]
 
 
-@pytest.mark.skip(
-    reason="Wave 0 placeholder; D-13 implementation lands in Plan 03-02"
-)
-def test_fetched_at_added_to_dump():
-    # Implemented in Plan 03-02 -- route_agent_node decorates route_data dump
-    # with `fetched_at` (UTC ISO 8601) so planner_node can compute TTL skip.
-    ...
+def test_fetched_at_added_to_dump(sample_agent_state, mocker, monkeypatch):
+    """D-13: route_agent_node stamps fetched_at (UTC ISO-8601 'Z') into the
+    returned route_data dict so planner_node can compute the TTL skip."""
+    from datetime import datetime
+
+    mocker.patch.object(mod, "calculate_route", return_value=_FAKE_ROUTE)
+    monkeypatch.setattr(
+        mod,
+        "get_chat_model",
+        lambda **_: _scripted_llm(
+            '{"summary": "ok", "traffic_label": "moderate"}'
+        ),
+    )
+
+    result = route_agent_node(_state_with_route(sample_agent_state))
+
+    fetched_at = result["route_data"]["fetched_at"]
+    assert isinstance(fetched_at, str)
+    assert fetched_at.endswith("Z")
+    # Parses as ISO-8601 without raising.
+    datetime.fromisoformat(fetched_at.replace("Z", "+00:00"))

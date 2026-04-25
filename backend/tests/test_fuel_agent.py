@@ -118,10 +118,24 @@ def test_reasoning_includes_trend_from_llm_when_successful(
     assert "above_baseline" in result["reasoning_trace"][0]["reasoning"]
 
 
-@pytest.mark.skip(
-    reason="Wave 0 placeholder; D-13 implementation lands in Plan 03-02"
-)
-def test_fetched_at_added_to_dump():
-    # Implemented in Plan 03-02 -- fuel_agent_node decorates fuel_data dump
-    # with `fetched_at` (UTC ISO 8601) so planner_node can compute TTL skip.
-    ...
+def test_fetched_at_added_to_dump(sample_agent_state, mocker, monkeypatch):
+    """D-13: fuel_agent_node stamps fetched_at (UTC ISO-8601 'Z') into the
+    returned fuel_data dict so planner_node can compute the TTL skip."""
+    from datetime import datetime
+
+    mocker.patch.object(mod, "fetch_fuel_price", return_value=_FAKE_FUEL)
+    monkeypatch.setattr(
+        mod,
+        "get_chat_model",
+        lambda **_: _scripted_llm(
+            '{"summary": "ok", "trend": "above_baseline"}'
+        ),
+    )
+
+    result = fuel_agent_node(sample_agent_state)
+
+    fetched_at = result["fuel_data"]["fetched_at"]
+    assert isinstance(fetched_at, str)
+    assert fetched_at.endswith("Z")
+    # Parses as ISO-8601 without raising.
+    datetime.fromisoformat(fetched_at.replace("Z", "+00:00"))
