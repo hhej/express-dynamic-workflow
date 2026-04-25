@@ -68,7 +68,7 @@ Plans:
 **Plans**: 5 plans
 
 Plans:
-- [ ] 03-01-PLAN.md — Wave 0 foundation: deps, AgentState extension, config constants, .env.example, test scaffolds, in_memory_checkpointer fixture
+- [x] 03-01-PLAN.md — Wave 0 foundation: deps, AgentState extension, config constants, .env.example, test scaffolds, in_memory_checkpointer fixture
 - [ ] 03-02-PLAN.md — Planner + Pricing + Response nodes (ORCH-01/04/05) + D-13 fetched_at injection in fuel/route nodes
 - [ ] 03-03-PLAN.md — Graph assembly: build_graph + RetryPolicy + AsyncSqliteSaver topology (ORCH-08/10) + 7 integration tests
 - [ ] 03-04-PLAN.md — FastAPI app shell + POST /api/chat SSE handler (API-01) with meta/trace/answer/error/done envelope

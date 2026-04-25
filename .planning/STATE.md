@@ -2,15 +2,15 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-status: verifying
-stopped_at: Phase 3 context gathered
-last_updated: "2026-04-25T02:50:43.516Z"
-last_activity: 2026-04-18
+status: executing
+stopped_at: Completed 03-01-PLAN.md (Wave 0 foundation)
+last_updated: "2026-04-25T03:42:18.886Z"
+last_activity: 2026-04-25
 progress:
   total_phases: 5
   completed_phases: 2
-  total_plans: 8
-  completed_plans: 8
+  total_plans: 13
+  completed_plans: 9
   percent: 0
 ---
 
@@ -21,14 +21,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-04-04)
 
 **Core value:** The agent must transparently reason through fuel price, route, and shipping data to produce an accurate, explainable surcharge recommendation.
-**Current focus:** Phase 02 — tools-agent-nodes
+**Current focus:** Phase 03 — graph-assembly-api-layer
 
 ## Current Position
 
-Phase: 3
-Plan: Not started
-Status: Phase complete — ready for verification
-Last activity: 2026-04-18
+Phase: 03 (graph-assembly-api-layer) — EXECUTING
+Plan: 2 of 5
+Status: Ready to execute
+Last activity: 2026-04-25
 
 Progress: [░░░░░░░░░░] 0%
 
@@ -60,6 +60,7 @@ Progress: [░░░░░░░░░░] 0%
 | Phase 02 P03 | 2min | 3 tasks | 3 files |
 | Phase 02 P02 | 3min | 2 tasks | 2 files |
 | Phase 02 P05 | 5min | 3 tasks | 7 files |
+| Phase 03 P01 | 8min | 3 tasks | 14 files |
 
 ## Accumulated Context
 
@@ -93,6 +94,9 @@ Recent decisions affecting current work:
 - [Phase 02]: Plan 05: route_agent_node raises ValueError when origin/destination missing from state (D-10) -- surfaces Phase 3 Planner pre-extraction contract violations eagerly
 - [Phase 02]: Plan 05: Fuel SYSTEM_PROMPT excludes search_fuel_news (TOOL-05 deferred to Phase 5 per Open Question 3) -- prevents hallucinated tool calls
 - [Phase 02]: Plan 05: D-11 fallback wraps whole Gemini path in try/except (Exception, ValidationError); trace status stays ok because narration is always produced (LLM or deterministic)
+- [Phase 03]: Plan 03-01: aiosqlite pinned to 0.20.0 (not 0.22.1) -- 0.22.x removed Connection.is_alive() that langgraph-checkpoint-sqlite 2.0.11 requires; Rule 1 fix during Task 3 fixture verification
+- [Phase 03]: Plan 03-01: in_memory_checkpointer fixture uses 'async with aiosqlite.connect()' not bare 'await' -- raw await does not activate connection thread; AsyncSqliteSaver.setup() needs is_alive=True
+- [Phase 03]: Plan 03-01: AgentState v2 appends 6 D-05 fields (origin, destination, user_intent, missing_fields, clarification_reason, errors) AFTER existing v1 fields; errors uses operator.add reducer for parallel-write safety
 
 ### Pending Todos
 
@@ -106,6 +110,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-04-25T02:50:43.506Z
-Stopped at: Phase 3 context gathered
-Resume file: .planning/phases/03-graph-assembly-api-layer/03-CONTEXT.md
+Last session: 2026-04-25T03:42:18.884Z
+Stopped at: Completed 03-01-PLAN.md (Wave 0 foundation)
+Resume file: None

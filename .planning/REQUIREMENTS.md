@@ -125,9 +125,9 @@ Which phases cover which requirements. Updated during roadmap creation.
 | ORCH-05 | Phase 3 | Pending |
 | ORCH-06 | Phase 1 | Complete |
 | ORCH-07 | Phase 5 | Pending |
-| ORCH-08 | Phase 3 | Pending |
+| ORCH-08 | Phase 3 | Active |
 | ORCH-09 | Phase 5 | Pending |
-| ORCH-10 | Phase 3 | Pending |
+| ORCH-10 | Phase 3 | Active |
 | CALC-01 | Phase 1 | Complete |
 | CALC-02 | Phase 1 | Complete |
 | CALC-03 | Phase 1 | Complete |
