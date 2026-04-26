@@ -15,7 +15,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [ ] **Phase 1: Foundation & Data Pipeline** - State schema, Pydantic models, SQLite database, seed scripts, surcharge formula constants
 - [ ] **Phase 2: Tools & Agent Nodes** - Build and test each tool independently, wrap in LangGraph agent nodes
 - [ ] **Phase 3: Graph Assembly & API Layer** - Wire nodes into StateGraph with conditional routing, checkpointer, FastAPI endpoints
-- [ ] **Phase 4: Frontend & Reasoning Trace** - Chat UI, reasoning trace panel, dashboard, SSE streaming display
+- [x] **Phase 4: Frontend & Reasoning Trace** - Chat UI, reasoning trace panel, dashboard, SSE streaming display (completed 2026-04-26)
 - [ ] **Phase 5: Polish, Observability & Docs** - Parallel agents, HITL gate, Langfuse tracing, Tavily search, documentation
 
 ## Phase Details
@@ -88,9 +88,11 @@ Plans:
 **UI hint**: yes
 
 Plans:
-- [ ] 04-01: TBD
-- [ ] 04-02: TBD
-- [ ] 04-03: TBD
+- [x] 04-01-PLAN.md — Wave 0 foundation: Next.js scaffold, TS types mirroring backend, Vitest+MSW+Playwright infra
+- [x] 04-02-PLAN.md — Data layer: SSE parser, api client, formatters, useChatStream/useConversations/useFuelPrices hooks
+- [x] 04-03-PLAN.md — Chat + trace + sidebar UI: MarkdownAnswer, MessageList, FeedbackButtons, TracePanel, ConversationSidebar (UI-01/02/03/05/06)
+- [x] 04-04-PLAN.md — Dashboard: FuelPriceChart + SurchargeHistoryChart with Recharts × React 19 mitigations (UI-04)
+- [x] 04-05-PLAN.md — Composition: ChatColumn tab toggle + ChatApp shell + Playwright e2e + human verification checkpoint
 
 ### Phase 5: Polish, Observability & Docs
 **Goal**: The system demonstrates advanced agent patterns (parallel execution, HITL, web search) with full observability and submission-ready documentation
@@ -119,7 +121,7 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5
 | 1. Foundation & Data Pipeline | 0/3 | Planning complete | - |
 | 2. Tools & Agent Nodes | 0/3 | Not started | - |
 | 3. Graph Assembly & API Layer | 0/3 | Not started | - |
-| 4. Frontend & Reasoning Trace | 0/3 | Not started | - |
+| 4. Frontend & Reasoning Trace | 5/5 | Complete   | 2026-04-26 |
 | 5. Polish, Observability & Docs | 0/3 | Not started | - |
 
 ## Backlog

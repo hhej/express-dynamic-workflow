@@ -1,16 +1,16 @@
 ---
 gsd_state_version: 1.0
-milestone: v1.0
+milestone: v2.0
 milestone_name: milestone
-status: verifying
-stopped_at: "Completed 03-05-PLAN.md (Wave 4 read endpoints: /api/conversations list+replay via SQL+aget_state, /api/fuel-prices CSV reader; backend suite 103 passed/0 skipped; Phase 3 ready for verifier)"
-last_updated: "2026-04-25T04:29:10.324Z"
-last_activity: 2026-04-25
+status: executing
+stopped_at: Completed 04-05-PLAN.md — Phase 4 frontend-reasoning-trace done, all UI-01..UI-06 verified live in browser
+last_updated: "2026-04-26T05:32:21.215Z"
+last_activity: 2026-04-26
 progress:
   total_phases: 5
-  completed_phases: 3
-  total_plans: 13
-  completed_plans: 13
+  completed_phases: 4
+  total_plans: 18
+  completed_plans: 18
   percent: 0
 ---
 
@@ -21,14 +21,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-04-04)
 
 **Core value:** The agent must transparently reason through fuel price, route, and shipping data to produce an accurate, explainable surcharge recommendation.
-**Current focus:** Phase 03 — graph-assembly-api-layer
+**Current focus:** Phase 04 — frontend-reasoning-trace
 
 ## Current Position
 
-Phase: 4
+Phase: 5
 Plan: Not started
-Status: Phase complete — ready for verification
-Last activity: 2026-04-25 — Completed quick task 260425-x2i: fix D-04 loop-budget guard (999.4)
+Status: Ready to execute
+Last activity: 2026-04-26
 
 Progress: [░░░░░░░░░░] 0%
 
@@ -65,6 +65,11 @@ Progress: [░░░░░░░░░░] 0%
 | Phase 03 P03 | 7min | 2 tasks | 5 files |
 | Phase 03 P04 | 4min | 2 tasks | 8 files |
 | Phase 03 P05 | 3min | 2 tasks | 5 files |
+| Phase 04 P01 | 7min | 3 tasks | 21 files |
+| Phase 04 P02 | 8min | 2 tasks | 13 files |
+| Phase 04 P03 | 6min | 3 tasks | 25 files |
+| Phase 04 P04 | 5min | 2 tasks | 9 files |
+| Phase 04 P05 | 13min | 4 tasks | 6 files |
 
 ## Accumulated Context
 
@@ -115,6 +120,27 @@ Recent decisions affecting current work:
 - [Phase 03]: Plan 03-05: Reuse chat-test fixture pattern (env-var manipulation + lifespan reload + LLM/tool monkey-patch) for /api/conversations tests; seed real checkpoints via POST /api/chat then exercise GETs -- proves end-to-end against the same lifespan-managed AsyncSqliteSaver
 - [Phase 03]: Plan 03-05: /api/conversations preview generation wraps graph.aget_state() in try/except so corrupt/partial checkpoints log a warning + return blank preview rather than 500-ing the whole listing call -- robustness over precision
 - [Phase 03]: Plan 03-05: /api/fuel-prices reads data/raw/eppo_diesel_prices.csv directly per D-20 (Phase 1 only seeded rate_table); FastAPI Query(ge=1, le=365) handles validation implicitly -- no test_validates_days_parameter needed per Plan 03-01 stub list
+- [Phase 04]: Plan 04-01: Pinned Next 15.5.x over create-next-app's default Next 16 — required deleting auto-generated frontend/{AGENTS,CLAUDE,README}.md that targeted Next 16 deprecation notes
+- [Phase 04]: Plan 04-01: Migrated eslint.config.mjs to FlatCompat (@eslint/eslintrc) — eslint-config-next 15.5.x exports .js subpaths that the v16 native ESM imports could not resolve under ESLint 9 flat-config (Rule 3 fix)
+- [Phase 04]: Plan 04-01: react-is collapsed to single 19.2.5 via package.json overrides.react-is — verified via 'npm ls react-is | grep -oE react-is@... | sort -u' returning a single line; mitigates Recharts × React 19 blank-chart pitfall before any chart code is written
+- [Phase 04]: Plan 04-01: Hand-mirrored backend snake_case verbatim into frontend/types/{api,agent}.types.ts — explicit anti-camelCase comments enforce the rule; downstream plans import via @/types alias
+- [Phase 04]: Plan 04-02: parseSseStream tolerates malformed JSON via console.error+continue — one bad frame cannot poison a whole turn (matches D-08 current-turn-only liveTrace intent)
+- [Phase 04]: Plan 04-02: useChatStream uses threadIdRef alongside state.threadId — useCallback empty-deps + ref read prevents stale-closure bugs where rapid back-to-back sends both submit with the pre-meta threadId
+- [Phase 04]: Plan 04-02: DONE dispatch deferred to finally block (not 'done' SSE case) — error→done sequences from backend would otherwise clobber status='error' back to 'done'
+- [Phase 04]: Plan 04-02: Map-backed Storage polyfill installed in __tests__/setup.ts — Node 25 ships an experimental globalThis.localStorage that vitest 4's jsdom populator skips because (k in global) is true; polyfill is the only Node-version-agnostic fix
+- [Phase 04]: Plan 04-02: D-08 abort assertion reformulated to inspect liveTrace contents (must equal the 5 second-turn events) instead of upstream stream cancel() callback — MSW does not propagate fetch consumer reader.cancel() to source, but consumer-side invariant is what the test validates
+- [Phase 04]: Plan 04-03: D-11 strip-the-line over blockquote-override approach (CAP_LINE_RE.replace removes leading > line before ReactMarkdown sees it; CapCallout renders above stripped markdown) — avoids RESEARCH dual-render anti-pattern
+- [Phase 04]: Plan 04-03: PartialCard delegates breakdown render to MarkdownAnswer when surcharge_result is non-null — avoids duplicating GFM table override and inherits capped-banner if backend ever returns capped+partial
+- [Phase 04]: Plan 04-03: FeedbackButtons stores JSON ARRAY under localStorage[feedback] (append-on-vote) — matches eventual Phase 5 batch-flush api.postFeedback semantics; MessageList gates buttons on threadId !== null to keep votes attributable
+- [Phase 04]: Plan 04-03: TraceStatusBadge accepts TraceStatus | 'running' even though backend never emits 'running' — UI-SPEC documents the running animate-pulse style for future in-flight indicator without schema change
+- [Phase 04]: Plan 04-04: Inlined ChartErrorBoundary in DashboardView and animate-pulse skeletons in chart components — Wave 3 parallel-write boundary forbids touching frontend/components/shared/ owned by 04-03; integrator (04-05) swaps to canonical imports post-merge
+- [Phase 04]: Plan 04-04: Test-only vi.mock('recharts') with ResponsiveContainer cloneElement shim — jsdom has no ResizeObserver, so the shim forces fixed width/height into the inner LineChart/BarChart; without it the Pitfall 3 SVG-path smoke would silently pass via the empty-state fallback
+- [Phase 04]: Plan 04-04: useSurchargeHistory uses Promise.all over per-thread getConversation calls with .catch(() => null) per-call — Pitfall 8 mitigation; one failed thread cannot blank the whole chart
+- [Phase 04]: Plan 04-04: Tooltip formatter coerces ValueType via 'typeof === number ? value : Number(value)' — Recharts 3 typed the formatter signature stricter than its 2.x examples; coercion preserves runtime behaviour while satisfying tsc
+- [Phase 04]: Plan 04-05: ChatColumn tab toggle uses Tailwind hidden visibility (not conditional unmount) — preserves chat state, scroll position, and in-flight stream across Chat ↔ Dashboard switches
+- [Phase 04]: Plan 04-05: ChatApp lifts useChatStream + useConversations once at the root and threads state down via props/callbacks — keeps ChatColumn / TracePanel / ConversationSidebar as pure-renderers with single AbortController + single SSE consumer
+- [Phase 04]: Plan 04-05: Resume flow constructs a minimal FinalPayload per replayed assistant message (markdown + surcharge_result + status='ok') so MarkdownAnswer renders persisted answers through the same pipeline as live ones; trace panel intentionally does NOT swap on resume per D-08 (deferred to Phase 5)
+- [Phase 04]: Plan 04-05: Phase-3 CORS gap surfaced during human-verify Verify 1 (browser preflight OPTIONS /api/chat returned 405); fixed in-band by adding CORSMiddleware to backend/api/main.py (commit 750cf5d). Phase 3 (API-01) shipped without CORS because TestClient never exercises preflight; production deploy needs env-driven allow-list
 
 ### Pending Todos
 
@@ -136,6 +162,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-04-25T04:21:54.742Z
-Stopped at: Completed 03-05-PLAN.md (Wave 4 read endpoints: /api/conversations list+replay via SQL+aget_state, /api/fuel-prices CSV reader; backend suite 103 passed/0 skipped; Phase 3 ready for verifier)
+Last session: 2026-04-26T05:23:24.538Z
+Stopped at: Completed 04-05-PLAN.md — Phase 4 frontend-reasoning-trace done, all UI-01..UI-06 verified live in browser
 Resume file: None
