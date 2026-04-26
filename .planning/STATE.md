@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v2.0
 milestone_name: milestone
 status: executing
-stopped_at: "Completed 04-02-PLAN.md (data-access layer for streaming chat: parseSseStream, api client, three hooks)"
-last_updated: "2026-04-26T04:48:41.071Z"
+stopped_at: Completed 04-03-PLAN.md (chat/trace/sidebar components — UI-01/02/03/05/06 satisfied)
+last_updated: "2026-04-26T04:59:08.100Z"
 last_activity: 2026-04-26
 progress:
   total_phases: 5
   completed_phases: 3
   total_plans: 18
-  completed_plans: 15
+  completed_plans: 16
   percent: 0
 ---
 
@@ -26,7 +26,7 @@ See: .planning/PROJECT.md (updated 2026-04-04)
 ## Current Position
 
 Phase: 04 (frontend-reasoning-trace) — EXECUTING
-Plan: 3 of 5
+Plan: 4 of 5
 Status: Ready to execute
 Last activity: 2026-04-26
 
@@ -67,6 +67,7 @@ Progress: [░░░░░░░░░░] 0%
 | Phase 03 P05 | 3min | 2 tasks | 5 files |
 | Phase 04 P01 | 7min | 3 tasks | 21 files |
 | Phase 04 P02 | 8min | 2 tasks | 13 files |
+| Phase 04 P03 | 6min | 3 tasks | 25 files |
 
 ## Accumulated Context
 
@@ -126,6 +127,10 @@ Recent decisions affecting current work:
 - [Phase 04]: Plan 04-02: DONE dispatch deferred to finally block (not 'done' SSE case) — error→done sequences from backend would otherwise clobber status='error' back to 'done'
 - [Phase 04]: Plan 04-02: Map-backed Storage polyfill installed in __tests__/setup.ts — Node 25 ships an experimental globalThis.localStorage that vitest 4's jsdom populator skips because (k in global) is true; polyfill is the only Node-version-agnostic fix
 - [Phase 04]: Plan 04-02: D-08 abort assertion reformulated to inspect liveTrace contents (must equal the 5 second-turn events) instead of upstream stream cancel() callback — MSW does not propagate fetch consumer reader.cancel() to source, but consumer-side invariant is what the test validates
+- [Phase 04]: Plan 04-03: D-11 strip-the-line over blockquote-override approach (CAP_LINE_RE.replace removes leading > line before ReactMarkdown sees it; CapCallout renders above stripped markdown) — avoids RESEARCH dual-render anti-pattern
+- [Phase 04]: Plan 04-03: PartialCard delegates breakdown render to MarkdownAnswer when surcharge_result is non-null — avoids duplicating GFM table override and inherits capped-banner if backend ever returns capped+partial
+- [Phase 04]: Plan 04-03: FeedbackButtons stores JSON ARRAY under localStorage[feedback] (append-on-vote) — matches eventual Phase 5 batch-flush api.postFeedback semantics; MessageList gates buttons on threadId !== null to keep votes attributable
+- [Phase 04]: Plan 04-03: TraceStatusBadge accepts TraceStatus | 'running' even though backend never emits 'running' — UI-SPEC documents the running animate-pulse style for future in-flight indicator without schema change
 
 ### Pending Todos
 
@@ -147,6 +152,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-04-26T04:48:41.068Z
-Stopped at: Completed 04-02-PLAN.md (data-access layer for streaming chat: parseSseStream, api client, three hooks)
+Last session: 2026-04-26T04:59:08.098Z
+Stopped at: Completed 04-03-PLAN.md (chat/trace/sidebar components — UI-01/02/03/05/06 satisfied)
 Resume file: None
