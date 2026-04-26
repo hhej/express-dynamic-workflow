@@ -27,7 +27,7 @@ Backend test suite: **103 passing** (`backend/tests/`). The agent graph runs end
 |------|-----------|------|
 | **Tech Lead** | 6810424009 | Panjapol Ampornratana |
 | Management Member | 6810424004 | Jirapa Panich |
-| Management Member | 6810424008 | Phanitphan Eaimnon |
+| Management Member | 6810424008 | Phanitphan Eiamnon |
 | Management Member | 6810424012 | Tanakrid Burutchat |
 | Management Member | 6810424020 | Phatthakan Phatthanuwat |
 
