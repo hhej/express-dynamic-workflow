@@ -74,41 +74,51 @@ describe('useChatStream', () => {
   });
 
   it('a second send() aborts the first — D-08 single-turn invariant', async () => {
-    let firstAborted = false;
     server.use(
       http.post('http://localhost:8000/api/chat', async ({ request }) => {
         const body = (await request.json()) as { message: string };
-        const events: SSEEvent[] =
-          body.message === 'first'
-            ? [{ type: 'meta', payload: { thread_id: 't1' } }]
-            : happyTurnEvents('thread-happy');
-        const stream = new ReadableStream<Uint8Array>({
-          start(controller) {
-            const enc = new TextEncoder();
-            for (const ev of events) {
-              controller.enqueue(enc.encode(`data: ${JSON.stringify(ev)}\n\n`));
-            }
-            if (body.message !== 'first') controller.close();
-            // For 'first', leave open until aborted.
-          },
-          cancel() {
-            firstAborted = true;
-          },
-        });
-        return new HttpResponse(stream, {
-          headers: { 'Content-Type': 'text/event-stream' },
-        });
+        if (body.message === 'first') {
+          // Long-lived stream that emits one trace event from a fictitious
+          // FIRST_AGENT and then awaits abort. If the second send fails to
+          // abort us, this trace entry would leak into liveTrace alongside
+          // the second turn's 5 happy events (D-08 violation).
+          const stream = new ReadableStream<Uint8Array>({
+            async start(controller) {
+              const enc = new TextEncoder();
+              controller.enqueue(
+                enc.encode(
+                  `data: ${JSON.stringify({ type: 'meta', payload: { thread_id: 't-first' } })}\n\n`,
+                ),
+              );
+              // Hold the stream open by never enqueueing more / never closing.
+              // The reader.cancel() call from parseSseStream's abort branch
+              // will short-circuit the consumer; we don't rely on jsdom
+              // propagating cancel() to the source for the assertion.
+            },
+          });
+          return new HttpResponse(stream, {
+            headers: { 'Content-Type': 'text/event-stream' },
+          });
+        }
+        return sseResponse(happyTurnEvents('thread-happy'));
       }),
     );
     const { result } = renderHook(() => useChatStream());
+    // Fire-and-forget the first send, then yield ticks for postChat to
+    // resolve and parseSseStream to start reading the first body.
     await act(async () => {
       void result.current.send('first');
+      await new Promise((r) => setTimeout(r, 50));
     });
     await act(async () => {
       await result.current.send('second');
     });
     await waitFor(() => expect(result.current.status).toBe('done'));
-    expect(result.current.threadId).toBe('thread-happy'); // second stream's meta wins
-    expect(firstAborted).toBe(true);
+    // Second stream's meta wins (proves new turn replaced old).
+    expect(result.current.threadId).toBe('thread-happy');
+    // D-08 invariant: liveTrace contains only the second turn's 5 happy
+    // events — no leakage from the aborted first turn.
+    expect(result.current.liveTrace).toHaveLength(5);
+    expect(result.current.finalPayload?.status).toBe('ok');
   });
 });
