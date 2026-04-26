@@ -62,7 +62,12 @@ export function FuelPriceChart() {
             <CartesianGrid strokeDasharray="3 3" />
             <XAxis dataKey="date" tick={{ fontSize: 12 }} />
             <YAxis domain={['auto', 'auto']} tick={{ fontSize: 12 }} unit=" THB" />
-            <Tooltip formatter={(v: number) => `${v.toFixed(2)} THB/L`} />
+            <Tooltip
+              formatter={(value) => {
+                const n = typeof value === 'number' ? value : Number(value);
+                return Number.isFinite(n) ? `${n.toFixed(2)} THB/L` : String(value);
+              }}
+            />
             <Line
               type="monotone"
               dataKey="price"
