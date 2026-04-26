@@ -27,6 +27,16 @@ created: 2026-04-26
 
 ---
 
+## Visual Hierarchy
+
+**Primary focal point:** the live reasoning trace panel (right rail, 384px, D-03) — always-visible, live-streaming steps are the core grading lever and the product's differentiator (CLAUDE.md Core Value: "visible reasoning is what makes this agentic, not just automated"). The chat column is the input/output channel; the trace panel is the *evidence surface*. When the layout is built, the trace panel must read as a first-class peer to the chat column, not a secondary side-pane — full-height, no collapse-by-default on desktop, and the live `running`-state badge animation (Pattern 7 `animate-pulse`) is what draws the eye during query execution.
+
+**Secondary anchor:** the chat input row (bottom of center column) — the user's only persistent action surface. The accent-colored send button (`bg-blue-600`) is the single brightest element on screen at rest, per the accent reserved-for list.
+
+**Tertiary:** the sidebar (left, 256px) — read-only conversation list, low-contrast at rest (`bg-gray-50`), highlights only on active thread. Intentionally recedes.
+
+---
+
 ## Spacing Scale
 
 Declared values (all multiples of 4, mapped to Tailwind v4 default scale):
