@@ -88,9 +88,11 @@ Plans:
 **UI hint**: yes
 
 Plans:
-- [ ] 04-01: TBD
-- [ ] 04-02: TBD
-- [ ] 04-03: TBD
+- [ ] 04-01-PLAN.md — Wave 0 foundation: Next.js scaffold, TS types mirroring backend, Vitest+MSW+Playwright infra
+- [ ] 04-02-PLAN.md — Data layer: SSE parser, api client, formatters, useChatStream/useConversations/useFuelPrices hooks
+- [ ] 04-03-PLAN.md — Chat + trace + sidebar UI: MarkdownAnswer, MessageList, FeedbackButtons, TracePanel, ConversationSidebar (UI-01/02/03/05/06)
+- [ ] 04-04-PLAN.md — Dashboard: FuelPriceChart + SurchargeHistoryChart with Recharts × React 19 mitigations (UI-04)
+- [ ] 04-05-PLAN.md — Composition: ChatColumn tab toggle + ChatApp shell + Playwright e2e + human verification checkpoint
 
 ### Phase 5: Polish, Observability & Docs
 **Goal**: The system demonstrates advanced agent patterns (parallel execution, HITL, web search) with full observability and submission-ready documentation
