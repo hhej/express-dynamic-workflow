@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v2.0
 milestone_name: milestone
 status: executing
-stopped_at: Completed 04-01-PLAN.md (frontend Wave 0 scaffold)
-last_updated: "2026-04-26T04:36:52.003Z"
+stopped_at: "Completed 04-02-PLAN.md (data-access layer for streaming chat: parseSseStream, api client, three hooks)"
+last_updated: "2026-04-26T04:48:41.071Z"
 last_activity: 2026-04-26
 progress:
   total_phases: 5
   completed_phases: 3
   total_plans: 18
-  completed_plans: 14
+  completed_plans: 15
   percent: 0
 ---
 
@@ -26,7 +26,7 @@ See: .planning/PROJECT.md (updated 2026-04-04)
 ## Current Position
 
 Phase: 04 (frontend-reasoning-trace) — EXECUTING
-Plan: 2 of 5
+Plan: 3 of 5
 Status: Ready to execute
 Last activity: 2026-04-26
 
@@ -66,6 +66,7 @@ Progress: [░░░░░░░░░░] 0%
 | Phase 03 P04 | 4min | 2 tasks | 8 files |
 | Phase 03 P05 | 3min | 2 tasks | 5 files |
 | Phase 04 P01 | 7min | 3 tasks | 21 files |
+| Phase 04 P02 | 8min | 2 tasks | 13 files |
 
 ## Accumulated Context
 
@@ -120,6 +121,11 @@ Recent decisions affecting current work:
 - [Phase 04]: Plan 04-01: Migrated eslint.config.mjs to FlatCompat (@eslint/eslintrc) — eslint-config-next 15.5.x exports .js subpaths that the v16 native ESM imports could not resolve under ESLint 9 flat-config (Rule 3 fix)
 - [Phase 04]: Plan 04-01: react-is collapsed to single 19.2.5 via package.json overrides.react-is — verified via 'npm ls react-is | grep -oE react-is@... | sort -u' returning a single line; mitigates Recharts × React 19 blank-chart pitfall before any chart code is written
 - [Phase 04]: Plan 04-01: Hand-mirrored backend snake_case verbatim into frontend/types/{api,agent}.types.ts — explicit anti-camelCase comments enforce the rule; downstream plans import via @/types alias
+- [Phase 04]: Plan 04-02: parseSseStream tolerates malformed JSON via console.error+continue — one bad frame cannot poison a whole turn (matches D-08 current-turn-only liveTrace intent)
+- [Phase 04]: Plan 04-02: useChatStream uses threadIdRef alongside state.threadId — useCallback empty-deps + ref read prevents stale-closure bugs where rapid back-to-back sends both submit with the pre-meta threadId
+- [Phase 04]: Plan 04-02: DONE dispatch deferred to finally block (not 'done' SSE case) — error→done sequences from backend would otherwise clobber status='error' back to 'done'
+- [Phase 04]: Plan 04-02: Map-backed Storage polyfill installed in __tests__/setup.ts — Node 25 ships an experimental globalThis.localStorage that vitest 4's jsdom populator skips because (k in global) is true; polyfill is the only Node-version-agnostic fix
+- [Phase 04]: Plan 04-02: D-08 abort assertion reformulated to inspect liveTrace contents (must equal the 5 second-turn events) instead of upstream stream cancel() callback — MSW does not propagate fetch consumer reader.cancel() to source, but consumer-side invariant is what the test validates
 
 ### Pending Todos
 
@@ -141,6 +147,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-04-26T04:36:52.000Z
-Stopped at: Completed 04-01-PLAN.md (frontend Wave 0 scaffold)
+Last session: 2026-04-26T04:48:41.068Z
+Stopped at: Completed 04-02-PLAN.md (data-access layer for streaming chat: parseSseStream, api client, three hooks)
 Resume file: None
