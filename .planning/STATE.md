@@ -2,15 +2,15 @@
 gsd_state_version: 1.0
 milestone: v2.0
 milestone_name: milestone
-status: verifying
-stopped_at: Phase 4 context gathered
-last_updated: "2026-04-25T17:20:39.785Z"
-last_activity: "2026-04-25 — Completed quick task 260425-x2i: fix D-04 loop-budget guard (999.4)"
+status: executing
+stopped_at: Completed 04-01-PLAN.md (frontend Wave 0 scaffold)
+last_updated: "2026-04-26T04:36:52.003Z"
+last_activity: 2026-04-26
 progress:
   total_phases: 5
   completed_phases: 3
-  total_plans: 13
-  completed_plans: 13
+  total_plans: 18
+  completed_plans: 14
   percent: 0
 ---
 
@@ -21,14 +21,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-04-04)
 
 **Core value:** The agent must transparently reason through fuel price, route, and shipping data to produce an accurate, explainable surcharge recommendation.
-**Current focus:** Phase 03 — graph-assembly-api-layer
+**Current focus:** Phase 04 — frontend-reasoning-trace
 
 ## Current Position
 
-Phase: 4
-Plan: Not started
-Status: Phase complete — ready for verification
-Last activity: 2026-04-25 — Completed quick task 260425-x2i: fix D-04 loop-budget guard (999.4)
+Phase: 04 (frontend-reasoning-trace) — EXECUTING
+Plan: 2 of 5
+Status: Ready to execute
+Last activity: 2026-04-26
 
 Progress: [░░░░░░░░░░] 0%
 
@@ -65,6 +65,7 @@ Progress: [░░░░░░░░░░] 0%
 | Phase 03 P03 | 7min | 2 tasks | 5 files |
 | Phase 03 P04 | 4min | 2 tasks | 8 files |
 | Phase 03 P05 | 3min | 2 tasks | 5 files |
+| Phase 04 P01 | 7min | 3 tasks | 21 files |
 
 ## Accumulated Context
 
@@ -115,6 +116,10 @@ Recent decisions affecting current work:
 - [Phase 03]: Plan 03-05: Reuse chat-test fixture pattern (env-var manipulation + lifespan reload + LLM/tool monkey-patch) for /api/conversations tests; seed real checkpoints via POST /api/chat then exercise GETs -- proves end-to-end against the same lifespan-managed AsyncSqliteSaver
 - [Phase 03]: Plan 03-05: /api/conversations preview generation wraps graph.aget_state() in try/except so corrupt/partial checkpoints log a warning + return blank preview rather than 500-ing the whole listing call -- robustness over precision
 - [Phase 03]: Plan 03-05: /api/fuel-prices reads data/raw/eppo_diesel_prices.csv directly per D-20 (Phase 1 only seeded rate_table); FastAPI Query(ge=1, le=365) handles validation implicitly -- no test_validates_days_parameter needed per Plan 03-01 stub list
+- [Phase 04]: Plan 04-01: Pinned Next 15.5.x over create-next-app's default Next 16 — required deleting auto-generated frontend/{AGENTS,CLAUDE,README}.md that targeted Next 16 deprecation notes
+- [Phase 04]: Plan 04-01: Migrated eslint.config.mjs to FlatCompat (@eslint/eslintrc) — eslint-config-next 15.5.x exports .js subpaths that the v16 native ESM imports could not resolve under ESLint 9 flat-config (Rule 3 fix)
+- [Phase 04]: Plan 04-01: react-is collapsed to single 19.2.5 via package.json overrides.react-is — verified via 'npm ls react-is | grep -oE react-is@... | sort -u' returning a single line; mitigates Recharts × React 19 blank-chart pitfall before any chart code is written
+- [Phase 04]: Plan 04-01: Hand-mirrored backend snake_case verbatim into frontend/types/{api,agent}.types.ts — explicit anti-camelCase comments enforce the rule; downstream plans import via @/types alias
 
 ### Pending Todos
 
@@ -136,6 +141,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-04-25T17:20:39.775Z
-Stopped at: Phase 4 context gathered
-Resume file: .planning/phases/04-frontend-reasoning-trace/04-CONTEXT.md
+Last session: 2026-04-26T04:36:52.000Z
+Stopped at: Completed 04-01-PLAN.md (frontend Wave 0 scaffold)
+Resume file: None
