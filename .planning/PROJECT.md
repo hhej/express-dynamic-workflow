@@ -22,6 +22,10 @@ The agent must transparently reason through fuel price, route, and shipping data
 - [x] Pricing Agent computes surcharge using rate table lookup + formula with shipping type multipliers — Validated in Phase 3: Graph Assembly & API Layer
 - [x] Agentic retry loop: agent autonomously retries with exponential backoff on tool failure, falls back gracefully — Validated in Phase 3: Graph Assembly & API Layer
 - [x] Conversation memory via LangGraph SQLite checkpointer — follow-up questions reuse cached data — Validated in Phase 3: Graph Assembly & API Layer
+- [x] Reasoning trace visible in UI — every agent step, tool call, and decision logged and displayed — Validated in Phase 4: Frontend & Reasoning Trace
+- [x] Chat-based UI for querying surcharges with SSE streaming — Validated in Phase 4: Frontend & Reasoning Trace
+- [x] Dashboard showing surcharge trends across routes, shipping types, and time periods (Recharts) — Validated in Phase 4: Frontend & Reasoning Trace
+- [x] Next.js 15 + React 19 + Tailwind CSS frontend — Validated in Phase 4: Frontend & Reasoning Trace
 
 ### Active
 
@@ -29,13 +33,9 @@ The agent must transparently reason through fuel price, route, and shipping data
 - [ ] Route Agent calculates distance and traffic via Google Maps API with 15-min caching
 - [ ] Fuel and Route agents execute in parallel (LangGraph Send API) since they are independent
 - [ ] Human-in-the-loop approval gate for high-value shipment surcharge recommendations
-- [ ] Reasoning trace visible in UI — every agent step, tool call, and decision logged and displayed
-- [ ] Chat-based UI for querying surcharges with SSE streaming
-- [ ] Dashboard showing surcharge trends across routes, shipping types, and time periods (Recharts)
 - [ ] User feedback (thumbs up/down) forwarded to Langfuse for evaluation scoring
 - [ ] Tavily web search tool for fuel news context and trend reasoning
 - [ ] FastAPI backend with endpoints: POST /api/chat (SSE), GET /api/conversations, GET /api/fuel-prices, POST /api/feedback
-- [ ] Next.js 15 + React 19 + Tailwind CSS frontend
 
 ### Out of Scope
 
@@ -110,4 +110,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-04-25 after Phase 3 completion (Graph Assembly & API Layer)*
+*Last updated: 2026-04-26 after Phase 4 completion (Frontend & Reasoning Trace)*
