@@ -91,7 +91,7 @@ Plans:
 - [x] 04-01-PLAN.md — Wave 0 foundation: Next.js scaffold, TS types mirroring backend, Vitest+MSW+Playwright infra
 - [x] 04-02-PLAN.md — Data layer: SSE parser, api client, formatters, useChatStream/useConversations/useFuelPrices hooks
 - [x] 04-03-PLAN.md — Chat + trace + sidebar UI: MarkdownAnswer, MessageList, FeedbackButtons, TracePanel, ConversationSidebar (UI-01/02/03/05/06)
-- [ ] 04-04-PLAN.md — Dashboard: FuelPriceChart + SurchargeHistoryChart with Recharts × React 19 mitigations (UI-04)
+- [x] 04-04-PLAN.md — Dashboard: FuelPriceChart + SurchargeHistoryChart with Recharts × React 19 mitigations (UI-04)
 - [ ] 04-05-PLAN.md — Composition: ChatColumn tab toggle + ChatApp shell + Playwright e2e + human verification checkpoint
 
 ### Phase 5: Polish, Observability & Docs
@@ -121,7 +121,7 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5
 | 1. Foundation & Data Pipeline | 0/3 | Planning complete | - |
 | 2. Tools & Agent Nodes | 0/3 | Not started | - |
 | 3. Graph Assembly & API Layer | 0/3 | Not started | - |
-| 4. Frontend & Reasoning Trace | 0/3 | Not started | - |
+| 4. Frontend & Reasoning Trace | 3/5 | In Progress|  |
 | 5. Polish, Observability & Docs | 0/3 | Not started | - |
 
 ## Backlog

@@ -3,8 +3,8 @@ gsd_state_version: 1.0
 milestone: v2.0
 milestone_name: milestone
 status: executing
-stopped_at: Completed 04-03-PLAN.md (chat/trace/sidebar components — UI-01/02/03/05/06 satisfied)
-last_updated: "2026-04-26T04:59:08.100Z"
+stopped_at: "Completed Wave 3 — 04-03 (chat/trace/sidebar components, UI-01/02/03/05/06) and 04-04 (UI-04 dashboard charts) merged from parallel worktrees"
+last_updated: "2026-04-26T04:59:24.945Z"
 last_activity: 2026-04-26
 progress:
   total_phases: 5
@@ -68,6 +68,7 @@ Progress: [░░░░░░░░░░] 0%
 | Phase 04 P01 | 7min | 3 tasks | 21 files |
 | Phase 04 P02 | 8min | 2 tasks | 13 files |
 | Phase 04 P03 | 6min | 3 tasks | 25 files |
+| Phase 04 P04 | 5min | 2 tasks | 9 files |
 
 ## Accumulated Context
 
@@ -131,6 +132,10 @@ Recent decisions affecting current work:
 - [Phase 04]: Plan 04-03: PartialCard delegates breakdown render to MarkdownAnswer when surcharge_result is non-null — avoids duplicating GFM table override and inherits capped-banner if backend ever returns capped+partial
 - [Phase 04]: Plan 04-03: FeedbackButtons stores JSON ARRAY under localStorage[feedback] (append-on-vote) — matches eventual Phase 5 batch-flush api.postFeedback semantics; MessageList gates buttons on threadId !== null to keep votes attributable
 - [Phase 04]: Plan 04-03: TraceStatusBadge accepts TraceStatus | 'running' even though backend never emits 'running' — UI-SPEC documents the running animate-pulse style for future in-flight indicator without schema change
+- [Phase 04]: Plan 04-04: Inlined ChartErrorBoundary in DashboardView and animate-pulse skeletons in chart components — Wave 3 parallel-write boundary forbids touching frontend/components/shared/ owned by 04-03; integrator (04-05) swaps to canonical imports post-merge
+- [Phase 04]: Plan 04-04: Test-only vi.mock('recharts') with ResponsiveContainer cloneElement shim — jsdom has no ResizeObserver, so the shim forces fixed width/height into the inner LineChart/BarChart; without it the Pitfall 3 SVG-path smoke would silently pass via the empty-state fallback
+- [Phase 04]: Plan 04-04: useSurchargeHistory uses Promise.all over per-thread getConversation calls with .catch(() => null) per-call — Pitfall 8 mitigation; one failed thread cannot blank the whole chart
+- [Phase 04]: Plan 04-04: Tooltip formatter coerces ValueType via 'typeof === number ? value : Number(value)' — Recharts 3 typed the formatter signature stricter than its 2.x examples; coercion preserves runtime behaviour while satisfying tsc
 
 ### Pending Todos
 
@@ -152,6 +157,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-04-26T04:59:08.098Z
-Stopped at: Completed 04-03-PLAN.md (chat/trace/sidebar components — UI-01/02/03/05/06 satisfied)
+Last session: 2026-04-26T04:59:24.943Z
+Stopped at: Completed Wave 3 — 04-03 (chat/trace/sidebar components, UI-01/02/03/05/06) and 04-04 (UI-04 dashboard charts) merged from parallel worktrees
 Resume file: None
