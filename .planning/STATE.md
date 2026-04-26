@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v2.0
 milestone_name: milestone
 status: executing
-stopped_at: "Completed Wave 3 — 04-03 (chat/trace/sidebar components, UI-01/02/03/05/06) and 04-04 (UI-04 dashboard charts) merged from parallel worktrees"
-last_updated: "2026-04-26T04:59:24.945Z"
+stopped_at: Completed 04-05-PLAN.md — Phase 4 frontend-reasoning-trace done, all UI-01..UI-06 verified live in browser
+last_updated: "2026-04-26T05:23:24.540Z"
 last_activity: 2026-04-26
 progress:
   total_phases: 5
-  completed_phases: 3
+  completed_phases: 4
   total_plans: 18
-  completed_plans: 16
+  completed_plans: 18
   percent: 0
 ---
 
@@ -26,7 +26,7 @@ See: .planning/PROJECT.md (updated 2026-04-04)
 ## Current Position
 
 Phase: 04 (frontend-reasoning-trace) — EXECUTING
-Plan: 4 of 5
+Plan: 5 of 5
 Status: Ready to execute
 Last activity: 2026-04-26
 
@@ -69,6 +69,7 @@ Progress: [░░░░░░░░░░] 0%
 | Phase 04 P02 | 8min | 2 tasks | 13 files |
 | Phase 04 P03 | 6min | 3 tasks | 25 files |
 | Phase 04 P04 | 5min | 2 tasks | 9 files |
+| Phase 04 P05 | 13min | 4 tasks | 6 files |
 
 ## Accumulated Context
 
@@ -136,6 +137,10 @@ Recent decisions affecting current work:
 - [Phase 04]: Plan 04-04: Test-only vi.mock('recharts') with ResponsiveContainer cloneElement shim — jsdom has no ResizeObserver, so the shim forces fixed width/height into the inner LineChart/BarChart; without it the Pitfall 3 SVG-path smoke would silently pass via the empty-state fallback
 - [Phase 04]: Plan 04-04: useSurchargeHistory uses Promise.all over per-thread getConversation calls with .catch(() => null) per-call — Pitfall 8 mitigation; one failed thread cannot blank the whole chart
 - [Phase 04]: Plan 04-04: Tooltip formatter coerces ValueType via 'typeof === number ? value : Number(value)' — Recharts 3 typed the formatter signature stricter than its 2.x examples; coercion preserves runtime behaviour while satisfying tsc
+- [Phase 04]: Plan 04-05: ChatColumn tab toggle uses Tailwind hidden visibility (not conditional unmount) — preserves chat state, scroll position, and in-flight stream across Chat ↔ Dashboard switches
+- [Phase 04]: Plan 04-05: ChatApp lifts useChatStream + useConversations once at the root and threads state down via props/callbacks — keeps ChatColumn / TracePanel / ConversationSidebar as pure-renderers with single AbortController + single SSE consumer
+- [Phase 04]: Plan 04-05: Resume flow constructs a minimal FinalPayload per replayed assistant message (markdown + surcharge_result + status='ok') so MarkdownAnswer renders persisted answers through the same pipeline as live ones; trace panel intentionally does NOT swap on resume per D-08 (deferred to Phase 5)
+- [Phase 04]: Plan 04-05: Phase-3 CORS gap surfaced during human-verify Verify 1 (browser preflight OPTIONS /api/chat returned 405); fixed in-band by adding CORSMiddleware to backend/api/main.py (commit 750cf5d). Phase 3 (API-01) shipped without CORS because TestClient never exercises preflight; production deploy needs env-driven allow-list
 
 ### Pending Todos
 
@@ -157,6 +162,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-04-26T04:59:24.943Z
-Stopped at: Completed Wave 3 — 04-03 (chat/trace/sidebar components, UI-01/02/03/05/06) and 04-04 (UI-04 dashboard charts) merged from parallel worktrees
+Last session: 2026-04-26T05:23:24.538Z
+Stopped at: Completed 04-05-PLAN.md — Phase 4 frontend-reasoning-trace done, all UI-01..UI-06 verified live in browser
 Resume file: None
