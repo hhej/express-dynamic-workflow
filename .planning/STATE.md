@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-stopped_at: Phase 5 UI-SPEC approved
-last_updated: "2026-05-02T16:58:37.775Z"
-last_activity: 2026-05-02 -- Phase 05 execution started
+stopped_at: Completed 05-03-PLAN.md (parallel fan-out ORCH-07)
+last_updated: "2026-05-02T17:34:07.747Z"
+last_activity: 2026-05-02
 progress:
   total_phases: 5
   completed_phases: 4
   total_plans: 25
-  completed_plans: 18
-  percent: 0
+  completed_plans: 20
+  percent: 14
 ---
 
 # Project State
@@ -26,9 +26,9 @@ See: .planning/PROJECT.md (updated 2026-04-04)
 ## Current Position
 
 Phase: 05 (polish-observability-docs) — EXECUTING
-Plan: 1 of 7 complete; starting Wave 2 (Plans 02 + 03)
-Status: Executing Phase 05
-Last activity: 2026-05-03 -- Plan 05-01 complete
+Plan: 2 of 7 complete; starting Wave 2 (Plans 02 + 03)
+Status: Ready to execute
+Last activity: 2026-05-02
 
 Progress: [█░░░░░░░░░] 14%
 
@@ -70,6 +70,7 @@ Progress: [█░░░░░░░░░] 14%
 | Phase 04 P03 | 6min | 3 tasks | 25 files |
 | Phase 04 P04 | 5min | 2 tasks | 9 files |
 | Phase 04 P05 | 13min | 4 tasks | 6 files |
+| Phase 05 P03 | 7min | 2 tasks | 5 files |
 
 ## Accumulated Context
 
@@ -146,6 +147,11 @@ Recent decisions affecting current work:
 - [Phase 05]: Plan 05-01: observability.py uses graceful no-op (return None when LANGFUSE_* keys missing) so local dev runs identically without Langfuse — preserves CLAUDE.md local-reproducibility constraint
 - [Phase 05]: Plan 05-01: seed_trace_id falls back to md5(f'chat_turn_{thread_id}_{turn_idx}') when client missing — guarantees deterministic 32-hex trace ID in tests AND production; load-bearing for D-14 callback wiring + D-16 feedback Score attachment without name lookup
 - [Phase 05]: Plan 05-01: post_formula_accuracy_score (D-15) re-imports the Phase 1 PURE function (not the @tool wrapper) so the auto-eval is independent of the agent path; failures are logged + swallowed — eval failure MUST NOT impact user response
+- [Phase 05]: [Phase 05]: Plan 05-03: List-returning conditional edge over Send API for ORCH-07 -- both branches read same state keys, so dynamic per-branch state slicing buys nothing; list return is the smaller, safer change
+- [Phase 05]: [Phase 05]: Plan 05-03: Sentinel-based promotion (fanout_fuel_route) keeps PlannerOutput.next_step Literal stable; LLM still emits fetch_fuel/fetch_route, router promotes to fan-out based on cache state
+- [Phase 05]: [Phase 05]: Plan 05-03: Pre-conditions enforce D-12 cache-skip precedence -- fan-out only fires with both caches stale + 4 extraction fields present; cache-warm follow-ups continue running sequentially
+- [Phase 05]: [Phase 05]: Plan 05-03: No new reducers (D-02 invariant) -- operator.add on reasoning_trace + errors carries parallel writes; fuel_data + route_data scalar-dict last-write-wins is safe (disjoint branches)
+- [Phase 05]: [Phase 05]: Plan 05-03: Trace timestamp delta on parallel turn measured at ~165 microseconds -- demo evidence for ROADMAP Phase 5 success criterion 1 captured live
 
 ### Pending Todos
 
@@ -167,6 +173,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-05-02T15:51:24.723Z
-Stopped at: Phase 5 UI-SPEC approved
-Resume file: /Users/pollot/Desktop/express-dynamic-workflow/.planning/phases/05-polish-observability-docs/05-UI-SPEC.md
+Last session: 2026-05-02T17:34:07.744Z
+Stopped at: Completed 05-03-PLAN.md (parallel fan-out ORCH-07)
+Resume file: None
