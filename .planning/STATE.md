@@ -1,15 +1,15 @@
 ---
 gsd_state_version: 1.0
-milestone: v2.0
+milestone: v1.0
 milestone_name: milestone
 status: executing
-stopped_at: Phase 5 context gathered
-last_updated: "2026-05-02T14:45:24.335Z"
-last_activity: 2026-04-26
+stopped_at: Phase 5 UI-SPEC approved
+last_updated: "2026-05-02T16:58:37.775Z"
+last_activity: 2026-05-02 -- Phase 05 execution started
 progress:
   total_phases: 5
   completed_phases: 4
-  total_plans: 18
+  total_plans: 25
   completed_plans: 18
   percent: 0
 ---
@@ -21,16 +21,16 @@ progress:
 See: .planning/PROJECT.md (updated 2026-04-04)
 
 **Core value:** The agent must transparently reason through fuel price, route, and shipping data to produce an accurate, explainable surcharge recommendation.
-**Current focus:** Phase 04 — frontend-reasoning-trace
+**Current focus:** Phase 05 — polish-observability-docs
 
 ## Current Position
 
-Phase: 5
-Plan: Not started
-Status: Ready to execute
-Last activity: 2026-04-26
+Phase: 05 (polish-observability-docs) — EXECUTING
+Plan: 1 of 7 complete; starting Wave 2 (Plans 02 + 03)
+Status: Executing Phase 05
+Last activity: 2026-05-03 -- Plan 05-01 complete
 
-Progress: [░░░░░░░░░░] 0%
+Progress: [█░░░░░░░░░] 14%
 
 ## Performance Metrics
 
@@ -141,6 +141,11 @@ Recent decisions affecting current work:
 - [Phase 04]: Plan 04-05: ChatApp lifts useChatStream + useConversations once at the root and threads state down via props/callbacks — keeps ChatColumn / TracePanel / ConversationSidebar as pure-renderers with single AbortController + single SSE consumer
 - [Phase 04]: Plan 04-05: Resume flow constructs a minimal FinalPayload per replayed assistant message (markdown + surcharge_result + status='ok') so MarkdownAnswer renders persisted answers through the same pipeline as live ones; trace panel intentionally does NOT swap on resume per D-08 (deferred to Phase 5)
 - [Phase 04]: Plan 04-05: Phase-3 CORS gap surfaced during human-verify Verify 1 (browser preflight OPTIONS /api/chat returned 405); fixed in-band by adding CORSMiddleware to backend/api/main.py (commit 750cf5d). Phase 3 (API-01) shipped without CORS because TestClient never exercises preflight; production deploy needs env-driven allow-list
+- [Phase 05]: Plan 05-01: Python 3.11.15 venv + langfuse 4.5.1 + tavily-python 0.7.24 pinned — langfuse 4.x requires Python 3.11+, hence the runtime bump
+- [Phase 05]: Plan 05-01: AgentState extended additively with approval_decision (D-07) and search_context (D-11) — no rename of existing v1/v2 fields preserves Phase 4 contracts
+- [Phase 05]: Plan 05-01: observability.py uses graceful no-op (return None when LANGFUSE_* keys missing) so local dev runs identically without Langfuse — preserves CLAUDE.md local-reproducibility constraint
+- [Phase 05]: Plan 05-01: seed_trace_id falls back to md5(f'chat_turn_{thread_id}_{turn_idx}') when client missing — guarantees deterministic 32-hex trace ID in tests AND production; load-bearing for D-14 callback wiring + D-16 feedback Score attachment without name lookup
+- [Phase 05]: Plan 05-01: post_formula_accuracy_score (D-15) re-imports the Phase 1 PURE function (not the @tool wrapper) so the auto-eval is independent of the agent path; failures are logged + swallowed — eval failure MUST NOT impact user response
 
 ### Pending Todos
 
@@ -162,6 +167,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-05-02T14:45:24.325Z
-Stopped at: Phase 5 context gathered
-Resume file: .planning/phases/05-polish-observability-docs/05-CONTEXT.md
+Last session: 2026-05-02T15:51:24.723Z
+Stopped at: Phase 5 UI-SPEC approved
+Resume file: /Users/pollot/Desktop/express-dynamic-workflow/.planning/phases/05-polish-observability-docs/05-UI-SPEC.md
