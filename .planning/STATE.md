@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-stopped_at: Completed 05-03-PLAN.md (parallel fan-out ORCH-07)
-last_updated: "2026-05-02T17:34:07.747Z"
+stopped_at: Completed 05-02-PLAN.md (Langfuse callback + OBS-03 auto-eval wiring)
+last_updated: "2026-05-02T17:56:00.000Z"
 last_activity: 2026-05-02
 progress:
   total_phases: 5
   completed_phases: 4
   total_plans: 25
-  completed_plans: 20
+  completed_plans: 21
   percent: 14
 ---
 
@@ -26,9 +26,9 @@ See: .planning/PROJECT.md (updated 2026-04-04)
 ## Current Position
 
 Phase: 05 (polish-observability-docs) — EXECUTING
-Plan: 2 of 7 complete; starting Wave 2 (Plans 02 + 03)
-Status: Ready to execute
-Last activity: 2026-05-02
+Plan: 3 of 7 complete; Wave 2 (Plans 02 + 03) finished
+Status: Ready to execute Wave 3 (Plan 05-04 search agent)
+Last activity: 2026-05-02 — Plan 05-02 complete
 
 Progress: [█░░░░░░░░░] 14%
 
@@ -71,6 +71,7 @@ Progress: [█░░░░░░░░░] 14%
 | Phase 04 P04 | 5min | 2 tasks | 9 files |
 | Phase 04 P05 | 13min | 4 tasks | 6 files |
 | Phase 05 P03 | 7min | 2 tasks | 5 files |
+| Phase 05 P02 | 30min | 2 tasks | 5 files |
 
 ## Accumulated Context
 
@@ -152,6 +153,11 @@ Recent decisions affecting current work:
 - [Phase 05]: [Phase 05]: Plan 05-03: Pre-conditions enforce D-12 cache-skip precedence -- fan-out only fires with both caches stale + 4 extraction fields present; cache-warm follow-ups continue running sequentially
 - [Phase 05]: [Phase 05]: Plan 05-03: No new reducers (D-02 invariant) -- operator.add on reasoning_trace + errors carries parallel writes; fuel_data + route_data scalar-dict last-write-wins is safe (disjoint branches)
 - [Phase 05]: [Phase 05]: Plan 05-03: Trace timestamp delta on parallel turn measured at ~165 microseconds -- demo evidence for ROADMAP Phase 5 success criterion 1 captured live
+- [Phase 05]: Plan 05-02: _make_config exposes langfuse_trace_id in metadata (not just inside the CallbackHandler trace_context) so pricing_agent_node can read the SAME trace_id without re-deriving — eliminates drift between handler attach and Score post
+- [Phase 05]: Plan 05-02: _next_turn_idx counts prior user messages in checkpointer snapshot; falls back to 0 on any exception so first-ever turn or transient checkpointer errors are always safe (D-14 deterministic trace_id seed remains valid)
+- [Phase 05]: Plan 05-02: pricing_agent_node config typed as Optional[RunnableConfig] (not Optional[dict]) — silences LangGraph UserWarning about node config typing while remaining Optional so unit tests invoke without a config (Rule 1 fix)
+- [Phase 05]: Plan 05-02: D-15 fire-and-forget invariant double-enforced — post_formula_accuracy_score swallows internal errors AND the call site wraps in try/except; even synthetic helper exceptions never affect the user response (proven by test_pricing_swallows_auto_eval_exception)
+- [Phase 05]: Plan 05-02: POST /api/chat now rejects fresh turns lacking `message` with HTTP 400 — leaves room for Plan 05-04 HITL resume to branch ABOVE this guard via req.approve != None
 
 ### Pending Todos
 
@@ -173,6 +179,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-05-02T17:34:07.744Z
-Stopped at: Completed 05-03-PLAN.md (parallel fan-out ORCH-07)
+Last session: 2026-05-02T17:56:00.000Z
+Stopped at: Completed 05-02-PLAN.md (Langfuse callback + OBS-03 auto-eval wiring)
 Resume file: None

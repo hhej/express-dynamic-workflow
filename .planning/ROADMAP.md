@@ -108,7 +108,7 @@ Plans:
 
 Plans:
 - [x] 05-01-PLAN.md — Wave 0 foundation: Python 3.11 bump, deps (langfuse, tavily-python), AgentState v3 (approval_decision, search_context), config constants, observability.py + Pydantic models + conftest fixtures
-- [ ] 05-02-PLAN.md — Langfuse callback wiring in chat handler + formula accuracy auto-eval after pricing_agent (OBS-01, OBS-03)
+- [x] 05-02-PLAN.md — Langfuse callback wiring in chat handler + formula accuracy auto-eval after pricing_agent (OBS-01, OBS-03)
 - [x] 05-03-PLAN.md — Parallel fan-out: planner emits fanout_fuel_route sentinel; graph router returns list[str] for same-superstep parallel scheduling (ORCH-07)
 - [ ] 05-04-PLAN.md — Tavily search agent: search_fuel_news tool + search_agent_node + planner news intent + graph wiring + response_node Market context line (TOOL-05)
 - [ ] 05-05-PLAN.md — HITL approval gate: hitl_gate_node + interrupt() + sixth SSE event approval_required + Command(resume) in chat handler + deny path in response_node (ORCH-09)
@@ -126,7 +126,7 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5
 | 2. Tools & Agent Nodes | 0/3 | Not started | - |
 | 3. Graph Assembly & API Layer | 0/3 | Not started | - |
 | 4. Frontend & Reasoning Trace | 5/5 | Complete   | 2026-04-26 |
-| 5. Polish, Observability & Docs | 0/7 | Planning complete | - |
+| 5. Polish, Observability & Docs | 3/7 | Wave 2 complete | - |
 
 ## Backlog
 

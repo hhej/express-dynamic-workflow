@@ -63,9 +63,9 @@ Requirements for initial release. Each maps to roadmap phases.
 
 ### Observability
 
-- [ ] **OBS-01**: Langfuse callback handler traces all LLM calls, tool calls, and agent steps
+- [x] **OBS-01**: Langfuse callback handler traces all LLM calls, tool calls, and agent steps
 - [ ] **OBS-02**: User feedback scores forwarded to Langfuse Score API for evaluation tracking
-- [ ] **OBS-03**: Formula accuracy auto-eval: independent calculation vs agent output on every query
+- [x] **OBS-03**: Formula accuracy auto-eval: independent calculation vs agent output on every query
 
 ### Documentation
 
@@ -143,9 +143,9 @@ Which phases cover which requirements. Updated during roadmap creation.
 | UI-04 | Phase 4 | Complete |
 | UI-05 | Phase 4 | Complete |
 | UI-06 | Phase 4 | Complete |
-| OBS-01 | Phase 5 | Pending |
+| OBS-01 | Phase 5 | Complete |
 | OBS-02 | Phase 5 | Pending |
-| OBS-03 | Phase 5 | Pending |
+| OBS-03 | Phase 5 | Complete |
 | DOC-01 | Phase 5 | Pending |
 | DOC-02 | Phase 5 | Pending |
 | DOC-03 | Phase 1 | Complete |
