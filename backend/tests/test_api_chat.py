@@ -284,3 +284,56 @@ def test_error_sse_sequence(app_with_mocks, monkeypatch):
         err = next(e for e in events if e["type"] == "error")
         assert "message" in err["payload"]
         assert "retryable" in err["payload"]
+
+
+def test_chat_handler_threads_trace_id_into_config(app_with_mocks, monkeypatch):
+    """Plan 05-02 canary: verify the trace_id seeded for the turn appears
+    in the config the chat handler uses to invoke the graph.
+
+    This canary is intentionally loose — it does NOT assert on the SSE
+    stream contents (those are covered by happy-path / error tests
+    above). It only spies on ``_make_config`` to confirm the chat
+    handler builds the Plan 05-02 config shape. Tolerant of clarify /
+    error stream paths so unrelated graph-routing breakage cannot mask
+    a regression in _make_config wiring.
+    """
+    from backend.api.routes import chat as chat_mod
+
+    captured: dict = {"config": None}
+    original_make = chat_mod._make_config
+
+    def spy_make(thread_id, turn_idx):
+        cfg = original_make(thread_id, turn_idx)
+        captured["config"] = cfg
+        return cfg
+
+    monkeypatch.setattr(chat_mod, "_make_config", spy_make)
+
+    with TestClient(app_with_mocks) as client:
+        with client.stream(
+            "POST", "/api/chat",
+            json={
+                "message": (
+                    "Surcharge for 15kg Bounce Bangkok to Nonthaburi"
+                ),
+                "thread_id": "t-trace-id",
+            },
+        ) as r:
+            assert r.status_code == 200
+            # Drain the stream so the handler runs to completion.
+            for _ in r.iter_text():
+                pass
+
+    assert captured["config"] is not None
+    # Plan 05-02 contract: deterministic 32-hex langfuse_trace_id present.
+    metadata = captured["config"]["metadata"]
+    assert "langfuse_trace_id" in metadata
+    trace_id = metadata["langfuse_trace_id"]
+    assert isinstance(trace_id, str)
+    assert len(trace_id) == 32
+    assert all(ch in "0123456789abcdef" for ch in trace_id)
+    # Session id mirrors thread_id.
+    assert metadata["langfuse_session_id"] == "t-trace-id"
+    # Tags include the express-surcharge marker + per-turn tag.
+    assert "express-surcharge" in metadata["langfuse_tags"]
+    assert any(tag.startswith("turn-") for tag in metadata["langfuse_tags"])

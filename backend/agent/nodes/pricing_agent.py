@@ -14,11 +14,14 @@ from __future__ import annotations
 import json
 import logging
 from datetime import datetime, timezone
+from typing import Optional
 
 from langchain_core.messages import HumanMessage, SystemMessage
+from langchain_core.runnables import RunnableConfig
 from pydantic import BaseModel, Field, ValidationError
 
 from backend.agent.llm import get_chat_model
+from backend.agent.observability import post_formula_accuracy_score
 from backend.agent.prompts.pricing_agent import SYSTEM_PROMPT
 from backend.agent.tools.calculate_surcharge_tool import (
     calculate_surcharge_tool,
@@ -97,13 +100,26 @@ def _narrate_with_llm(rate: RateResult, surcharge: SurchargeResult) -> str:
         return _deterministic_narration(rate, surcharge)
 
 
-def pricing_agent_node(state: dict) -> dict:
+def pricing_agent_node(
+    state: dict, config: Optional[RunnableConfig] = None
+) -> dict:
     """Pricing Agent: rate lookup + surcharge tool + D-12 trace entry.
+
+    Phase 5 (Plan 05-02 / OBS-03): after a successful surcharge_result
+    is built, fire-and-forget ``post_formula_accuracy_score(...)`` (D-15).
+    The trace_id is read from ``config["metadata"]["langfuse_trace_id"]``
+    seeded by the chat handler's ``_make_config``. Auto-eval failures
+    are swallowed inside ``post_formula_accuracy_score`` AND are guarded
+    here by a try/except — the user response is never affected.
 
     Args:
         state: Full AgentState-shaped dict. Required state keys:
             ``shipping_type``, ``weight_kg``, ``fuel_data.price``,
             ``route_data.zone``, ``route_data.traffic_severity``.
+        config: LangGraph RunnableConfig — second positional arg LangGraph
+            passes when nodes declare it. Optional so the node remains
+            invokable from unit tests without a config (auto-eval is
+            silently skipped in that path).
 
     Returns:
         Partial state dict::
@@ -159,6 +175,25 @@ def pricing_agent_node(state: dict) -> dict:
         .replace("+00:00", "Z"),
         "status": "ok",
     }
+
+    # OBS-03: fire-and-forget formula accuracy auto-eval (D-15).
+    # Reads trace_id from RunnableConfig metadata seeded by chat handler
+    # (_make_config in routes/chat.py). When invoked outside the chat
+    # path (unit tests, scripts) config is None → skip silently.
+    try:
+        metadata = (config or {}).get("metadata") or {}
+        trace_id = metadata.get("langfuse_trace_id")
+        if trace_id:
+            post_formula_accuracy_score(
+                trace_id=trace_id,
+                base_rate=rate.base_rate,
+                current_diesel_price=current_diesel_price,
+                shipping_type=shipping_type,
+                traffic_severity=int(traffic_severity),
+                agent_result=surcharge.model_dump(),
+            )
+    except Exception as exc:  # noqa: BLE001 — D-15 fire-and-forget invariant
+        logger.warning("formula_accuracy hook (non-fatal): %s", exc)
 
     return {
         "surcharge_result": surcharge.model_dump(),
