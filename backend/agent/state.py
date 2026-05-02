@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 import operator
-from typing import List, Optional, TypedDict
+from typing import List, Literal, Optional, TypedDict
 
 from typing_extensions import Annotated
 
@@ -67,3 +67,25 @@ class AgentState(TypedDict):
     {markdown: str, surcharge_result: dict|None, capped: bool,
     status: 'ok'|'partial'|'clarify'}. Plan 03-04 SSE handler detects this
     key via astream_events to emit the final response chunk."""
+
+    approval_decision: Optional[Literal["approve", "deny"]]
+    """D-07 (Phase 5): user's HITL decision when surcharge_result.total
+    exceeds HITL_TOTAL_THB_THRESHOLD. None when the gate did not fire
+    or has not yet resolved. Written by hitl_gate_node; read by
+    response_node to render approve (status='ok' with breakdown) or
+    deny (status='partial' with decline prose) paths."""
+
+    search_context: Optional[dict]
+    """D-11 (Phase 5): Tavily search result for news/market intent
+    queries. None when the planner did not route to search_context or
+    when the Tavily call failed. Shape (matches SearchResult Pydantic
+    model in backend/agent/tools/models.py):
+        {
+          "query": str,
+          "summary": Optional[str],
+          "sources": List[{"title": str, "url": str, "snippet": str,
+                           "published_at": Optional[str]}],
+          "fetched_at": str  # ISO-8601 UTC 'Z' per Phase 3 D-13
+        }
+    Written by search_agent_node; read by response_node to prepend a
+    market-context line above the prose answer."""
