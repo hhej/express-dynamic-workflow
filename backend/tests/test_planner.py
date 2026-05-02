@@ -399,3 +399,147 @@ def test_trace_tool_output_reflects_merged_inherited_fields(monkeypatch):
     assert trace_output["missing_fields"] == []
     # 999.3: trace next_step matches the post-override return value.
     assert trace_output["next_step"] == "fetch_fuel"
+
+
+# ---------------------------------------------------------------------------
+# Phase 5 ORCH-07 fan-out routing
+# ---------------------------------------------------------------------------
+
+
+def test_planner_fanout_when_both_stale(monkeypatch):
+    """D-01: both fuel + route missing -> next_step='fanout_fuel_route'."""
+    state = _user_state(
+        "calc 15kg bounce BKK->Nonthaburi"
+    )
+    monkeypatch.setattr(
+        mod,
+        "get_chat_model",
+        lambda **_: _scripted_llm(
+            '{"user_intent": "surcharge_query", '
+            '"shipping_type": "bounce", "weight_kg": 15, '
+            '"origin": "Bangkok", "destination": "Nonthaburi", '
+            '"missing_fields": [], '
+            '"next_step": "fetch_fuel", '
+            '"clarification_reason": null}'
+        ),
+    )
+
+    result = planner_node(state)
+
+    assert result["next_step"] == "fanout_fuel_route"
+    assert result["origin"] == "Bangkok"
+    assert result["destination"] == "Nonthaburi"
+    assert result["shipping_type"] == "bounce"
+    assert result["weight_kg"] == 15
+
+
+def test_planner_no_fanout_when_fuel_fresh(monkeypatch):
+    """D-12: fresh fuel_data -> next_step='fetch_route' (sequential, no fan-out)."""
+    # Fresh fuel_data; fetched_at is now -> not stale per FUEL_DATA_TTL_SECONDS=3600.
+    state = _user_state(
+        "calc",
+        fuel_data={
+            "price": 30.0,
+            "baseline": 29.94,
+            "delta_pct": 0.002,
+            "date": "2026-05-01",
+            "unit": "THB/L",
+            "source": "eppo_live",
+            "fetched_at": _now_iso_z(),
+        },
+    )
+    monkeypatch.setattr(
+        mod,
+        "get_chat_model",
+        lambda **_: _scripted_llm(
+            '{"user_intent": "surcharge_query", '
+            '"shipping_type": "bounce", "weight_kg": 15, '
+            '"origin": "Bangkok", "destination": "Nonthaburi", '
+            '"missing_fields": [], '
+            '"next_step": "fetch_fuel", '
+            '"clarification_reason": null}'
+        ),
+    )
+
+    result = planner_node(state)
+
+    # fetch_fuel was promoted to fetch_route per D-12 cache-skip; NOT fanout
+    # because fuel is fresh.
+    assert result["next_step"] == "fetch_route"
+
+
+def test_planner_no_fanout_when_route_matches(monkeypatch):
+    """D-12: matching route_data -> next_step='fetch_fuel' (sequential, no fan-out)."""
+    state = _user_state(
+        "calc",
+        route_data={
+            "origin": "Bangkok",
+            "destination": "Nonthaburi",
+            "distance_km": 18.5,
+            "duration_min": 30,
+            "traffic_severity": 2,
+            "zone": "central-1",
+        },
+    )
+    monkeypatch.setattr(
+        mod,
+        "get_chat_model",
+        lambda **_: _scripted_llm(
+            '{"user_intent": "surcharge_query", '
+            '"shipping_type": "bounce", "weight_kg": 15, '
+            '"origin": "Bangkok", "destination": "Nonthaburi", '
+            '"missing_fields": [], '
+            '"next_step": "fetch_route", '
+            '"clarification_reason": null}'
+        ),
+    )
+
+    result = planner_node(state)
+
+    assert result["next_step"] == "fetch_fuel"
+
+
+def test_planner_no_fanout_when_clarify_path(monkeypatch):
+    """User message missing required fields -> clarify, no fan-out."""
+    state = _user_state("what's a surcharge?")
+    monkeypatch.setattr(
+        mod,
+        "get_chat_model",
+        lambda **_: _scripted_llm(
+            '{"user_intent": "clarification", '
+            '"shipping_type": null, "weight_kg": null, '
+            '"origin": null, "destination": null, '
+            '"missing_fields": ["shipping_type", "weight_kg", "origin", "destination"], '
+            '"next_step": "clarify", '
+            '"clarification_reason": "missing_inputs"}'
+        ),
+    )
+
+    result = planner_node(state)
+
+    assert result["next_step"] == "clarify"
+
+
+def test_planner_trace_entry_records_fanout(monkeypatch):
+    """999.3 fix invariant: tool_output reflects post-override next_step."""
+    state = _user_state("calc 15kg bounce Bangkok->Nonthaburi")
+    monkeypatch.setattr(
+        mod,
+        "get_chat_model",
+        lambda **_: _scripted_llm(
+            '{"user_intent": "surcharge_query", '
+            '"shipping_type": "bounce", "weight_kg": 15, '
+            '"origin": "Bangkok", "destination": "Nonthaburi", '
+            '"missing_fields": [], '
+            '"next_step": "fetch_fuel", '
+            '"clarification_reason": null}'
+        ),
+    )
+
+    result = planner_node(state)
+
+    trace = result["reasoning_trace"]
+    assert len(trace) == 1
+    assert trace[0]["agent"] == "planner"
+    # 999.3 fix: tool_output uses post-override next_step.
+    assert trace[0]["tool_output"]["next_step"] == "fanout_fuel_route"
