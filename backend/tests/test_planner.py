@@ -51,8 +51,15 @@ def _user_state(content: str, **overrides) -> dict:
 
 
 def test_routes_to_fetch_fuel_on_fresh_query(monkeypatch):
-    """No fuel_data, no route_data -> Planner emits next_step=fetch_fuel and
-    extracts shipping_type, weight_kg, origin, destination from the message."""
+    """No fuel_data, no route_data, all extraction fields present -> Phase 5
+    D-01 promotes next_step to 'fanout_fuel_route' (parallel Fuel + Route
+    fan-out). Extraction fields are still surfaced unchanged.
+
+    Phase 3 baseline asserted next_step='fetch_fuel'; Phase 5 ORCH-07 adds the
+    fan-out promotion right before the D-12 cache-skip block, so a fresh
+    thread with complete inputs now emits the parallel sentinel instead of the
+    sequential fetch_fuel routing.
+    """
     state = _user_state("Surcharge for 15kg Bounce Bangkok to Nonthaburi")
     monkeypatch.setattr(
         mod,
@@ -69,7 +76,9 @@ def test_routes_to_fetch_fuel_on_fresh_query(monkeypatch):
 
     result = planner_node(state)
 
-    assert result["next_step"] == "fetch_fuel"
+    # Phase 5 D-01: fan-out sentinel replaces fetch_fuel on a fresh thread
+    # with both caches absent and all extraction fields present.
+    assert result["next_step"] == "fanout_fuel_route"
     assert result["shipping_type"] == "bounce"
     assert result["weight_kg"] == 15
     assert result["origin"] == "Bangkok"
@@ -202,10 +211,12 @@ def test_loop_budget_resets_after_response_entry(monkeypatch):
 
     # Guard did NOT fire — clarification_reason is NOT the budget-exhaustion sentinel.
     assert result.get("clarification_reason") != "planner_loop_budget_exhausted"
-    # LLM ran and the post-LLM merge promoted clarify -> fetch_fuel (999.1).
+    # LLM ran; 999.1 merge fills the missing fields from prior state, then
+    # Phase 5 D-01 promotes the resulting fetch_fuel to fanout_fuel_route
+    # because both caches are absent and all four extraction fields are present.
     # Either way, the path through the LLM produced a real next_step (not the
     # short-circuit "respond" + budget-exhausted clarification_reason).
-    assert result["next_step"] == "fetch_fuel"
+    assert result["next_step"] == "fanout_fuel_route"
     # The new planner entry was appended (not the empty short-circuit return).
     assert "reasoning_trace" in result
     assert result["reasoning_trace"][0]["agent"] == "planner"
@@ -259,8 +270,9 @@ def test_followup_merges_prior_state_promotes_clarify_to_fetch(monkeypatch):
 
     result = planner_node(state)
 
-    # 999.1: promoted from clarify to fetch_fuel (no caches in state).
-    assert result["next_step"] == "fetch_fuel"
+    # 999.1: promoted from clarify to fetch_fuel; Phase 5 D-01 then promotes
+    # again to fanout_fuel_route (no caches, all 4 merged fields present).
+    assert result["next_step"] == "fanout_fuel_route"
     # 999.1: missing_fields recomputed from merged values, not from LLM emission.
     assert result["missing_fields"] == []
     # Merge produces the new shipping_type from LLM + inherited fields from state.
@@ -389,8 +401,9 @@ def test_trace_tool_output_reflects_merged_inherited_fields(monkeypatch):
 
     result = planner_node(state)
 
-    # 999.1: promotion to fetch_fuel (no caches; merge fills weight_kg).
-    assert result["next_step"] == "fetch_fuel"
+    # 999.1: promotion to fetch_fuel; Phase 5 D-01 then promotes to
+    # fanout_fuel_route (no caches; merge fills weight_kg; all 4 fields present).
+    assert result["next_step"] == "fanout_fuel_route"
     trace_output = result["reasoning_trace"][0]["tool_output"]
     # 999.3: trace shows merged weight, not the LLM's null.
     assert trace_output["weight_kg"] == 15.0
@@ -398,7 +411,7 @@ def test_trace_tool_output_reflects_merged_inherited_fields(monkeypatch):
     # ["weight_kg"].
     assert trace_output["missing_fields"] == []
     # 999.3: trace next_step matches the post-override return value.
-    assert trace_output["next_step"] == "fetch_fuel"
+    assert trace_output["next_step"] == "fanout_fuel_route"
 
 
 # ---------------------------------------------------------------------------

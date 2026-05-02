@@ -233,9 +233,29 @@ def planner_node(state: dict) -> dict:
     if next_step == "clarify" and not missing:
         next_step = "fetch_fuel"
 
+    # Phase 5 D-01: parallel fan-out promotion. When the LLM emits
+    # fetch_fuel or fetch_route (signalling a surcharge_query path) AND
+    # neither fuel nor route is cached, promote next_step to the
+    # "fanout_fuel_route" sentinel. The list-returning conditional edge
+    # in graph.py picks this up and schedules both nodes in the same
+    # superstep. Required pre-conditions: shipping_type, weight, origin,
+    # destination all present (otherwise we'd race ahead of clarification).
+    if (
+        next_step in ("fetch_fuel", "fetch_route")
+        and not _fuel_fresh(state)
+        and not _route_matches(state, merged_origin, merged_destination)
+        and merged_shipping
+        and merged_weight is not None
+        and merged_origin
+        and merged_destination
+    ):
+        next_step = "fanout_fuel_route"
+
     # D-12 cache-aware override on (possibly promoted) next_step. Uses
     # merged_origin/merged_destination so route-cache hits work on
     # follow-ups where origin/destination were inherited from prior state.
+    # Note: when next_step="fanout_fuel_route" (Phase 5 D-01) neither branch
+    # below matches, so the sequential cache-skip cascade is preserved.
     if next_step == "fetch_fuel" and _fuel_fresh(state):
         # Fuel is cached and fresh — advance to next logical step.
         if _route_matches(state, merged_origin, merged_destination):
