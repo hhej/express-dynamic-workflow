@@ -105,3 +105,80 @@ async def in_memory_checkpointer():
         saver = AsyncSqliteSaver(conn)
         await saver.setup()
         yield saver
+
+
+# ----- Phase 5 fixtures -----
+
+
+@pytest.fixture
+def mock_langfuse(monkeypatch):
+    """Phase 5: forces _enabled() to False so observability helpers
+    return None / no-op. Tests that want to assert calls were made
+    should NOT use this fixture; they should monkeypatch
+    get_langfuse_client directly to return a Mock.
+    """
+    for k in ("LANGFUSE_PUBLIC_KEY", "LANGFUSE_SECRET_KEY", "LANGFUSE_HOST"):
+        monkeypatch.delenv(k, raising=False)
+    # Reload module to pick up env changes if it was already imported.
+    import importlib
+    import backend.agent.observability as _obs
+    importlib.reload(_obs)
+    yield _obs
+
+
+@pytest.fixture
+def mock_tavily_client(monkeypatch):
+    """Phase 5: stub tavily.TavilyClient.search() with a fixed payload.
+
+    Plans 05-04 (search agent) and 05-06 (e2e) will replace .search
+    return_value per-test as needed.
+    """
+    from unittest.mock import MagicMock
+    client = MagicMock()
+    client.search.return_value = {
+        "query": "diesel news",
+        "answer": "Diesel prices in Thailand are stable this week.",
+        "results": [
+            {
+                "title": "EPPO weekly diesel report",
+                "url": "https://example.com/diesel",
+                "content": "Diesel B7 retail price held at 30 THB/L for the third week.",
+                "published_date": "2026-05-01",
+            },
+        ],
+    }
+    # Patch the constructor so any code that instantiates
+    # tavily.TavilyClient(...) gets this mock back.
+    from tavily import TavilyClient  # noqa: F401  type: ignore[import-untyped]
+    monkeypatch.setattr(
+        "tavily.TavilyClient",
+        lambda *a, **kw: client,
+        raising=True,
+    )
+    return client
+
+
+@pytest.fixture
+def mock_pricing_low():
+    """Phase 5: surcharge_result with total <= HITL_TOTAL_THB_THRESHOLD.
+    Used by test_hitl_gate.py to assert the bypass path.
+    """
+    return {
+        "surcharge_pct": 0.05,
+        "surcharge_amount": 10.0,
+        "total": 210.0,  # well below the 500 default threshold
+        "capped": False,
+    }
+
+
+@pytest.fixture
+def mock_pricing_high():
+    """Phase 5: surcharge_result with total > HITL_TOTAL_THB_THRESHOLD.
+    Used by test_hitl_gate.py to assert the interrupt() path.
+    """
+    return {
+        "surcharge_pct": 0.10,
+        "surcharge_amount": 65.0,
+        "total": 715.0,  # above the 500 default threshold
+        "capped": False,
+    }
