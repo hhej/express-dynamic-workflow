@@ -60,3 +60,35 @@ FUEL_DATA_TTL_SECONDS: int = int(
 PLANNER_MAX_ITERATIONS: int = int(
     os.environ.get("PLANNER_MAX_ITERATIONS", "6")
 )
+
+# --- Phase 5: Polish & Observability configuration ---
+
+# D-04 HITL approval gate threshold (THB). When surcharge_result.total
+# exceeds this value, the hitl_gate node calls interrupt() and waits
+# for user approval. Calibrated against data/express.db rate distribution
+# to gate ~9% of representative demo queries (RESEARCH §HITL Threshold
+# Calibration). Override via env to demo more or fewer gate triggers.
+HITL_TOTAL_THB_THRESHOLD: float = float(
+    os.environ.get("HITL_TOTAL_THB_THRESHOLD", "500.0")
+)
+
+# D-12 Tavily search cache TTL (seconds). Default 30 min; matches
+# Phase 2 D-07 ROUTE_CACHE_TTL_SECONDS pattern (env-driven, in-process
+# TTLCache shared with backend/agent/tools/_cache.py).
+SEARCH_CACHE_TTL_SECONDS: int = int(
+    os.environ.get("SEARCH_CACHE_TTL_SECONDS", "1800")
+)
+
+# D-09 Tavily API key for search_fuel_news tool. Empty string -> tool
+# raises RuntimeError on first invocation, caught by search_agent_node
+# and converted to a warn trace entry (D-12 graceful failure).
+TAVILY_API_KEY: str = os.environ.get("TAVILY_API_KEY", "")
+
+# D-13 Langfuse Cloud free-tier credentials. ALL THREE must be set for
+# the callback handler to attach; missing any one → graceful no-op so
+# CLAUDE.md local-reproducibility constraint is preserved.
+LANGFUSE_HOST: str = os.environ.get(
+    "LANGFUSE_HOST", "https://cloud.langfuse.com"
+)
+LANGFUSE_PUBLIC_KEY: str = os.environ.get("LANGFUSE_PUBLIC_KEY", "")
+LANGFUSE_SECRET_KEY: str = os.environ.get("LANGFUSE_SECRET_KEY", "")
