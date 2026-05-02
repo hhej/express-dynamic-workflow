@@ -515,14 +515,14 @@ async def test_followup_param_switch_routes_through_pricing(
     # needed — passing this test against the default budget is the strongest
     # signal the D-04 fix actually closes the cross-turn short-circuit gap.
 
+    # Phase 5 D-01: turn 1's first fetch_fuel emission is promoted to
+    # 'fanout_fuel_route', which schedules fuel + route in the same
+    # superstep. Planner is then re-entered just twice more — once after
+    # fanout (cascade promotes to calculate_price) and once after pricing
+    # to emit respond. So turn 1 needs only 3 LLM responses, not 4.
     turn1 = [
         _planner_response(
             "fetch_fuel", shipping_type="retail_standard",
-            weight_kg=50.0, origin="Bangkok",
-            destination="Pathum Thani",
-        ),
-        _planner_response(
-            "fetch_route", shipping_type="retail_standard",
             weight_kg=50.0, origin="Bangkok",
             destination="Pathum Thani",
         ),
