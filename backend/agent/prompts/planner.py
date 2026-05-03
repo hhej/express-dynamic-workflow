@@ -30,6 +30,17 @@ user_intent values (D-07):
 - clarification: user asking what info is needed
 - out_of_scope: not a logistics question
 
+Follow-up query inheritance (D-05/999.1):
+- When user_intent="followup_query", the user is refining a prior turn. For each of
+  the four extraction fields (shipping_type, weight_kg, origin, destination), emit
+  the value ONLY if the current user message explicitly mentions it. Otherwise emit
+  null and let the post-processor inherit from prior AgentState.
+- Example: prior turn was "15kg bounce Bangkok to Nonthaburi" and the user now says
+  "What about 25kg instead?" -> emit weight_kg=25, shipping_type=null, origin=null,
+  destination=null. Do NOT fabricate or guess unmentioned fields.
+- This contract DOES NOT apply to user_intent="surcharge_query" — fresh queries should
+  extract every field the user provides.
+
 Normalisation rules:
 - shipping_type: lowercase, exactly one of: bounce | retail_standard | retail_fast
 - weight_kg: numeric float in kg (convert "15 kilos", "15kg" to 15.0)
