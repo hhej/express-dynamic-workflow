@@ -28,6 +28,22 @@ async function jsonGet<T>(path: string): Promise<T> {
   return (await res.json()) as T;
 }
 
+/** Plan 05-06 D-16 — POST /api/feedback request body (snake_case across the wire). */
+export interface FeedbackRequestBody {
+  thread_id: string;
+  message_id: string;
+  score: 'up' | 'down';
+  reason?: string;
+}
+
+/** Plan 05-06 — POST /api/feedback response body. */
+export interface FeedbackResponse {
+  status: 'ok';
+  delivered: boolean;
+  trace_id?: string;
+  reason?: string;
+}
+
 export const api = {
   listConversations: (limit = 50) =>
     jsonGet<ConversationSummary[]>(`/api/conversations?limit=${limit}`),
@@ -49,4 +65,23 @@ export const api = {
       body: JSON.stringify(body),
       signal,
     }),
+
+  /**
+   * Plan 05-06 D-16 — POST /api/feedback. Forwards thumbs vote to Langfuse
+   * via backend handler that resolves trace_id deterministically.
+   */
+  postFeedback: async (body: FeedbackRequestBody): Promise<FeedbackResponse> => {
+    const res = await fetch(`${API_BASE_URL}/api/feedback`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+    if (!res.ok) {
+      throw new ApiError(
+        res.status,
+        `POST /api/feedback failed: ${res.statusText}`,
+      );
+    }
+    return (await res.json()) as FeedbackResponse;
+  },
 };
