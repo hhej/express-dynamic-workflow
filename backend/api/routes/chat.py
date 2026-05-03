@@ -77,6 +77,11 @@ def _make_config(thread_id: str, turn_idx: int) -> dict:
         RunnableConfig dict with:
           - ``configurable.thread_id``: routes the checkpointer.
           - ``callbacks``: ``[CallbackHandler]`` when LANGFUSE_* set, else ``[]``.
+          - ``run_name``: ``"express-surcharge-agent"`` — top-level
+            LangChain RunnableConfig field that becomes the root span
+            name; populates Langfuse Observations "Name" column
+            (sibling field to ``metadata.langfuse_trace_name`` which
+            populates "Trace Name").
           - ``metadata.langfuse_session_id``: thread_id (Langfuse session group).
           - ``metadata.langfuse_trace_name``: ``"express-surcharge-agent"`` —
             constant agent name so all traces filter under one Langfuse name.
@@ -92,6 +97,7 @@ def _make_config(thread_id: str, turn_idx: int) -> dict:
     return {
         "configurable": {"thread_id": thread_id},
         "callbacks": [handler] if handler else [],
+        "run_name": "express-surcharge-agent",
         "metadata": {
             "langfuse_session_id": thread_id,
             "langfuse_trace_name": "express-surcharge-agent",
