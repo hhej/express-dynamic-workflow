@@ -3,8 +3,8 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-stopped_at: "Completed quick-task 260503-rs8 (OBS fix: pin langchain==0.3.28 + add langfuse_trace_name='express-surcharge-agent' metadata; 186/186 backend tests green)"
-last_updated: "2026-05-03T13:04:12Z"
+stopped_at: "Completed quick-task 260503-s2h (OBS fix: top-level RunnableConfig.run_name='express-surcharge-agent' so Langfuse 'Name' column matches 'Trace Name'; 186/186 backend tests green)"
+last_updated: "2026-05-03T13:07:00Z"
 last_activity: 2026-05-03
 progress:
   total_phases: 5
@@ -205,6 +205,8 @@ Recent decisions affecting current work:
 - [Quick 260503-rs8]: Pin langchain==0.3.28 in requirements.txt — root cause of silent Langfuse no-op was that `from langfuse.langchain import CallbackHandler` requires the top-level `langchain` package, but only `langchain-core` was pinned. The graceful no-op fallback (D-13) hid the import failure across all 186 tests; live install of 0.3.28 verified 25 traces reaching Langfuse Cloud.
 - [Quick 260503-rs8]: langfuse_trace_name in /api/chat metadata is a STRING CONSTANT 'express-surcharge-agent' (not derived from message/intent/turn_idx) — single stable name to filter all agent traces by in the Langfuse dashboard. Per-question dynamic naming explicitly out-of-scope.
 - [Quick 260503-rs8]: uvicorn must be restarted after deploying this fix — running server holds the OLD `_make_config` in memory; pytest exercises a fresh import each run so the test suite covers the new key without a server restart, but live `/api/chat` traffic does not pick up the trace_name until uvicorn is recycled.
+- [Quick 260503-s2h]: Top-level RunnableConfig.run_name='express-surcharge-agent' (sibling to configurable/callbacks/metadata, NOT inside metadata) — populates the Langfuse Observations 'Name' column via the langfuse-langchain CallbackHandler reading the LangChain root span name. Pairs with 260503-rs8's metadata.langfuse_trace_name (which populates the 'Trace Name' column) so both columns now match under one constant agent identity for dashboard filtering.
+- [Quick 260503-s2h]: Single in-place test extension in test_chat_attaches_callback_when_enabled (no new test function) — preserves the 186-test baseline established post-260503-rs8; success criteria explicitly required no test count delta.
 
 ### Pending Todos
 
@@ -225,9 +227,10 @@ None yet.
 | 260425-x2i | Fix D-04 loop-budget guard to window per turn (resolves 999.4 — cross-turn short-circuit) | 2026-04-25 | bd27c33 | Smoke-confirmed | [260425-x2i-fix-d-04-loop-budget-guard-to-window-per](./quick/260425-x2i-fix-d-04-loop-budget-guard-to-window-per/) |
 | 260503-qzx | Guard pricing_agent against missing route_data/fuel_data (resolves gap-4 from 20-question UAT — KeyError on hallucinated planner routing) | 2026-05-03 | 79d8ee0 | Verified (186/186 backend tests green) | [260503-qzx-guard-pricing-agent-against-missing-rout](./quick/260503-qzx-guard-pricing-agent-against-missing-rout/) |
 | 260503-rs8 | Pin langchain==0.3.28 (fixes silent CallbackHandler import failure) + add constant langfuse_trace_name='express-surcharge-agent' to /api/chat trace metadata (OBS-FIX-LANGCHAIN-PIN, OBS-FIX-TRACE-NAME) | 2026-05-03 | 529075f | Verified (186/186 backend tests green; uvicorn restart required for live metadata pickup) | [260503-rs8-pin-langchain-dep-set-langfuse-trace-nam](./quick/260503-rs8-pin-langchain-dep-set-langfuse-trace-nam/) |
+| 260503-s2h | Set top-level RunnableConfig.run_name='express-surcharge-agent' so Langfuse Observations 'Name' column matches 'Trace Name' column from 260503-rs8 (OBS-FIX-RUN-NAME) | 2026-05-03 | 0606e43 | Verified (186/186 backend tests green; uvicorn restart required for live root-span-name pickup) | [260503-s2h-set-runnableconfig-run-name-so-langfuse-](./quick/260503-s2h-set-runnableconfig-run-name-so-langfuse-/) |
 
 ## Session Continuity
 
-Last session: 2026-05-03T13:04:12Z
-Stopped at: Completed quick-task 260503-rs8 (OBS fix: pin langchain==0.3.28 + add langfuse_trace_name='express-surcharge-agent' metadata; 186/186 backend tests green)
+Last session: 2026-05-03T13:07:00Z
+Stopped at: Completed quick-task 260503-s2h (OBS fix: top-level RunnableConfig.run_name='express-surcharge-agent' so Langfuse 'Name' column matches 'Trace Name'; 186/186 backend tests green)
 Resume file: None
