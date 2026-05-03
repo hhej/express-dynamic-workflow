@@ -287,3 +287,78 @@ def test_response_node_deny_with_market_context_keeps_prefix():
     assert md.startswith("> **Market context:** Diesel held steady.")
     assert "declined" in md.lower()
     assert "| Total |" not in md
+
+
+# ---------------------------------------------------------------------------
+# Plan 05-10 / gap-3 (2026-05-03): UAT test 6 — response_node mis-renders
+# the clarify prose ("I need a bit more information to calculate your
+# surcharge.") when search_agent has populated search_context but no
+# surcharge_result was produced. Fix: new status='search_only' branch
+# rendering deterministic news prose ("Here's the latest market context.")
+# below the Market context blockquote prefix (D-11).
+# ---------------------------------------------------------------------------
+
+
+def test_response_renders_news_prose_for_search_only_flow():
+    """gap-3: search_context populated, surcharge_result=None, no errors,
+    no clarification_reason → status='search_only' with the news prose,
+    NOT the misleading 'I need a bit more information' clarify prose.
+    The Market context blockquote prepends above (D-11)."""
+    state = _ok_state()
+    state["surcharge_result"] = None
+    state["clarification_reason"] = None
+    state["errors"] = []
+    state["search_context"] = {
+        "query": "diesel news",
+        "summary": "Diesel up 3% on supply concerns",
+        "sources": [
+            {
+                "title": "T1",
+                "url": "U1",
+                "snippet": "S1",
+            }
+        ],
+        "fetched_at": "2026-05-03T10:00:00Z",
+    }
+
+    result = response_node(state)
+    payload = result["final_payload"]
+    md = payload["markdown"]
+
+    # Status is search_only (the new value), NOT clarify.
+    assert payload["status"] == "search_only"
+    # surcharge_result remains None.
+    assert payload["surcharge_result"] is None
+    # Markdown starts with the Market context blockquote.
+    assert md.startswith("> **Market context:** Diesel up 3% on supply concerns")
+    # Markdown contains the new news prose.
+    assert "Here's the latest market context" in md
+    # Markdown does NOT contain the misleading clarify prose.
+    assert "I need a bit more information to calculate your surcharge" not in md
+
+
+def test_response_renders_news_prose_even_when_loop_budget_exhausted():
+    """gap-3 defensive: if a future regression re-introduces the loop AND
+    the search_context still got populated, the search-only branch fires
+    BEFORE the clarify branch — so the user still sees the news prose,
+    not the misleading 'planner_loop_budget_exhausted' clarify prose."""
+    state = _ok_state()
+    state["surcharge_result"] = None
+    state["clarification_reason"] = "planner_loop_budget_exhausted"
+    state["errors"] = []
+    state["search_context"] = {
+        "query": "diesel news",
+        "summary": "Refinery shutdown nudges prices.",
+        "sources": [],
+        "fetched_at": "2026-05-03T10:00:00Z",
+    }
+
+    result = response_node(state)
+    payload = result["final_payload"]
+    md = payload["markdown"]
+
+    assert payload["status"] == "search_only"
+    assert "Here's the latest market context" in md
+    assert "I need a bit more information to calculate your surcharge" not in md
+    # Market context blockquote is still prepended.
+    assert md.startswith("> **Market context:** Refinery shutdown nudges prices.")
