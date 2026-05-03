@@ -1,14 +1,18 @@
-import { describe, expect, it, vi, beforeEach } from 'vitest';
-import { render, screen } from '@testing-library/react';
-import userEvent from '@testing-library/user-event';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { FeedbackButtons } from '@/components/chat/FeedbackButtons';
-import { LOCAL_STORAGE_KEYS } from '@/lib/constants';
+import * as apiMod from '@/lib/api';
 
-beforeEach(() => {
-  window.localStorage.clear();
-});
+/**
+ * Plan 05-06 D-16: localStorage stub swapped for api.postFeedback().
+ * UI is intentionally unchanged from Phase 4 (same glyphs, same aria-pressed,
+ * same disabled-after-vote) so the visual contract from D-17 still holds.
+ */
+describe('FeedbackButtons (D-16 — Phase 5 wire)', () => {
+  beforeEach(() => {
+    vi.restoreAllMocks();
+  });
 
-describe('FeedbackButtons (UI-05 stub per D-17)', () => {
   it('renders 👍 and 👎 with the LOCKED aria-labels', () => {
     render(<FeedbackButtons threadId="t1" messageId="m1" />);
     expect(screen.getByRole('button', { name: 'Helpful' })).toBeInTheDocument();
@@ -17,38 +21,64 @@ describe('FeedbackButtons (UI-05 stub per D-17)', () => {
     ).toBeInTheDocument();
   });
 
-  it('clicking 👍 appends an entry to localStorage[feedback] as a JSON array', async () => {
-    const user = userEvent.setup();
-    render(<FeedbackButtons threadId="t1" messageId="m1" />);
-    await user.click(screen.getByRole('button', { name: 'Helpful' }));
-    const stored = JSON.parse(
-      window.localStorage.getItem(LOCAL_STORAGE_KEYS.feedback) ?? '[]',
-    );
-    expect(stored).toHaveLength(1);
-    expect(stored[0]).toMatchObject({
-      thread_id: 't1',
-      message_id: 'm1',
-      score: 'up',
+  it('calls api.postFeedback with score=up on thumbs-up click', async () => {
+    const spy = vi
+      .spyOn(apiMod.api, 'postFeedback')
+      .mockResolvedValue({ status: 'ok', delivered: true });
+    render(<FeedbackButtons threadId="abc" messageId="abc-0" />);
+    fireEvent.click(screen.getByRole('button', { name: 'Helpful' }));
+    await waitFor(() => {
+      expect(spy).toHaveBeenCalledWith({
+        thread_id: 'abc',
+        message_id: 'abc-0',
+        score: 'up',
+      });
+    });
+  });
+
+  it('calls api.postFeedback with score=down on thumbs-down click', async () => {
+    const spy = vi
+      .spyOn(apiMod.api, 'postFeedback')
+      .mockResolvedValue({ status: 'ok', delivered: true });
+    render(<FeedbackButtons threadId="abc" messageId="abc-0" />);
+    fireEvent.click(screen.getByRole('button', { name: 'Not helpful' }));
+    await waitFor(() => {
+      expect(spy).toHaveBeenCalledWith({
+        thread_id: 'abc',
+        message_id: 'abc-0',
+        score: 'down',
+      });
     });
   });
 
   it('after voting, both buttons are disabled and the voted button has aria-pressed=true', async () => {
-    const user = userEvent.setup();
+    vi.spyOn(apiMod.api, 'postFeedback').mockResolvedValue({
+      status: 'ok',
+      delivered: true,
+    });
     render(<FeedbackButtons threadId="t1" messageId="m1" />);
-    await user.click(screen.getByRole('button', { name: 'Not helpful' }));
-    expect(screen.getByRole('button', { name: 'Helpful' })).toBeDisabled();
+    fireEvent.click(screen.getByRole('button', { name: 'Not helpful' }));
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: 'Helpful' })).toBeDisabled();
+    });
     expect(screen.getByRole('button', { name: 'Not helpful' })).toBeDisabled();
-    expect(
-      screen.getByRole('button', { name: 'Not helpful' }),
-    ).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.getByRole('button', { name: 'Not helpful' })).toHaveAttribute(
+      'aria-pressed',
+      'true',
+    );
   });
 
-  it('NEVER calls fetch (UI-05 is wire-deferred to Phase 5)', async () => {
-    const user = userEvent.setup();
-    const fetchSpy = vi.spyOn(globalThis, 'fetch');
-    render(<FeedbackButtons threadId="t1" messageId="m1" />);
-    await user.click(screen.getByRole('button', { name: 'Helpful' }));
-    expect(fetchSpy).not.toHaveBeenCalled();
-    fetchSpy.mockRestore();
+  it('failed POST stays silent (no throw to UI; button stays voted)', async () => {
+    vi.spyOn(apiMod.api, 'postFeedback').mockRejectedValue(new Error('boom'));
+    const errSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    render(<FeedbackButtons threadId="abc" messageId="abc-0" />);
+    fireEvent.click(screen.getByRole('button', { name: 'Helpful' }));
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: 'Helpful' })).toHaveAttribute(
+        'aria-pressed',
+        'true',
+      );
+    });
+    expect(errSpy).toHaveBeenCalled();
   });
 });
