@@ -113,7 +113,7 @@ Plans:
 - [x] 05-04-PLAN.md — Tavily search agent: search_fuel_news tool + search_agent_node + planner news intent + graph wiring + response_node Market context line (TOOL-05)
 - [x] 05-05-PLAN.md — HITL approval gate: hitl_gate_node + interrupt() + sixth SSE event approval_required + Command(resume) in chat handler + deny path in response_node (ORCH-09)
 - [x] 05-06-PLAN.md — Backend POST /api/feedback + frontend wires (postFeedback, useChatStream approve, ApprovalCard, SearchContextLine, FeedbackButtons swap, MessageList branch) (API-05, OBS-02)
-- [ ] 05-07-PLAN.md — Documentation: README.md (DOC-01), docs/architecture.md update (DOC-02), docs/data-sources.md (DOC-04), screenshots, demo.mp4, v1.0 tag (D-21)
+- [x] 05-07-PLAN.md — Documentation: README.md (DOC-01), docs/architecture.md update (DOC-02), docs/data-sources.md (DOC-04), screenshots, demo.mp4, v1.0 tag (D-21)
 
 ## Progress
 

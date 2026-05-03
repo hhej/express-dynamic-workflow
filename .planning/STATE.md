@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-stopped_at: Plan 05-07 PARTIAL — Tasks 1-3 done (DOC-01 README, DOC-02 architecture.md, DOC-04 data-sources.md); Tasks 4-5 pending HUMAN action (demo.mp4 + 5 screenshots; develop->main merge + v1.0 tag)
-last_updated: "2026-05-03T17:35:00Z"
+stopped_at: Plan 05-08 COMPLETE — gap-1 closed; followup_query inheritance prevents LLM hallucinations from corrupting cached state. 178/178 backend tests green.
+last_updated: "2026-05-03T11:25:57.627Z"
 last_activity: 2026-05-03
 progress:
   total_phases: 5
   completed_phases: 4
-  total_plans: 25
-  completed_plans: 23
-  percent: 17
+  total_plans: 28
+  completed_plans: 27
+  percent: 71
 ---
 
 # Project State
@@ -26,9 +26,9 @@ See: .planning/PROJECT.md (updated 2026-04-04)
 ## Current Position
 
 Phase: 05 (polish-observability-docs) — EXECUTING
-Plan: 6 of 7 complete; Plan 05-07 PARTIAL (3 of 5 tasks done — Tasks 4 + 5 pending HUMAN action)
-Status: Awaiting Task 4 (demo recording + 5 screenshots) and Task 5 (develop->main merge + v1.0 annotated tag) — both human-only checkpoints per autonomous: false plan
-Last activity: 2026-05-03 — Plan 05-07 Tasks 1-3 done (DOC-01 README + DOC-02 architecture.md + DOC-04 data-sources.md + screenshots/.gitkeep)
+Plan: 3 of 10
+Status: Ready to execute
+Last activity: 2026-05-03
 
 Progress: [███░░░░░░░] 71%
 
@@ -76,6 +76,8 @@ Progress: [███░░░░░░░] 71%
 | Phase 05 P05 | ~50min | 2 tasks | 9 files |
 | Phase 05 P06 | ~45min | 3 tasks | 16 files |
 | Phase 05 P07 | ~30min | 3 of 5 tasks (T4+T5 pending human) | 4 files docs + SUMMARY.md |
+| Phase 05 P08 | 25min | 2 tasks | 4 files |
+| Phase 05 P09 | 6min | 2 tasks | 6 files |
 
 ## Accumulated Context
 
@@ -191,6 +193,9 @@ Recent decisions affecting current work:
 - [Phase 05]: Plan 05-07: DOC-02 architecture.md targeted update (vs full rewrite) — preserved high-quality Phase 1-4 sections (Surcharge Logic, Tools, Tech Stack, Shipping Types); appended Phase 5 sections (Observability Architecture Mermaid + Parallel Execution + Phase 5 Error Paths); REPLACED ASCII Agent Graph Flow with Mermaid + ASCII fallback inside <details> per D-18 hybrid layout
 - [Phase 05]: Plan 05-07: docs/screenshots/.gitkeep stub created so the directory is tracked even before Task 4 lands the 5 PNG artifacts — README references the EXACT 5 filenames the human will produce in Task 4
 - [Phase 05]: Plan 05-07: PROCESS DEVIATION — sandbox blocked git mutations (same as 05-04, 05-06); executor finished all 3 autonomous tasks (README + architecture.md + data-sources.md + screenshots stub), wrote SUMMARY.md inline, and handed off to orchestrator for the 3 task-aligned commits. Tasks 4 (demo recording + 5 screenshots) and Task 5 (develop->main merge + v1.0 annotated tag per D-21) are HUMAN-only checkpoints by plan design — autonomous: false.
+- [Phase 05]: Plan 05-08: gap-1 fix is null-only inheritance branch ABOVE 999.1 merge — preserves explicit-override semantics; defense-in-depth pairs with SYSTEM_PROMPT contract update telling LLM to emit null on unmentioned followup fields
+- [Phase 05]: Plan 05-08: token-detection signals — shipping_type uses substring + fixed keyword set (bounce/retail_standard/retail_fast); destination/origin use substring against parsed token OR prior state value; weight_kg uses any-digit detection. Plain string ops sufficient for demo-grade robustness without NLP
+- [Phase 05]: Plan 05-08: integration test (test_followup_25kg_preserves_bounce_and_nonthaburi) uses 1 turn-2 planner LLM response — only correct for the FIXED behaviour because turn 2 with inheritance immediately routes followup→fetch_fuel→D-12 cascade→calculate_price→pricing→hitl→response (no planner re-entry within turn)
 
 ### Pending Todos
 
@@ -212,6 +217,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-05-03T17:35:00Z
-Stopped at: Plan 05-07 PARTIAL — Tasks 1-3 done autonomously (README rewritten per DOC-01 with 9 sections + Mermaid agent topology; docs/architecture.md extended with 2 Mermaid blocks + AgentState reducers table + 6 SSE events + Observability Architecture + Parallel Execution + Phase 5 Error Paths; docs/data-sources.md created with EPPO + Simulated Express Rate Table + Google Maps + Tavily + SQLite + Langfuse + Internal Constants table; docs/screenshots/.gitkeep stub). Tasks 4-5 pending HUMAN action: Task 4 = record docs/demo.mp4 + capture 5 screenshots into docs/screenshots/; Task 5 = develop->main merge + v1.0 annotated tag per D-21 IT Lead push.
-Resume file: .planning/phases/05-polish-observability-docs/05-07-PLAN.md (Tasks 4 + 5)
+Last session: 2026-05-03T11:25:45.454Z
+Stopped at: Plan 05-08 COMPLETE — gap-1 closed; followup_query inheritance prevents LLM hallucinations from corrupting cached state. 178/178 backend tests green.
+Resume file: None
