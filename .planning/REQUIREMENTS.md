@@ -21,7 +21,7 @@ Requirements for initial release. Each maps to roadmap phases.
 - [x] **TOOL-02**: calculate_route tool computes distance, duration, traffic severity, and zone via Google Maps API with 15-min caching
 - [x] **TOOL-03**: lookup_rate tool queries SQLite rate table by shipping_type, zone, and weight_kg
 - [x] **TOOL-04**: calculate_surcharge tool applies formula: fuel_delta_pct * multiplier[shipping_type] with traffic adjustment and cap/floor
-- [ ] **TOOL-05**: search_fuel_news tool searches fuel trends via Tavily API for reasoning context
+- [x] **TOOL-05**: search_fuel_news tool searches fuel trends via Tavily API for reasoning context
 - [x] **TOOL-06**: All tools use structured Pydantic input/output models for deterministic, testable responses
 
 ### Agent Orchestration
@@ -116,7 +116,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | TOOL-02 | Phase 2 | Complete |
 | TOOL-03 | Phase 2 | Complete |
 | TOOL-04 | Phase 2 | Complete |
-| TOOL-05 | Phase 5 | Pending |
+| TOOL-05 | Phase 5 | Complete |
 | TOOL-06 | Phase 1 | Complete |
 | ORCH-01 | Phase 3 | Complete |
 | ORCH-02 | Phase 2 | Complete |

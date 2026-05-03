@@ -26,11 +26,11 @@ See: .planning/PROJECT.md (updated 2026-04-04)
 ## Current Position
 
 Phase: 05 (polish-observability-docs) — EXECUTING
-Plan: 3 of 7 complete; Wave 2 (Plans 02 + 03) finished
-Status: Ready to execute Wave 3 (Plan 05-04 search agent)
-Last activity: 2026-05-02 — Plan 05-02 complete
+Plan: 4 of 7 complete; Wave 3 (Plan 05-04 search agent) finished
+Status: Ready to execute Wave 4 (Plan 05-05 HITL gate)
+Last activity: 2026-05-03 — Plan 05-04 complete
 
-Progress: [█░░░░░░░░░] 14%
+Progress: [██░░░░░░░░] 57%
 
 ## Performance Metrics
 
@@ -158,6 +158,12 @@ Recent decisions affecting current work:
 - [Phase 05]: Plan 05-02: pricing_agent_node config typed as Optional[RunnableConfig] (not Optional[dict]) — silences LangGraph UserWarning about node config typing while remaining Optional so unit tests invoke without a config (Rule 1 fix)
 - [Phase 05]: Plan 05-02: D-15 fire-and-forget invariant double-enforced — post_formula_accuracy_score swallows internal errors AND the call site wraps in try/except; even synthetic helper exceptions never affect the user response (proven by test_pricing_swallows_auto_eval_exception)
 - [Phase 05]: Plan 05-02: POST /api/chat now rejects fresh turns lacking `message` with HTTP 400 — leaves room for Plan 05-04 HITL resume to branch ABOVE this guard via req.approve != None
+- [Phase 05]: Plan 05-04: search_fuel_news raises RuntimeError on missing TAVILY_API_KEY (not silent no-op) — search_agent_node converts to warn-status trace; explicit raise gives users a clear log signal when keys are missing
+- [Phase 05]: Plan 05-04: Cache-aware override block in planner early-returns when next_step==search_context — news queries shouldn't be gated on fuel/route freshness, otherwise the override would incorrectly demote a news query to fetch_fuel
+- [Phase 05]: Plan 05-04: TTLCache key is normalized (lowercase + collapse whitespace) but NOT punctuation-stripped — Pitfall 3 mitigated; punctuation-equivalence deferred (would expand cache hit rate but is a behavior change beyond plan scope)
+- [Phase 05]: Plan 05-04: Response node prepends Market context as a markdown blockquote (`> Market context: <summary>`) above any other content — matches existing CapCallout/MarkdownAnswer rendering pipeline; empty/None summary treated as no-prefix
+- [Phase 05]: Plan 05-04: Default fallback query 'Thailand diesel fuel price news' when no user message present — keeps search_agent invocable in tests/edge cases without crashing
+- [Phase 05]: Plan 05-04: PROCESS DEVIATION — original gsd-executor agent stalled (no progress 600s) before committing or writing SUMMARY; orchestrator inspected WIP, fixed one test typo, committed work in 3 task-aligned chunks (loses strict TDD red/green pairing but preserves task atomicity); 152/152 tests green
 
 ### Pending Todos
 
