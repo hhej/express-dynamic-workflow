@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-stopped_at: Completed 05-02-PLAN.md (Langfuse callback + OBS-03 auto-eval wiring)
-last_updated: "2026-05-02T17:56:00.000Z"
-last_activity: 2026-05-02
+stopped_at: Completed 05-05-PLAN.md (HITL approval gate ORCH-09)
+last_updated: "2026-05-03T09:38:05Z"
+last_activity: 2026-05-03
 progress:
   total_phases: 5
   completed_phases: 4
   total_plans: 25
-  completed_plans: 21
-  percent: 14
+  completed_plans: 22
+  percent: 17
 ---
 
 # Project State
@@ -26,11 +26,11 @@ See: .planning/PROJECT.md (updated 2026-04-04)
 ## Current Position
 
 Phase: 05 (polish-observability-docs) — EXECUTING
-Plan: 4 of 7 complete; Wave 3 (Plan 05-04 search agent) finished
-Status: Ready to execute Wave 4 (Plan 05-05 HITL gate)
-Last activity: 2026-05-03 — Plan 05-04 complete
+Plan: 5 of 7 complete; Wave 4 (Plan 05-05 HITL gate) finished
+Status: Ready to execute Wave 5 (Plan 05-06 frontend feedback + HITL UI)
+Last activity: 2026-05-03 — Plan 05-05 complete (ORCH-09)
 
-Progress: [██░░░░░░░░] 57%
+Progress: [███░░░░░░░] 71%
 
 ## Performance Metrics
 
@@ -72,6 +72,8 @@ Progress: [██░░░░░░░░] 57%
 | Phase 04 P05 | 13min | 4 tasks | 6 files |
 | Phase 05 P03 | 7min | 2 tasks | 5 files |
 | Phase 05 P02 | 30min | 2 tasks | 5 files |
+| Phase 05 P04 | ~30min | 3 tasks | 11 files |
+| Phase 05 P05 | ~50min | 2 tasks | 9 files |
 
 ## Accumulated Context
 
@@ -164,6 +166,15 @@ Recent decisions affecting current work:
 - [Phase 05]: Plan 05-04: Response node prepends Market context as a markdown blockquote (`> Market context: <summary>`) above any other content — matches existing CapCallout/MarkdownAnswer rendering pipeline; empty/None summary treated as no-prefix
 - [Phase 05]: Plan 05-04: Default fallback query 'Thailand diesel fuel price news' when no user message present — keeps search_agent invocable in tests/edge cases without crashing
 - [Phase 05]: Plan 05-04: PROCESS DEVIATION — original gsd-executor agent stalled (no progress 600s) before committing or writing SUMMARY; orchestrator inspected WIP, fixed one test typo, committed work in 3 task-aligned chunks (loses strict TDD red/green pairing but preserves task atomicity); 152/152 tests green
+- [Phase 05]: Plan 05-05: HITL gate via langgraph.types.interrupt() + Command(resume=...) — pricing → hitl_gate → response REPLACES pricing → planner edge (Pitfall 6 invariant); pricing is final compute step within a turn, next-turn planner loop is entered via fresh chat invocations
+- [Phase 05]: Plan 05-05: Bypass path on hitl_gate emits ZERO trace entries for low-value totals (~91% of demo queries below 500 THB threshold) — keeps the common case overhead-free; only high-value totals emit pre-pause warn + post-resume ok trace pair (D-08)
+- [Phase 05]: Plan 05-05: interrupt() return value mapping — True (bool) AND 'approve' (string) → 'approve'; anything else → 'deny'; defensive against frontend serialisation surprises while still booleanly clean
+- [Phase 05]: Plan 05-05: Sixth SSE event type approval_required added INTO the EventType Literal (not a sibling Literal) — single source of truth for the SSE contract; static-type check forces all emit sites to update together
+- [Phase 05]: Plan 05-05: Pitfall 1 mitigation — resume path REUSES _make_config so Langfuse callbacks + metadata + deterministic langfuse_trace_id are preserved across the pause; turn_idx clamps at max(0, turn_idx-1) since resume does not add a new user message
+- [Phase 05]: Plan 05-05: Pitfall 2 mitigation — pending_approval flag in finally block enforces NO done after approval_required; FE keeps Approve/Deny buttons live until the resume POST arrives
+- [Phase 05]: Plan 05-05: _drain_events helper centralizes astream_events filter logic across fresh + resume paths — eliminates contract-drift risk on what counts as a trace/answer event
+- [Phase 05]: Plan 05-05: response_node deny short-circuit — status='partial', surcharge_result=None in final_payload, prose contains 'declined', NO breakdown table (D-07); Market context prefix (D-11) preserved on deny path so provenance applies regardless of accept/decline
+- [Phase 05]: Plan 05-05: Test fixture pattern adapted from `async_client` (referenced in plan but doesn't exist in conftest) to existing TestClient + app_with_mocks pattern — install MagicMock graph stub AFTER lifespan enters since lifespan replaces app.state.graph with the real compiled graph (Rule 3 blocking + Rule 1 bug fixes documented in 05-05-SUMMARY.md)
 
 ### Pending Todos
 
@@ -185,6 +196,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-05-02T17:56:00.000Z
-Stopped at: Completed 05-02-PLAN.md (Langfuse callback + OBS-03 auto-eval wiring)
+Last session: 2026-05-03T09:38:05Z
+Stopped at: Completed 05-05-PLAN.md (HITL approval gate ORCH-09 — hitl_gate node, pricing → hitl_gate → response topology, sixth SSE event approval_required, Command(resume) handler, response_node deny path)
 Resume file: None
