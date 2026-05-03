@@ -57,42 +57,74 @@ We use **LangGraph** to build a stateful, multi-agent graph. The orchestrator (p
 
 ### Agent Graph Flow
 
+```mermaid
+flowchart TD
+    START([START]) --> P[Planner Node]
+    P -->|next_step=fanout_fuel_route<br/>both stale| FAN{Parallel<br/>superstep}
+    FAN --> F[Fuel Agent]
+    FAN --> R[Route Agent]
+    P -->|fetch_fuel<br/>route cached| F
+    P -->|fetch_route<br/>fuel cached| R
+    P -->|search_context<br/>news intent| S[Search Agent]
+    P -->|calculate_price| PR[Pricing Agent]
+    P -->|clarify/respond| RESP[Response Node]
+    F --> P
+    R --> P
+    S --> P
+    PR --> H{HITL Gate<br/>total > threshold?}
+    H -->|low value| RESP
+    H -->|high value| INT([interrupt — await user])
+    INT -->|Command resume=approve/deny| RESP
+    RESP --> END([END])
+```
+
+<details>
+<summary>ASCII diagram (terminal-readable fallback)</summary>
+
 ```
 START
   │
   ▼
 [Planner Node]
-  │  Understands user intent
+  │  Understands user intent (Bangkok Metro provinces)
   │  Checks memory for cached data
   │  Decides which agents to invoke
   │
-  ├── "fetch_fuel" ────► [Fuel Agent Node]
-  │                        Calls: fetch_fuel_price tool
-  │                        Returns: price, baseline, delta%, trend
+  ├── "fanout_fuel_route" ► [Fuel Agent] + [Route Agent]   (Phase 5 ORCH-07; same superstep)
   │
-  ├── "fetch_route" ───► [Route Agent Node]
-  │                        Calls: calculate_route tool
-  │                        Returns: distance_km, traffic_severity, zone
+  ├── "fetch_fuel" ───────► [Fuel Agent Node]
+  │                          Calls: fetch_fuel_price tool
+  │                          Returns: price, baseline, delta%, trend
   │
-  ├── "calculate_price" ► [Pricing Agent Node]
-  │                        Calls: lookup_rate + calculate_surcharge tools
-  │                        Returns: base_rate, surcharge_pct, total, breakdown
+  ├── "fetch_route" ──────► [Route Agent Node]
+  │                          Calls: calculate_route tool
+  │                          Returns: distance_km, traffic_severity, zone
   │
-  ├── "search_context" ─► [Fuel Agent Node]
-  │                        Calls: search_fuel_news tool
-  │                        Returns: news/context about fuel trends
+  ├── "search_context" ───► [Search Agent Node]            (Phase 5 TOOL-05)
+  │                          Calls: search_fuel_news tool (Tavily)
+  │                          Returns: search_context.summary + sources
   │
-  └── "clarify" ────────► [Response Node]
-  │                        Asks user for missing information
+  ├── "calculate_price" ──► [Pricing Agent Node]
+  │                          Calls: lookup_rate + calculate_surcharge tools
+  │                          Returns: base_rate, surcharge_pct, total, breakdown
   │
-  ▼
+  └── "clarify" ──────────► [Response Node]
+                             Asks user for missing information
+
+[Pricing Agent] ──► [HITL Gate]                            (Phase 5 ORCH-09)
+                       │
+                       ├── low value (≤ threshold) ─────► [Response Node]
+                       └── high value ──► interrupt() ──► [Response Node]
+                                          (resumed via Command(resume=approve/deny))
+
 [Response Node]
-  │  Formats final answer with reasoning trace
-  │  Includes surcharge breakdown table
-  │  Adds business recommendations when relevant
+  │  Formats final answer (markdown + breakdown table)
+  │  Prepends "Market context:" line when search_context present
+  │  Renders status='partial' on deny path (no breakdown)
   ▼
 END
 ```
+</details>
 
 ### Agent State
 
@@ -104,22 +136,48 @@ class AgentState(TypedDict):
     shipping_type: str | None             # "bounce" | "retail_standard" | "retail_fast"
     weight_kg: float | None               # Shipment weight
     surcharge_result: dict | None         # Base rate, surcharge %, amount, total
-    reasoning_trace: list[dict]           # Agent steps for transparency panel
+    reasoning_trace: list[dict]           # Agent steps for transparency panel (operator.add reducer)
+    errors: list[dict]                    # Tool/LLM errors (operator.add reducer; Phase 3 D-05)
     next_step: str                        # Conditional edge routing
+    # Phase 3 D-05 additions
+    origin: str | None                    # Extracted from user message by planner
+    destination: str | None
+    user_intent: str | None               # surcharge_query | followup_query | news_query | clarify
+    missing_fields: list[str]             # Inputs the planner could not extract
+    clarification_reason: str | None
+    final_payload: dict | None            # Set by response_node; surfaced via SSE answer event
+    # Phase 5 additions
+    approval_decision: Literal["approve", "deny"] | None  # Phase 5 D-07; set by hitl_gate_node, read by response_node
+    search_context: dict | None           # Phase 5 D-11; Tavily summary + sources; read by response_node for "Market context:" prefix
 ```
+
+| Field | Type | Reducer | Set by | Notes |
+|-------|------|---------|--------|-------|
+| messages | list[BaseMessage] | last-write-wins | runtime | LangGraph message channel |
+| fuel_data | dict \| None | last-write-wins | fuel_agent_node | TTL annotated via `fetched_at`; reused on cache hit |
+| route_data | dict \| None | last-write-wins | route_agent_node | Cache key = (origin, destination); 15-min TTL |
+| shipping_type / weight_kg / origin / destination | scalars | last-write-wins | planner_node | Extracted from user message |
+| surcharge_result | dict \| None | last-write-wins | pricing_agent_node | Drives breakdown table render |
+| reasoning_trace | list[dict] | `operator.add` | every node | Parallel-write safe (Phase 2 Pitfall 1) |
+| errors | list[dict] | `operator.add` | error sink wrapper | Parallel-write safe; Phase 3 D-05 |
+| next_step | str | last-write-wins | planner_node | Conditional routing target; includes sentinel `fanout_fuel_route` (Phase 5) |
+| final_payload | dict \| None | last-write-wins | response_node | Surfaced via SSE answer event |
+| **approval_decision** | Optional[Literal["approve", "deny"]] | last-write-wins | hitl_gate_node | **Phase 5 D-07** — HITL gate decision; read by response_node |
+| **search_context** | Optional[dict] | last-write-wins | search_agent_node | **Phase 5 D-11** — Tavily summary + sources; read by response_node for "Market context:" prefix |
 
 ### Conditional Routing
 
 The Planner node outputs a `next_step` field that LangGraph uses for conditional edges:
 
-| next_step | Target Node | When |
-|-----------|------------|------|
-| `fetch_fuel` | Fuel Agent | No fuel data in state, or data > 1 hour old |
-| `fetch_route` | Route Agent | New origin/destination pair |
-| `calculate_price` | Pricing Agent | Fuel + route data available, ready to compute |
-| `search_context` | Fuel Agent (search mode) | User asks about trends or news |
-| `clarify` | Response Node | Missing required info (shipping type, route, etc.) |
-| `respond` | Response Node | All data collected, ready to answer |
+| next_step | Routes to | Notes |
+|-----------|-----------|-------|
+| `fetch_fuel` | fuel_agent | Sequential when route is fresh |
+| `fetch_route` | route_agent | Sequential when fuel is fresh |
+| `fanout_fuel_route` | [fuel_agent, route_agent] | **Phase 5 NEW** — same-superstep parallel when both stale (D-01) |
+| `calculate_price` | pricing_agent | After fuel + route + inputs ready |
+| `search_context` | search_agent | **Phase 5 NEW** — news/market/trend intent (D-09); was response stub |
+| `clarify` | response | Render clarify-status answer |
+| `respond` | response | Final hop; status='ok' if surcharge ready, 'partial' if HITL deny |
 
 ---
 
@@ -192,12 +250,15 @@ Caps:
 ### Session Memory (LangGraph Checkpointer)
 
 - **Backend**: SQLite file (`data/checkpoints.db`)
+- **Saver class**: `langgraph.checkpoint.sqlite.aio.AsyncSqliteSaver` (langgraph-checkpoint-sqlite 2.0.11)
 - **Key**: `thread_id` (UUID assigned per conversation)
-- **What it stores**: Full message history + agent state per conversation thread
+- **What it stores**: Full message history + agent state per conversation thread (one snapshot per Pregel superstep)
+- **Required for HITL resume (Phase 5)**: the `interrupt()` primitive snapshots state to the checkpointer; the resume call (`Command(resume=...)`) reconstructs the in-flight execution state across HTTP requests. Without the persistent checkpointer the pause-on-approval flow is impossible.
 - **Enables**:
   - Follow-up questions reuse cached fuel/route data
   - "What about Retail Fast?" works without re-fetching
   - "What if diesel goes up 2 baht?" uses existing context
+  - HITL approval pause survives the SSE stream close (Phase 5)
 
 ### Tool Result Cache (in AgentState)
 
@@ -241,6 +302,59 @@ Every LangGraph invocation passes a Langfuse callback handler that automatically
 3. If thumbs down: selects reason (wrong price, wrong route, etc.)
 4. Feedback sent to `POST /api/feedback` → forwarded to Langfuse Score API
 5. Scores visible in Langfuse dashboard for analysis
+
+---
+
+## Observability Architecture
+
+```mermaid
+flowchart LR
+    FE[Frontend] -->|POST /api/chat| CH[Chat Handler]
+    CH -->|graph.astream_events with config={callbacks: [CallbackHandler]}| G[LangGraph Graph]
+    G --> Planner
+    G --> FuelAgent
+    G --> RouteAgent
+    G --> SearchAgent
+    G --> PricingAgent
+    G --> ResponseNode
+    Planner & FuelAgent & RouteAgent & SearchAgent & PricingAgent & ResponseNode -.LLM + tool calls.-> CB[Langfuse CallbackHandler]
+    CB -->|trace_id = seed_trace_id thread_id, turn_idx| LF[Langfuse Cloud]
+    PricingAgent -.fire-and-forget.-> AE[post_formula_accuracy_score]
+    AE -->|create_score formula_accuracy 1.0/0.0| LF
+    FE -->|POST /api/feedback| FB[Feedback Handler]
+    FB -->|seed_trace_id same trace as chat turn| LF
+    FB -->|create_score user_feedback 1/-1| LF
+```
+
+Key invariants:
+
+- `seed_trace_id(thread_id, turn_idx)` is the SINGLE source of truth for trace correlation across the chat handler, the auto-eval, and the feedback handler. Renaming in any one of the three breaks the wire silently.
+- Auto-eval (`post_formula_accuracy_score`) is fire-and-forget — it re-runs the deterministic Phase 1 pure function with the same inputs and posts a `formula_accuracy` Score (1.0 match / 0.0 divergence). Eval failure NEVER blocks the user response.
+- All Langfuse calls are no-op when `LANGFUSE_PUBLIC_KEY` / `LANGFUSE_SECRET_KEY` / `LANGFUSE_HOST` are missing. `POST /api/feedback` returns 200 with `delivered=false` (NOT an error) so the frontend silent-error contract stays clean. The agent runs identically without Langfuse — local reproducibility preserved per CLAUDE.md.
+- The `message_id` shape `{thread_id}-{turn_idx}` is parsed by the feedback handler (regex anchored on trailing `-<digits>`) to recover `thread_id` + `turn_idx` and re-derive the same trace_id without a name lookup.
+
+---
+
+## Parallel Execution (ORCH-07)
+
+The conditional edge from the Planner returns a **list** of node names (`["fuel_agent", "route_agent"]`) when both fuel and route are stale on the current turn. LangGraph's runtime schedules every node in the returned list within the same Pregel superstep — concurrent execution of disjoint state writes (fuel_agent writes `fuel_data`; route_agent writes `route_data`).
+
+Trigger condition (D-01):
+
+1. Planner LLM emits `next_step="fetch_fuel"` or `"fetch_route"`
+2. AND `state.fuel_data` is stale (no `fetched_at` or older than `FUEL_DATA_TTL_SECONDS=3600`)
+3. AND `state.route_data` does not match merged origin/destination
+4. AND all extraction inputs (`shipping_type`, `weight_kg`, `origin`, `destination`) are present
+
+When all four conditions hold the planner promotes to the sentinel `next_step="fanout_fuel_route"`, which the conditional edge translates to the list `["fuel_agent", "route_agent"]`.
+
+Reducer safety (D-02):
+
+- `reasoning_trace` and `errors` use `operator.add` reducer — concurrent appends merge cleanly (Phase 2 Pitfall 1 — verified).
+- `fuel_data` and `route_data` are scalar dict keys with last-write-wins; safe because the two branches write disjoint keys.
+- No new reducers were added for Phase 5 — the parallel topology rides on the Phase 1/2 invariants.
+
+Demo evidence: trace timestamps for `fuel_agent` and `route_agent` on the parallel turn differ by &lt; 1 second (typical: 50–200 ms, bounded by network latency to Google Maps + EPPO; measured ~165 µs in offline tests). Visible in the chat trace panel as overlapping start times.
 
 ---
 
@@ -291,17 +405,38 @@ Every LangGraph invocation passes a Langfuse callback handler that automatically
 - Cap/floor applied automatically
 - Agent flags when cap is hit and recommends cap review
 
+### Phase 5 Error Paths
+
+- **Tavily failure (Phase 5 D-12)**: `search_fuel_news` raises `RuntimeError` (missing key, network, quota) → `search_agent_node` emits a `warn`-status trace entry; `state.search_context` stays `None`; planner continues; surcharge response is unaffected. Search failure NEVER blocks the surcharge answer.
+- **HITL deny path (Phase 5 D-07)**: `approval_decision="deny"` → `response_node` renders `status="partial"` with decline prose, no breakdown table; `surcharge_result` retained in state for Langfuse audit but NOT shown in the answer. Market context prefix (D-11) is preserved on the deny path so provenance applies regardless of accept/decline.
+- **Langfuse keys missing (Phase 5 D-13)**: `get_callback_handler()` returns `None` → chat handler attaches no callbacks; `post_formula_accuracy_score()` no-ops; `POST /api/feedback` returns 200 with `delivered=false`. The agent runs identically without Langfuse — local reproducibility preserved per CLAUDE.md constraint.
+
 ---
 
 ## API Endpoints
 
-| Method | Endpoint | Purpose |
-|--------|----------|---------|
-| POST | `/api/chat` | Send message, receive SSE stream of traces + response |
-| GET | `/api/conversations` | List all past conversations |
-| GET | `/api/conversations/:id` | Get conversation history |
-| GET | `/api/fuel-prices?days=30` | Get historical fuel price data for chart |
-| POST | `/api/feedback` | Submit user feedback (score + reason) |
+| Method | Path | Body | Response | Notes |
+|--------|------|------|----------|-------|
+| POST | `/api/chat` | `{message, thread_id?, approve?}` | SSE stream | **Phase 5 NEW** — `approve` body field for HITL resume (D-06); when present, calls `Command(resume=approve)` rather than starting a fresh turn |
+| GET | `/api/conversations` | – | List of thread metadata | List all past conversation threads |
+| GET | `/api/conversations/:id` | – | Conversation history | Resumes a thread for the UI sidebar |
+| GET | `/api/fuel-prices?days=30` | – | `{date, price}[]` | Historical fuel price chart data (reads `data/raw/eppo_diesel_prices.csv` directly per Phase 3 D-20) |
+| POST | `/api/feedback` | `{thread_id, message_id, score, reason?}` | `{status, delivered, trace_id?}` | **Phase 5 NEW** — DOC-01 / OBS-02 — forwards thumbs vote to Langfuse Score; deterministic trace_id from message_id (`{thread_id}-{turn_idx}`) |
+
+### SSE Event Types
+
+`POST /api/chat` returns a Server-Sent Events stream. Six event types (Phase 5 added the sixth):
+
+| Event | Payload | Phase |
+|-------|---------|-------|
+| `meta` | `{thread_id}` | Phase 3 |
+| `trace` | `TraceEntry` (12 fields) | Phase 3 |
+| `answer` | `FinalPayload` (markdown, status, surcharge_result, capped, search_context?) | Phase 3 + 5 (search_context optional) |
+| `error` | `{message, retryable}` | Phase 3 |
+| `done` | `{}` | Phase 3 |
+| **`approval_required`** | `{thread_id, surcharge_result, threshold}` | **Phase 5 NEW** (D-06) — emitted before interrupt; FE renders Approve/Deny |
+
+**Pitfall 2 invariant**: `approval_required` is NEVER followed by `done` in the same stream. The stream closes naturally after `approval_required`; the frontend keeps Approve/Deny buttons live until the user submits a follow-up `POST /api/chat` with `{thread_id, approve}`. Resume sends a fresh stream with its own `meta` + `trace` + `answer` + `done` envelope.
 
 ---
 
