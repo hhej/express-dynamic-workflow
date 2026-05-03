@@ -337,3 +337,273 @@ def test_chat_handler_threads_trace_id_into_config(app_with_mocks, monkeypatch):
     # Tags include the express-surcharge marker + per-turn tag.
     assert "express-surcharge" in metadata["langfuse_tags"]
     assert any(tag.startswith("turn-") for tag in metadata["langfuse_tags"])
+
+
+# ---------------------------------------------------------------------------
+# Phase 5 ORCH-09 — HITL approval gate SSE event + Command(resume) handler
+# ---------------------------------------------------------------------------
+
+
+def _stub_graph_app(monkeypatch, astream_events, *, snapshot_next=(),
+                    interrupt_value=None, app_with_mocks_fixture=None):
+    """Helper: replace ``app.state.graph`` with a stub for HITL handler tests.
+
+    The ``app_with_mocks`` fixture sets up a real lifespan-built graph; for
+    HITL handler tests we want full control over astream_events + aget_state
+    so we monkeypatch ``app.state.graph`` AFTER the lifespan is entered.
+
+    Args:
+        monkeypatch: pytest monkeypatch fixture.
+        astream_events: async generator function (graph.astream_events stub).
+        snapshot_next: tuple returned by snapshot.next; non-empty means paused.
+        interrupt_value: value carried inside snapshot.tasks[0].interrupts[0].
+        app_with_mocks_fixture: the app object yielded by app_with_mocks.
+
+    Returns:
+        Stub graph object (for explicit monkeypatch by caller).
+    """
+    from unittest.mock import AsyncMock, MagicMock
+
+    snapshot = MagicMock()
+    snapshot.next = snapshot_next
+    if snapshot_next:
+        interrupt_obj = MagicMock()
+        interrupt_obj.value = interrupt_value or {}
+        task = MagicMock()
+        task.interrupts = [interrupt_obj]
+        snapshot.tasks = [task]
+    else:
+        snapshot.tasks = []
+
+    graph_mock = MagicMock()
+    graph_mock.astream_events = astream_events
+    graph_mock.aget_state = AsyncMock(return_value=snapshot)
+    if app_with_mocks_fixture is not None:
+        app_with_mocks_fixture.state.graph = graph_mock
+    return graph_mock
+
+
+def test_sse_event_type_includes_approval_required():
+    """D-06 sixth event type: ``approval_required`` is in the EventType Literal."""
+    from backend.api.sse import EventType
+    assert "approval_required" in EventType.__args__
+
+
+def test_chat_emits_approval_required_when_paused(app_with_mocks, monkeypatch):
+    """Pitfall 2: paused stream emits approval_required and NOT done after it.
+
+    Stubs ``graph.astream_events`` to yield no events (the gate already paused
+    before any node-end fired) and ``graph.aget_state`` to indicate the run
+    is paused (snapshot.next non-empty) with the interrupt payload from
+    hitl_gate_node (D-05 shape).
+    """
+    from backend.api.routes import chat as chat_mod
+    from unittest.mock import AsyncMock
+
+    async def fake_astream_events(*args, **kwargs):
+        # Empty async generator — nothing emitted before the pause.
+        return
+        yield  # pragma: no cover  # makes function an async gen
+
+    _stub_graph_app(
+        monkeypatch,
+        fake_astream_events,
+        snapshot_next=("response",),
+        interrupt_value={
+            "type": "approval_required",
+            "surcharge_result": {
+                "total": 715.0,
+                "surcharge_pct": 0.10,
+                "surcharge_amount": 65.0,
+                "capped": False,
+            },
+            "threshold": 500.0,
+        },
+        app_with_mocks_fixture=app_with_mocks,
+    )
+    # Bypass _next_turn_idx — the stub graph's aget_state returns a MagicMock
+    # whose .values is also a MagicMock (not a dict), so the handler's helper
+    # would error otherwise.
+    monkeypatch.setattr(chat_mod, "_next_turn_idx", AsyncMock(return_value=0))
+
+    with TestClient(app_with_mocks) as client:
+        with client.stream(
+            "POST", "/api/chat",
+            json={"message": "expensive shipment", "thread_id": "tid-pause"},
+        ) as r:
+            assert r.status_code == 200
+            body = "".join(chunk for chunk in r.iter_text())
+
+    events = _parse_sse_events(body)
+    types = [e["type"] for e in events]
+
+    # Exactly one approval_required event present.
+    assert types.count("approval_required") == 1
+    ap = next(e for e in events if e["type"] == "approval_required")
+    assert ap["payload"]["surcharge_result"]["total"] == 715.0
+    assert ap["payload"]["threshold"] == 500.0
+    assert ap["payload"]["thread_id"] == "tid-pause"
+
+    # Pitfall 2: approval_required must NOT be followed by done in the
+    # same stream (the frontend keeps Approve/Deny buttons live).
+    ap_idx = types.index("approval_required")
+    assert "done" not in types[ap_idx + 1:], (
+        f"done emitted after approval_required (Pitfall 2): types={types}"
+    )
+
+
+def test_chat_resume_with_approve_renders_status_ok(app_with_mocks, monkeypatch):
+    """D-06 resume with approve=True emits status='ok' answer."""
+    from backend.api.routes import chat as chat_mod
+    from unittest.mock import AsyncMock
+
+    async def fake_astream_events(*args, **kwargs):
+        yield {
+            "event": "on_chain_end",
+            "name": "response",
+            "data": {"output": {
+                "final_payload": {
+                    "markdown": "ok rendered with table",
+                    "status": "ok",
+                    "surcharge_result": {
+                        "total": 715.0, "surcharge_pct": 0.10,
+                        "surcharge_amount": 65.0, "capped": False,
+                    },
+                    "capped": False,
+                },
+            }},
+        }
+
+    _stub_graph_app(
+        monkeypatch,
+        fake_astream_events,
+        snapshot_next=(),  # done — not paused
+        app_with_mocks_fixture=app_with_mocks,
+    )
+    monkeypatch.setattr(chat_mod, "_next_turn_idx", AsyncMock(return_value=1))
+
+    with TestClient(app_with_mocks) as client:
+        with client.stream(
+            "POST", "/api/chat",
+            json={"thread_id": "tid-approve", "approve": True},
+        ) as r:
+            assert r.status_code == 200
+            body = "".join(chunk for chunk in r.iter_text())
+
+    events = _parse_sse_events(body)
+    types = [e["type"] for e in events]
+    assert "answer" in types
+    answer = next(e for e in events if e["type"] == "answer")
+    assert answer["payload"]["status"] == "ok"
+    assert answer["payload"]["surcharge_result"] is not None
+    # Resume path closes the stream normally with done.
+    assert types[-1] == "done"
+
+
+def test_chat_resume_with_deny_renders_status_partial(
+    app_with_mocks, monkeypatch
+):
+    """D-07 deny: resume with approve=False emits status='partial' + 'declined'
+    prose; surcharge_result null in the answer payload."""
+    from backend.api.routes import chat as chat_mod
+    from unittest.mock import AsyncMock
+
+    async def fake_astream_events(*args, **kwargs):
+        yield {
+            "event": "on_chain_end",
+            "name": "response",
+            "data": {"output": {
+                "final_payload": {
+                    "markdown": "You declined the recommended surcharge.",
+                    "status": "partial",
+                    "surcharge_result": None,
+                    "capped": False,
+                },
+            }},
+        }
+
+    _stub_graph_app(
+        monkeypatch,
+        fake_astream_events,
+        snapshot_next=(),
+        app_with_mocks_fixture=app_with_mocks,
+    )
+    monkeypatch.setattr(chat_mod, "_next_turn_idx", AsyncMock(return_value=1))
+
+    with TestClient(app_with_mocks) as client:
+        with client.stream(
+            "POST", "/api/chat",
+            json={"thread_id": "tid-deny", "approve": False},
+        ) as r:
+            assert r.status_code == 200
+            body = "".join(chunk for chunk in r.iter_text())
+
+    events = _parse_sse_events(body)
+    answer = next(e for e in events if e["type"] == "answer")
+    assert answer["payload"]["status"] == "partial"
+    assert answer["payload"]["surcharge_result"] is None
+    assert "declined" in answer["payload"]["markdown"].lower()
+
+
+def test_chat_resume_reuses_make_config_helper(app_with_mocks, monkeypatch):
+    """Pitfall 1: resume path reuses _make_config so Langfuse callbacks +
+    metadata are preserved across the pause."""
+    from backend.api.routes import chat as chat_mod
+    from unittest.mock import AsyncMock
+
+    captured = {"calls": 0, "configs": []}
+    original = chat_mod._make_config
+
+    def spy(thread_id, turn_idx):
+        cfg = original(thread_id, turn_idx)
+        captured["calls"] += 1
+        captured["configs"].append(cfg)
+        return cfg
+
+    monkeypatch.setattr(chat_mod, "_make_config", spy)
+
+    async def fake_astream_events(*args, **kwargs):
+        yield {
+            "event": "on_chain_end",
+            "name": "response",
+            "data": {"output": {
+                "final_payload": {
+                    "markdown": "resumed",
+                    "status": "ok",
+                    "surcharge_result": {
+                        "total": 715.0, "surcharge_pct": 0.10,
+                        "surcharge_amount": 65.0, "capped": False,
+                    },
+                    "capped": False,
+                },
+            }},
+        }
+
+    _stub_graph_app(
+        monkeypatch,
+        fake_astream_events,
+        snapshot_next=(),
+        app_with_mocks_fixture=app_with_mocks,
+    )
+    monkeypatch.setattr(chat_mod, "_next_turn_idx", AsyncMock(return_value=1))
+
+    with TestClient(app_with_mocks) as client:
+        with client.stream(
+            "POST", "/api/chat",
+            json={"thread_id": "tid-config", "approve": True},
+        ) as r:
+            assert r.status_code == 200
+            for _ in r.iter_text():
+                pass
+
+    assert captured["calls"] >= 1
+    cfg = captured["configs"][0]
+    # Resume path reuses the SAME helper, so the metadata shape matches
+    # _make_config's contract (thread_id mirrors session, deterministic
+    # 32-hex trace_id present).
+    assert cfg["configurable"]["thread_id"] == "tid-config"
+    md = cfg["metadata"]
+    assert md["langfuse_session_id"] == "tid-config"
+    assert isinstance(md["langfuse_trace_id"], str)
+    assert len(md["langfuse_trace_id"]) == 32
+

@@ -219,3 +219,71 @@ def test_response_market_context_above_cap_callout():
     assert "> ⚠ Cap/floor applied — review recommended" in md
     # Verify ordering: market context appears before cap callout.
     assert md.index("Market context:") < md.index("Cap/floor applied")
+
+
+# ---------------------------------------------------------------------------
+# Phase 5 ORCH-09 — HITL approve/deny path (D-07)
+# ---------------------------------------------------------------------------
+
+
+def test_response_node_deny_renders_partial_without_table():
+    """D-07: approval_decision='deny' -> status='partial', surcharge_result=None,
+    prose contains 'declined', NO breakdown table rendered."""
+    state = _ok_state()
+    state["approval_decision"] = "deny"
+    state["surcharge_result"] = {
+        "surcharge_pct": 0.10,
+        "surcharge_amount": 65.0,
+        "total": 715.0,
+        "capped": False,
+    }
+    out = response_node(state)
+    fp = out["final_payload"]
+    assert fp["status"] == "partial"
+    assert fp["surcharge_result"] is None
+    assert "declined" in fp["markdown"].lower()
+    # No 4-row breakdown table (Phase 3 D-11 contract):
+    assert "| Base rate |" not in fp["markdown"]
+    assert "| Surcharge % |" not in fp["markdown"]
+    assert "| Total |" not in fp["markdown"]
+
+
+def test_response_node_approve_renders_status_ok():
+    """approval_decision='approve' (post-resume) -> standard status='ok' with
+    breakdown table preserved."""
+    state = _ok_state()
+    state["approval_decision"] = "approve"
+    state["surcharge_result"] = {
+        "surcharge_pct": 0.10,
+        "surcharge_amount": 65.0,
+        "total": 715.0,
+        "capped": False,
+    }
+    out = response_node(state)
+    fp = out["final_payload"]
+    assert fp["status"] == "ok"
+    # Standard breakdown table appears.
+    assert "| Total |" in fp["markdown"]
+
+
+def test_response_node_deny_with_market_context_keeps_prefix():
+    """Deny path still honours D-11 Market context prefix when present."""
+    state = _ok_state()
+    state["approval_decision"] = "deny"
+    state["surcharge_result"] = {
+        "surcharge_pct": 0.10,
+        "surcharge_amount": 65.0,
+        "total": 715.0,
+        "capped": False,
+    }
+    state["search_context"] = {
+        "query": "diesel news",
+        "summary": "Diesel held steady.",
+        "sources": [],
+        "fetched_at": "2026-05-02T10:00:00Z",
+    }
+    out = response_node(state)
+    md = out["final_payload"]["markdown"]
+    assert md.startswith("> **Market context:** Diesel held steady.")
+    assert "declined" in md.lower()
+    assert "| Total |" not in md
