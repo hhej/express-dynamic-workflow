@@ -1,9 +1,9 @@
 ---
-status: failed
+status: resolved
 phase: 05-polish-observability-docs
 source: [manual orchestrator UAT — Phase 5 demo prep, 7-question test set]
 started: 2026-05-03T10:41Z
-updated: 2026-05-03T10:45Z
+updated: 2026-05-03T18:30Z
 ---
 
 ## Current Test
@@ -56,7 +56,8 @@ blocked: 0
 ## Gaps
 
 ### gap-1: follow-up planner hallucinates context
-status: failed
+status: resolved
+resolved_by: 05-08
 test: 3
 severity: critical
 symptom: |
@@ -82,7 +83,8 @@ remediation_hint: |
 debug_session: null
 
 ### gap-2: hard crash on out-of-Metro province
-status: failed
+status: resolved
+resolved_by: 05-09
 test: 4
 severity: critical
 symptom: |
@@ -109,7 +111,8 @@ remediation_hint: |
 debug_session: null
 
 ### gap-3: search agent infinite loop on news intent
-status: failed
+status: resolved
+resolved_by: 05-10
 test: 6
 severity: critical
 symptom: |
