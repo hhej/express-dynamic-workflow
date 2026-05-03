@@ -17,6 +17,9 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [ ] **Phase 3: Graph Assembly & API Layer** - Wire nodes into StateGraph with conditional routing, checkpointer, FastAPI endpoints
 - [x] **Phase 4: Frontend & Reasoning Trace** - Chat UI, reasoning trace panel, dashboard, SSE streaming display (completed 2026-04-26)
 - [ ] **Phase 5: Polish, Observability & Docs** - Parallel agents, HITL gate, Langfuse tracing, Tavily search, documentation
+- [ ] **Phase 6: HITL Approval UI Wiring + Compile Fix** - Gap closure: TraceStep keys, ApprovalCard prop chain, ChatInput disable
+- [ ] **Phase 7: Feedback Contract Alignment** - Gap closure: message_id format `{thread_id}-{turn_idx}` + drift-prevention tests
+- [ ] **Phase 8: Search Context Wiring + Sidebar Polish** - Gap closure: search_context in final_payload, useConversations as context provider
 
 ## Phase Details
 
@@ -115,6 +118,41 @@ Plans:
 - [x] 05-06-PLAN.md — Backend POST /api/feedback + frontend wires (postFeedback, useChatStream approve, ApprovalCard, SearchContextLine, FeedbackButtons swap, MessageList branch) (API-05, OBS-02)
 - [x] 05-07-PLAN.md — Documentation: README.md (DOC-01), docs/architecture.md update (DOC-02), docs/data-sources.md (DOC-04), screenshots, demo.mp4, v1.0 tag (D-21)
 
+### Phase 6: HITL Approval UI Wiring + Compile Fix
+**Goal**: Production frontend bundles cleanly, ApprovalCard renders end-to-end on high-value queries, and ChatInput is locked during awaiting_approval — closing the HITL flow break that the v1.0 audit surfaced
+**Depends on**: Phase 5
+**Requirements**: ORCH-09, UI-01
+**Gap Closure**: Closes audit Issues 1, 2, 5; reopens Flow 1+2 (compile) and Flow 3 (HITL)
+**Success Criteria** (what must be TRUE):
+  1. `next build` completes with no TS errors (TraceStep.AGENT_LABEL covers all 7 AgentName keys)
+  2. A high-value shipment query causes ApprovalCard to render in the rendered React tree, with working Approve / Deny buttons
+  3. Clicking Approve resumes the graph via `chat.approve()` and the response_node delivers a final answer
+  4. Clicking Deny short-circuits via Command(resume=denied) and surfaces the deny path response
+  5. ChatInput is disabled while `chat.status === 'awaiting_approval'`
+**UI hint**: yes
+
+### Phase 7: Feedback Contract Alignment
+**Goal**: Production thumbs-up/down clicks succeed end-to-end and a `user_feedback` Score lands in Langfuse — closing the message_id contract drift between Phase 4 ChatApp and Phase 5 feedback endpoint
+**Depends on**: Phase 6
+**Requirements**: API-05, OBS-02, UI-05
+**Gap Closure**: Closes audit Issue 3
+**Success Criteria** (what must be TRUE):
+  1. Frontend constructs assistant message id as `{thread_id}-{turn_idx}` (matching backend regex `^(.+)-(\d+)$` and the thread_id consistency check)
+  2. POST /api/feedback returns 200 from a real production click (no HTTP 400 on the canonical happy path)
+  3. Backend feedback tests cover production-shape ids alongside the existing canonical fixtures (drift prevention)
+  4. Live verification: a thumbs-up click produces a `user_feedback` Score row in Langfuse for the corresponding trace
+
+### Phase 8: Search Context Wiring + Sidebar Polish
+**Goal**: Tavily news queries surface typed sources via SearchContextLine, the `'search_only'` FinalStatus branch is reachable, and the conversation sidebar refreshes after every completed turn — closing the remaining minor integration drift from the v1.0 audit
+**Depends on**: Phase 7
+**Requirements**: TOOL-05, UI-02, UI-06 (rendering completeness; reqs already satisfied)
+**Gap Closure**: Closes audit Issues 4, 6; restores Flow 4 to full fidelity
+**Success Criteria** (what must be TRUE):
+  1. response_node emits `search_context` in `final_payload` when present in state, and frontend `'search_only'` status branch renders SearchContextLine with clickable sources
+  2. `agent.types.ts` FinalStatus union includes `'search_only'` and downstream switches handle it
+  3. Conversation sidebar updates immediately after a completed turn without requiring a page reload (single useConversations instance shared via context)
+**UI hint**: yes
+
 ## Progress
 
 **Execution Order:**
@@ -127,6 +165,9 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5
 | 3. Graph Assembly & API Layer | 0/3 | Not started | - |
 | 4. Frontend & Reasoning Trace | 5/5 | Complete   | 2026-04-26 |
 | 5. Polish, Observability & Docs | 6/7 | Wave 6 PARTIAL — Plan 05-07 Tasks 1-3 done (DOC-01/02/04 docs); Tasks 4-5 pending HUMAN action (demo + screenshots; v1.0 tag) | - |
+| 6. HITL Approval UI Wiring + Compile Fix | 0/0 | Gap closure — planning pending | - |
+| 7. Feedback Contract Alignment | 0/0 | Gap closure — planning pending | - |
+| 8. Search Context Wiring + Sidebar Polish | 0/0 | Gap closure — planning pending | - |
 
 ## Backlog
 

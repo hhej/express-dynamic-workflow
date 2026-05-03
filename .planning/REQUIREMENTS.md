@@ -34,7 +34,7 @@ Requirements for initial release. Each maps to roadmap phases.
 - [x] **ORCH-06**: Agent state schema (AgentState TypedDict) manages messages, fuel_data, route_data, shipping_type, weight_kg, surcharge_result, reasoning_trace, next_step
 - [x] **ORCH-07**: Fuel Agent and Route Agent execute in parallel via LangGraph Send API
 - [x] **ORCH-08**: Agentic retry loop with exponential backoff (max 2 retries per tool) and graceful fallback with explanation
-- [x] **ORCH-09**: Human-in-the-loop approval gate for high-value shipments before finalizing surcharge
+- [ ] **ORCH-09**: Human-in-the-loop approval gate for high-value shipments before finalizing surcharge
 - [x] **ORCH-10**: Conversation memory via LangGraph SQLite checkpointer — follow-up queries reuse cached fuel/route data
 
 ### Surcharge Logic
@@ -50,21 +50,21 @@ Requirements for initial release. Each maps to roadmap phases.
 - [x] **API-02**: GET /api/conversations lists all past conversation threads
 - [x] **API-03**: GET /api/conversations/:id returns full conversation history for a thread
 - [x] **API-04**: GET /api/fuel-prices?days=30 returns historical fuel price data for charts
-- [x] **API-05**: POST /api/feedback accepts user feedback (score + reason) and forwards to Langfuse
+- [ ] **API-05**: POST /api/feedback accepts user feedback (score + reason) and forwards to Langfuse
 
 ### Frontend
 
-- [x] **UI-01**: Chat interface for natural language surcharge queries with SSE streaming display
+- [ ] **UI-01**: Chat interface for natural language surcharge queries with SSE streaming display
 - [x] **UI-02**: Reasoning trace panel showing agent steps, tool calls, and decisions for each query
 - [x] **UI-03**: Surcharge breakdown table in chat responses (base rate, surcharge %, amount, total)
 - [x] **UI-04**: Dashboard with fuel price trends and surcharge history charts (Recharts)
-- [x] **UI-05**: User feedback buttons (thumbs up/down) on agent responses with reason selector on thumbs down
+- [ ] **UI-05**: User feedback buttons (thumbs up/down) on agent responses with reason selector on thumbs down
 - [x] **UI-06**: Conversation history sidebar for resuming past threads
 
 ### Observability
 
 - [x] **OBS-01**: Langfuse callback handler traces all LLM calls, tool calls, and agent steps
-- [x] **OBS-02**: User feedback scores forwarded to Langfuse Score API for evaluation tracking
+- [ ] **OBS-02**: User feedback scores forwarded to Langfuse Score API for evaluation tracking
 - [x] **OBS-03**: Formula accuracy auto-eval: independent calculation vs agent output on every query
 
 ### Documentation
@@ -126,7 +126,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | ORCH-06 | Phase 1 | Complete |
 | ORCH-07 | Phase 5 | Complete |
 | ORCH-08 | Phase 3 | Active |
-| ORCH-09 | Phase 5 | Complete |
+| ORCH-09 | Phase 6 | Pending |
 | ORCH-10 | Phase 3 | Active |
 | CALC-01 | Phase 1 | Complete |
 | CALC-02 | Phase 1 | Complete |
@@ -136,15 +136,15 @@ Which phases cover which requirements. Updated during roadmap creation.
 | API-02 | Phase 3 | Complete |
 | API-03 | Phase 3 | Complete |
 | API-04 | Phase 3 | Complete |
-| API-05 | Phase 5 | Complete |
-| UI-01 | Phase 4 | Complete |
+| API-05 | Phase 7 | Pending |
+| UI-01 | Phase 6 | Pending |
 | UI-02 | Phase 4 | Complete |
 | UI-03 | Phase 4 | Complete |
 | UI-04 | Phase 4 | Complete |
-| UI-05 | Phase 4 | Complete |
+| UI-05 | Phase 7 | Pending |
 | UI-06 | Phase 4 | Complete |
 | OBS-01 | Phase 5 | Complete |
-| OBS-02 | Phase 5 | Complete |
+| OBS-02 | Phase 7 | Pending |
 | OBS-03 | Phase 5 | Complete |
 | DOC-01 | Phase 5 | Complete |
 | DOC-02 | Phase 5 | Complete |
