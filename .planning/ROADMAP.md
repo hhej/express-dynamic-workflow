@@ -129,7 +129,13 @@ Plans:
   3. Clicking Approve resumes the graph via `chat.approve()` and the response_node delivers a final answer
   4. Clicking Deny short-circuits via Command(resume=denied) and surfaces the deny path response
   5. ChatInput is disabled while `chat.status === 'awaiting_approval'`
+**Plans**: 3 plans
 **UI hint**: yes
+
+Plans:
+- [ ] 06-01-PLAN.md — TraceStep AGENT_LABEL keys + exhaustive AgentName loop test (closes audit Issue 1; ROADMAP §SC 1)
+- [ ] 06-02-PLAN.md — ChatApp ↔ ChatColumn ↔ MessageList HITL prop chain + ChatInput disable + ApprovalCard error prop + ChatColumn forwarding test (closes audit Issues 2 + 5; ROADMAP §SC 2/3/4/5)
+- [ ] 06-03-PLAN.md — ChatApp.integration.test.tsx with approve + deny SSE integration via MSW (drift-prevention layer per D-15.3)
 
 ### Phase 7: Feedback Contract Alignment
 **Goal**: Production thumbs-up/down clicks succeed end-to-end and a `user_feedback` Score lands in Langfuse — closing the message_id contract drift between Phase 4 ChatApp and Phase 5 feedback endpoint
@@ -165,7 +171,7 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5
 | 3. Graph Assembly & API Layer | 0/3 | Not started | - |
 | 4. Frontend & Reasoning Trace | 5/5 | Complete   | 2026-04-26 |
 | 5. Polish, Observability & Docs | 6/7 | Wave 6 PARTIAL — Plan 05-07 Tasks 1-3 done (DOC-01/02/04 docs); Tasks 4-5 pending HUMAN action (demo + screenshots; v1.0 tag) | - |
-| 6. HITL Approval UI Wiring + Compile Fix | 0/0 | Gap closure — planning pending | - |
+| 6. HITL Approval UI Wiring + Compile Fix | 0/3 | Planning complete | - |
 | 7. Feedback Contract Alignment | 0/0 | Gap closure — planning pending | - |
 | 8. Search Context Wiring + Sidebar Polish | 0/0 | Gap closure — planning pending | - |
 
