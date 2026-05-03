@@ -69,10 +69,10 @@ Requirements for initial release. Each maps to roadmap phases.
 
 ### Documentation
 
-- [ ] **DOC-01**: README.md covers project overview, team, problem statement, agent design, data sources, setup instructions, AI tools used, limitations
-- [ ] **DOC-02**: docs/architecture.md finalized with accurate agent design diagrams
+- [x] **DOC-01**: README.md covers project overview, team, problem statement, agent design, data sources, setup instructions, AI tools used, limitations
+- [x] **DOC-02**: docs/architecture.md finalized with accurate agent design diagrams
 - [x] **DOC-03**: .env.example with all required API key placeholders
-- [ ] **DOC-04**: Data source documentation with URLs, assumptions for simulated data
+- [x] **DOC-04**: Data source documentation with URLs, assumptions for simulated data
 
 ## v2 Requirements
 
@@ -146,10 +146,10 @@ Which phases cover which requirements. Updated during roadmap creation.
 | OBS-01 | Phase 5 | Complete |
 | OBS-02 | Phase 5 | Complete |
 | OBS-03 | Phase 5 | Complete |
-| DOC-01 | Phase 5 | Pending |
-| DOC-02 | Phase 5 | Pending |
+| DOC-01 | Phase 5 | Complete |
+| DOC-02 | Phase 5 | Complete |
 | DOC-03 | Phase 1 | Complete |
-| DOC-04 | Phase 5 | Pending |
+| DOC-04 | Phase 5 | Complete |
 
 **Coverage:**
 - v1 requirements: 43 total

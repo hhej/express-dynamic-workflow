@@ -3,8 +3,8 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-stopped_at: Plan 05-08 COMPLETE — gap-1 closed; followup_query inheritance prevents LLM hallucinations from corrupting cached state. 178/178 backend tests green.
-last_updated: "2026-05-03T11:25:57.627Z"
+stopped_at: "Completed 05-09-PLAN.md (gap-2 closure: route_agent_node selectively catches zone-miss ValueError; docs corrected to match zone_definitions.json verbatim; 178/178 backend tests green)"
+last_updated: "2026-05-03T11:26:07.025Z"
 last_activity: 2026-05-03
 progress:
   total_phases: 5
@@ -196,6 +196,8 @@ Recent decisions affecting current work:
 - [Phase 05]: Plan 05-08: gap-1 fix is null-only inheritance branch ABOVE 999.1 merge — preserves explicit-override semantics; defense-in-depth pairs with SYSTEM_PROMPT contract update telling LLM to emit null on unmentioned followup fields
 - [Phase 05]: Plan 05-08: token-detection signals — shipping_type uses substring + fixed keyword set (bounce/retail_standard/retail_fast); destination/origin use substring against parsed token OR prior state value; weight_kg uses any-digit detection. Plain string ops sufficient for demo-grade robustness without NLP
 - [Phase 05]: Plan 05-08: integration test (test_followup_25kg_preserves_bounce_and_nonthaburi) uses 1 turn-2 planner LLM response — only correct for the FIXED behaviour because turn 2 with inheritance immediately routes followup→fetch_fuel→D-12 cascade→calculate_price→pricing→hitl→response (no planner re-entry within turn)
+- [Phase 05]: Plan 05-09: Selective ValueError prefix-match catch ('No Bangkok Metro zone') in route_agent_node — preserves D-10 ValueError on missing origin/destination while gracefully handling out-of-Metro destinations as state.errors entry + next_step='respond' (gap-2 fix from UAT test 4)
+- [Phase 05]: Plan 05-09: Doc fix corrects docs/data-sources.md central-1/2/3 split to match data/raw/zone_definitions.json verbatim (Plan 05-07 baseline was wrong). 15 supported provinces enumerated explicitly across README, data-sources.md, and architecture.md; out-of-scope provinces (Chiang Mai, Phuket etc.) noted with the graceful clarify response — DOC-01/02/04 honesty restored
 
 ### Pending Todos
 
@@ -217,6 +219,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-05-03T11:25:45.454Z
-Stopped at: Plan 05-08 COMPLETE — gap-1 closed; followup_query inheritance prevents LLM hallucinations from corrupting cached state. 178/178 backend tests green.
+Last session: 2026-05-03T11:26:07.021Z
+Stopped at: Completed 05-09-PLAN.md (gap-2 closure: route_agent_node selectively catches zone-miss ValueError; docs corrected to match zone_definitions.json verbatim; 178/178 backend tests green)
 Resume file: None
