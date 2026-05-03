@@ -760,3 +760,128 @@ def test_followup_explicit_override_wins_over_inheritance(monkeypatch):
     assert result["weight_kg"] == 15.0
     assert result["origin"] == "Bangkok"
     assert result["destination"] == "Nonthaburi"
+
+
+# ---------------------------------------------------------------------------
+# Plan 05-10 / gap-3 (2026-05-03): UAT test 6 — news/trend queries (e.g.
+# "Why are diesel prices rising this week?") trigger the planner to re-route
+# to search_context 5 times in a row until the loop-budget guard exhausts.
+# After search_agent populates state.search_context, the planner re-runs the
+# LLM, which AGAIN classifies the user message as out_of_scope/news →
+# re-emits next_step="search_context" → router re-dispatches to search_agent
+# → loop until D-04 budget guard fires.
+# Fix: when state.search_context is not None AND user_intent is in
+# {"news_query", "out_of_scope"}, planner short-circuits to next_step="respond"
+# BEFORE the Gemini call. The early-return appends a minimal trace entry so
+# observability shows "planner ran twice, second was a short-circuit".
+# ---------------------------------------------------------------------------
+
+
+def test_planner_early_returns_when_search_context_populated(monkeypatch):
+    """gap-3: with search_context populated and user_intent='out_of_scope',
+    the planner short-circuits to respond WITHOUT calling Gemini.
+
+    We do NOT mock get_chat_model — if the early-return fails, the unmocked
+    call would raise (proving the guard fired)."""
+    state = _user_state(
+        "Why are diesel prices rising?",
+        user_intent="out_of_scope",
+        search_context={
+            "query": "diesel news",
+            "summary": "Diesel prices up 3% on supply concerns",
+            "sources": [
+                {
+                    "title": "EPPO weekly diesel report",
+                    "url": "https://example.com/diesel",
+                    "snippet": "Diesel B7 retail price held at 30 THB/L.",
+                    "published_at": "2026-05-01",
+                }
+            ],
+            "fetched_at": "2026-05-03T10:00:00Z",
+        },
+        reasoning_trace=[
+            {"step": 1, "agent": "planner"},
+            {"step": 2, "agent": "search_agent"},
+        ],
+    )
+
+    result = planner_node(state)
+
+    assert result["next_step"] == "respond"
+    assert result.get("clarification_reason") is None
+    # The early-return appends a minimal trace entry recording the short-circuit.
+    assert len(result["reasoning_trace"]) == 1
+    assert result["reasoning_trace"][0]["agent"] == "planner"
+    assert (
+        result["reasoning_trace"][0]["reasoning"]
+        == "search_context populated; routing to respond"
+    )
+
+
+def test_planner_early_returns_for_news_query_intent_too(monkeypatch):
+    """gap-3: same as above but user_intent='news_query' (the new dedicated
+    intent value). The early-return guard accepts BOTH values for backward
+    compatibility."""
+    state = _user_state(
+        "Why are diesel prices rising?",
+        user_intent="news_query",
+        search_context={
+            "query": "diesel news",
+            "summary": "Refinery shutdown nudges prices up.",
+            "sources": [],
+            "fetched_at": "2026-05-03T10:00:00Z",
+        },
+        reasoning_trace=[
+            {"step": 1, "agent": "planner"},
+            {"step": 2, "agent": "search_agent"},
+        ],
+    )
+
+    result = planner_node(state)
+
+    assert result["next_step"] == "respond"
+    assert result.get("clarification_reason") is None
+    assert len(result["reasoning_trace"]) == 1
+    assert result["reasoning_trace"][0]["agent"] == "planner"
+    assert (
+        result["reasoning_trace"][0]["reasoning"]
+        == "search_context populated; routing to respond"
+    )
+
+
+def test_planner_does_not_short_circuit_for_surcharge_query_with_search_context(
+    monkeypatch,
+):
+    """gap-3 defensive: if a future flow somehow has both search_context AND
+    surcharge_query intent, the early-return MUST NOT fire because the user
+    still wants a surcharge calculation. The LLM should be invoked normally."""
+    mock_factory = MagicMock()
+    mock_factory.return_value = _scripted_llm(
+        '{"user_intent": "surcharge_query", '
+        '"shipping_type": "bounce", "weight_kg": 15, '
+        '"origin": "Bangkok", "destination": "Nonthaburi", '
+        '"missing_fields": [], '
+        '"next_step": "fetch_fuel", '
+        '"clarification_reason": null}'
+    )
+    monkeypatch.setattr(mod, "get_chat_model", mock_factory)
+
+    state = _user_state(
+        "Surcharge for 15kg Bounce Bangkok to Nonthaburi",
+        user_intent="surcharge_query",
+        search_context={
+            "query": "diesel news",
+            "summary": "Diesel prices up 3%.",
+            "sources": [],
+            "fetched_at": "2026-05-03T10:00:00Z",
+        },
+    )
+
+    result = planner_node(state)
+
+    # LLM was called — early-return did NOT fire.
+    assert mock_factory.call_count >= 1
+    # Result has full extraction fields, not the short-circuit shape.
+    assert result["shipping_type"] == "bounce"
+    assert result["weight_kg"] == 15
+    assert "user_intent" in result

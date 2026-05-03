@@ -905,3 +905,113 @@ async def test_out_of_metro_destination_renders_clarify(
     md = payload["markdown"]
     assert "Could not complete analysis" in md
     assert "route_agent" in md
+
+
+# ---------------------------------------------------------------------------
+# Plan 05-10 / gap-3 E2E (2026-05-03): UAT test 6 reproducer.
+# News/trend queries previously triggered planner_count=5, search_agent_count=5
+# (D-04 budget exhaust), AND the response prose mis-rendered "I need a bit more
+# information to calculate your surcharge. (planner_loop_budget_exhausted)".
+# Fix: planner early-returns when state.search_context is populated AND
+# user_intent in {news_query, out_of_scope}; response_node renders the new
+# 'search_only' status prose ("Here's the latest market context.") with the
+# Market context blockquote prepended (D-11).
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_news_query_no_loop_renders_market_context(
+    monkeypatch, mocker, in_memory_checkpointer,
+):
+    """gap-3 E2E: a news query produces ONE search_agent invocation +
+    exactly TWO planner invocations (initial routing + early-return short-
+    circuit) — NOT 5 + 5 with the misleading clarify prose. Final markdown
+    contains the Market context blockquote summary and does NOT contain
+    "I need a bit more information to calculate your surcharge".
+    """
+    from backend.agent.nodes import planner as planner_mod
+    from backend.agent.nodes import search_agent as search_mod
+    from backend.agent.tools.models import SearchResult, SearchSource
+
+    # Single planner LLM response: news_query → search_context. With the
+    # gap-3 fix, the second planner re-entry early-returns BEFORE calling the
+    # LLM, so we only need one scripted response.
+    planner_responses = [
+        _planner_response(
+            "search_context",
+            user_intent="news_query",
+            shipping_type=None,
+            weight_kg=None,
+            origin=None,
+            destination=None,
+        ),
+    ]
+    monkeypatch.setattr(
+        planner_mod, "get_chat_model",
+        _stateful_factory(*planner_responses),
+    )
+    # search_agent narration LLM — invalid JSON forces deterministic fallback
+    # so reasoning == result.summary.
+    monkeypatch.setattr(
+        search_mod, "get_chat_model",
+        _stateful_factory("not json"),
+    )
+
+    fake_search = SearchResult(
+        query="Why are diesel prices rising this week?",
+        summary="Diesel prices up 3% on supply concerns this week",
+        sources=[
+            SearchSource(
+                title="EPPO weekly diesel report",
+                url="https://example.com/diesel",
+                snippet="Diesel B7 retail price up 3%.",
+                published_at="2026-05-01",
+            ),
+            SearchSource(
+                title="Bangkok Post fuel update",
+                url="https://example.com/bp-fuel",
+                snippet="Refinery shutdown nudges Thai diesel prices.",
+                published_at="2026-05-02",
+            ),
+        ],
+        fetched_at="2026-05-03T10:00:00Z",
+    )
+    mocker.patch.object(
+        search_mod, "search_fuel_news", return_value=fake_search,
+    )
+
+    graph = build_graph(checkpointer=in_memory_checkpointer)
+    cfg = {"configurable": {"thread_id": "t-gap3-news"}}
+    state = _empty_state("Why are diesel prices rising this week?")
+    result = await graph.ainvoke(state, config=cfg)
+
+    # Final payload exists.
+    final_payload = result["final_payload"]
+    assert final_payload is not None
+
+    # Count planner + search_agent invocations from the reasoning_trace.
+    trace = result["reasoning_trace"]
+    planner_count = sum(1 for e in trace if e.get("agent") == "planner")
+    search_agent_count = sum(
+        1 for e in trace if e.get("agent") == "search_agent"
+    )
+
+    # Headline assertions: NO loop. Exactly 2 planner steps (initial routing +
+    # short-circuit early-return) and exactly 1 search_agent invocation.
+    assert planner_count == 2
+    assert search_agent_count == 1
+
+    # The clarification_reason MUST NOT be the budget-exhaustion sentinel.
+    assert (
+        result.get("clarification_reason") != "planner_loop_budget_exhausted"
+    )
+
+    # Markdown contains the Market context blockquote summary.
+    md = final_payload["markdown"]
+    assert "Diesel prices up 3% on supply concerns this week" in md
+
+    # Markdown does NOT contain the misleading clarify prose.
+    assert "I need a bit more information to calculate your surcharge" not in md
+
+    # Status is NOT 'clarify' — it's either 'ok' or 'search_only'.
+    assert final_payload["status"] != "clarify"
