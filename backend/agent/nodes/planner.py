@@ -53,7 +53,11 @@ class PlannerOutput(BaseModel):
     """
 
     user_intent: Literal[
-        "surcharge_query", "followup_query", "clarification", "out_of_scope"
+        "surcharge_query",
+        "followup_query",
+        "clarification",
+        "out_of_scope",
+        "news_query",
     ]
     shipping_type: Optional[str] = None
     weight_kg: Optional[float] = None
@@ -154,6 +158,39 @@ def planner_node(state: dict) -> dict:
     # consume a planner-loop iteration on a state we know is already done.
     if state.get("errors"):
         return {"next_step": "respond"}
+
+    # gap-3 fix (2026-05-03): when search_agent has already populated
+    # state.search_context for a news/out-of-scope query, the next planner
+    # iteration should advance to respond — NOT re-route to search_context
+    # again, which would loop until D-04 budget exhausts (UAT test 6).
+    # The guard accepts BOTH 'news_query' (the new dedicated intent value
+    # added by this plan) AND 'out_of_scope' (the legacy bucket the LLM
+    # uses today before being retrained on the updated SYSTEM_PROMPT).
+    # Surcharge queries with search_context (a future hybrid flow) MUST
+    # NOT short-circuit here because the user still wants a surcharge.
+    # We append a minimal trace entry so observability sees "planner ran
+    # twice, second was a short-circuit" — informative for Langfuse demos
+    # AND consumed by the integration test's planner_count == 2 assertion.
+    if (
+        state.get("search_context") is not None
+        and state.get("user_intent") in {"news_query", "out_of_scope"}
+    ):
+        ts = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
+        prior_steps = len(state.get("reasoning_trace") or [])
+        short_circuit_trace = {
+            "step": prior_steps + 1,
+            "agent": "planner",
+            "tool": None,
+            "tool_input": None,
+            "tool_output": None,
+            "reasoning": "search_context populated; routing to respond",
+            "timestamp": ts,
+            "status": "ok",
+        }
+        return {
+            "next_step": "respond",
+            "reasoning_trace": [short_circuit_trace],
+        }
 
     # D-04 loop budget guard runs BEFORE any Gemini call.
     if _loop_budget_exhausted(state):

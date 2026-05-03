@@ -28,7 +28,13 @@ user_intent values (D-07):
 - surcharge_query: new surcharge calculation
 - followup_query: refining a prior answer using cached data
 - clarification: user asking what info is needed
-- out_of_scope: not a logistics question
+- news_query: question about fuel news, market trends, "why" questions
+  about prices ("why is diesel up?", "what's driving fuel prices?",
+  "diesel news this week"). Prefer this value over out_of_scope for
+  any question about fuel/diesel/market context — it pairs with
+  next_step="search_context" to route to the Search Agent.
+- out_of_scope: not a logistics question and not a fuel/market question
+  either (e.g., "what's the weather", "tell me a joke"). Use sparingly.
 
 Follow-up query inheritance (D-05/999.1):
 - When user_intent="followup_query", the user is refining a prior turn. For each of
@@ -48,7 +54,7 @@ Normalisation rules:
 
 Return ONLY a JSON object matching the PlannerOutput schema:
 {
-  "user_intent": "surcharge_query|followup_query|clarification|out_of_scope",
+  "user_intent": "surcharge_query|followup_query|clarification|news_query|out_of_scope",
   "shipping_type": "bounce|retail_standard|retail_fast" | null,
   "weight_kg": <number> | null,
   "origin": "<Title Case>" | null,
