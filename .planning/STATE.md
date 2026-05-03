@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-stopped_at: "Completed 05-09-PLAN.md (gap-2 closure: route_agent_node selectively catches zone-miss ValueError; docs corrected to match zone_definitions.json verbatim; 178/178 backend tests green)"
-last_updated: "2026-05-03T11:26:07.025Z"
+stopped_at: "Completed 05-10-PLAN.md (gap-3 closure: planner early-return + response_node search_only prose; 184/184 backend tests green)"
+last_updated: "2026-05-03T11:34:37.417Z"
 last_activity: 2026-05-03
 progress:
   total_phases: 5
-  completed_phases: 4
+  completed_phases: 5
   total_plans: 28
-  completed_plans: 27
+  completed_plans: 28
   percent: 71
 ---
 
@@ -26,7 +26,7 @@ See: .planning/PROJECT.md (updated 2026-04-04)
 ## Current Position
 
 Phase: 05 (polish-observability-docs) — EXECUTING
-Plan: 3 of 10
+Plan: 4 of 10
 Status: Ready to execute
 Last activity: 2026-05-03
 
@@ -78,6 +78,7 @@ Progress: [███░░░░░░░] 71%
 | Phase 05 P07 | ~30min | 3 of 5 tasks (T4+T5 pending human) | 4 files docs + SUMMARY.md |
 | Phase 05 P08 | 25min | 2 tasks | 4 files |
 | Phase 05 P09 | 6min | 2 tasks | 6 files |
+| Phase 05 P10 | 15min | 2 tasks | 6 files |
 
 ## Accumulated Context
 
@@ -198,6 +199,9 @@ Recent decisions affecting current work:
 - [Phase 05]: Plan 05-08: integration test (test_followup_25kg_preserves_bounce_and_nonthaburi) uses 1 turn-2 planner LLM response — only correct for the FIXED behaviour because turn 2 with inheritance immediately routes followup→fetch_fuel→D-12 cascade→calculate_price→pricing→hitl→response (no planner re-entry within turn)
 - [Phase 05]: Plan 05-09: Selective ValueError prefix-match catch ('No Bangkok Metro zone') in route_agent_node — preserves D-10 ValueError on missing origin/destination while gracefully handling out-of-Metro destinations as state.errors entry + next_step='respond' (gap-2 fix from UAT test 4)
 - [Phase 05]: Plan 05-09: Doc fix corrects docs/data-sources.md central-1/2/3 split to match data/raw/zone_definitions.json verbatim (Plan 05-07 baseline was wrong). 15 supported provinces enumerated explicitly across README, data-sources.md, and architecture.md; out-of-scope provinces (Chiang Mai, Phuket etc.) noted with the graceful clarify response — DOC-01/02/04 honesty restored
+- [Phase 05]: Plan 05-10: gap-3 fix — planner early-return guard fires when state.search_context is populated AND user_intent in {news_query, out_of_scope}, BEFORE Gemini call. Guard placed between D-24 errors short-circuit and D-04 budget guard. Emits a minimal trace entry so observability shows 'planner ran twice, second was a short-circuit'.
+- [Phase 05]: Plan 05-10: news_query is a new PlannerOutput.user_intent Literal value distinct from out_of_scope; SYSTEM_PROMPT documents it for fuel/market questions. Early-return guard accepts BOTH values for backward compatibility (today's LLM still emits out_of_scope before being retrained on the updated prompt).
+- [Phase 05]: Plan 05-10: response_node status='search_only' branch renders 'Here's the latest market context.' prose when search_context populated AND no surcharge_result AND no errors. Status precedence: errors > search_only > clarify > ok > clarify(fallback). search_only sits BEFORE clarify so the news prose wins even if a future regression sets clarification_reason='planner_loop_budget_exhausted'.
 
 ### Pending Todos
 
@@ -219,6 +223,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-05-03T11:26:07.021Z
-Stopped at: Completed 05-09-PLAN.md (gap-2 closure: route_agent_node selectively catches zone-miss ValueError; docs corrected to match zone_definitions.json verbatim; 178/178 backend tests green)
+Last session: 2026-05-03T11:34:23.770Z
+Stopped at: Completed 05-10-PLAN.md (gap-3 closure: planner early-return + response_node search_only prose; 184/184 backend tests green)
 Resume file: None
