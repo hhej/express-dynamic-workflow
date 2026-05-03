@@ -133,6 +133,50 @@ def pricing_agent_node(
         ValueError: Propagates from ``lookup_rate`` per D-09 (no rate found,
             invalid weight, etc.). Pricing Agent does NOT wrap this.
     """
+    # Defense-in-depth (gap-4 fix from UAT 260503-qzx, 2026-05-03):
+    # A misbehaving planner LLM may emit next_step="calculate_price" before
+    # route_agent or fuel_agent have run. Without this guard, the subscript
+    # reads below raise KeyError ('route_data' or 'fuel_data') which
+    # propagates as an SSE error event with no recovery path. Catch the
+    # missing-input case here, emit a D-24 error-sink entry, and route to
+    # response_node so the user sees a status='partial' answer.
+    # Do NOT route back to planner (loop risk with a misbehaving planner).
+    route_data = state.get("route_data")
+    fuel_data = state.get("fuel_data")
+    if not route_data or not fuel_data:
+        missing = []
+        if not route_data:
+            missing.append("route_data")
+        if not fuel_data:
+            missing.append("fuel_data")
+        msg = f"missing {' and '.join(missing)}"
+        ts = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
+        prior_steps = len(state.get("reasoning_trace") or [])
+        warn_trace = {
+            "step": prior_steps + 1,
+            "agent": "pricing_agent",
+            "tool": None,
+            "tool_input": None,
+            "tool_output": None,
+            "reasoning": (
+                f"Pricing agent invoked before required inputs were populated "
+                f"({msg}). Planner likely routed to calculate_price prematurely; "
+                f"short-circuiting to response with a partial answer."
+            ),
+            "timestamp": ts,
+            "status": "warn",
+        }
+        return {
+            "errors": [{
+                "node": "pricing_agent",
+                "exception_type": "KeyError",
+                "message": msg,
+                "timestamp": ts,
+            }],
+            "next_step": "respond",
+            "reasoning_trace": [warn_trace],
+        }
+
     shipping_type = state["shipping_type"]
     weight_kg = state["weight_kg"]
     zone = state["route_data"]["zone"]
