@@ -344,23 +344,19 @@ def test_chat_handler_threads_trace_id_into_config(app_with_mocks, monkeypatch):
 # ---------------------------------------------------------------------------
 
 
-def _stub_graph_app(monkeypatch, astream_events, *, snapshot_next=(),
-                    interrupt_value=None, app_with_mocks_fixture=None):
-    """Helper: replace ``app.state.graph`` with a stub for HITL handler tests.
-
-    The ``app_with_mocks`` fixture sets up a real lifespan-built graph; for
-    HITL handler tests we want full control over astream_events + aget_state
-    so we monkeypatch ``app.state.graph`` AFTER the lifespan is entered.
+def _make_stub_graph(astream_events, *, snapshot_next=(), interrupt_value=None):
+    """Build a MagicMock graph with controllable astream_events + aget_state.
 
     Args:
-        monkeypatch: pytest monkeypatch fixture.
         astream_events: async generator function (graph.astream_events stub).
         snapshot_next: tuple returned by snapshot.next; non-empty means paused.
         interrupt_value: value carried inside snapshot.tasks[0].interrupts[0].
-        app_with_mocks_fixture: the app object yielded by app_with_mocks.
 
     Returns:
-        Stub graph object (for explicit monkeypatch by caller).
+        Stub graph object. Caller is responsible for installing it on
+        ``app.state.graph`` AFTER the TestClient enters the lifespan
+        (lifespan replaces ``app.state.graph`` with the real compiled
+        graph, so pre-lifespan installation is overwritten).
     """
     from unittest.mock import AsyncMock, MagicMock
 
@@ -378,8 +374,6 @@ def _stub_graph_app(monkeypatch, astream_events, *, snapshot_next=(),
     graph_mock = MagicMock()
     graph_mock.astream_events = astream_events
     graph_mock.aget_state = AsyncMock(return_value=snapshot)
-    if app_with_mocks_fixture is not None:
-        app_with_mocks_fixture.state.graph = graph_mock
     return graph_mock
 
 
@@ -402,11 +396,10 @@ def test_chat_emits_approval_required_when_paused(app_with_mocks, monkeypatch):
 
     async def fake_astream_events(*args, **kwargs):
         # Empty async generator — nothing emitted before the pause.
-        return
-        yield  # pragma: no cover  # makes function an async gen
+        if False:
+            yield  # pragma: no cover  # makes function an async gen
 
-    _stub_graph_app(
-        monkeypatch,
+    stub = _make_stub_graph(
         fake_astream_events,
         snapshot_next=("response",),
         interrupt_value={
@@ -419,7 +412,6 @@ def test_chat_emits_approval_required_when_paused(app_with_mocks, monkeypatch):
             },
             "threshold": 500.0,
         },
-        app_with_mocks_fixture=app_with_mocks,
     )
     # Bypass _next_turn_idx — the stub graph's aget_state returns a MagicMock
     # whose .values is also a MagicMock (not a dict), so the handler's helper
@@ -427,6 +419,9 @@ def test_chat_emits_approval_required_when_paused(app_with_mocks, monkeypatch):
     monkeypatch.setattr(chat_mod, "_next_turn_idx", AsyncMock(return_value=0))
 
     with TestClient(app_with_mocks) as client:
+        # Install stub AFTER lifespan enters — lifespan replaces app.state.graph
+        # with the real compiled graph, so pre-lifespan installation is lost.
+        app_with_mocks.state.graph = stub
         with client.stream(
             "POST", "/api/chat",
             json={"message": "expensive shipment", "thread_id": "tid-pause"},
@@ -474,15 +469,11 @@ def test_chat_resume_with_approve_renders_status_ok(app_with_mocks, monkeypatch)
             }},
         }
 
-    _stub_graph_app(
-        monkeypatch,
-        fake_astream_events,
-        snapshot_next=(),  # done — not paused
-        app_with_mocks_fixture=app_with_mocks,
-    )
+    stub = _make_stub_graph(fake_astream_events, snapshot_next=())
     monkeypatch.setattr(chat_mod, "_next_turn_idx", AsyncMock(return_value=1))
 
     with TestClient(app_with_mocks) as client:
+        app_with_mocks.state.graph = stub
         with client.stream(
             "POST", "/api/chat",
             json={"thread_id": "tid-approve", "approve": True},
@@ -522,15 +513,11 @@ def test_chat_resume_with_deny_renders_status_partial(
             }},
         }
 
-    _stub_graph_app(
-        monkeypatch,
-        fake_astream_events,
-        snapshot_next=(),
-        app_with_mocks_fixture=app_with_mocks,
-    )
+    stub = _make_stub_graph(fake_astream_events, snapshot_next=())
     monkeypatch.setattr(chat_mod, "_next_turn_idx", AsyncMock(return_value=1))
 
     with TestClient(app_with_mocks) as client:
+        app_with_mocks.state.graph = stub
         with client.stream(
             "POST", "/api/chat",
             json={"thread_id": "tid-deny", "approve": False},
@@ -579,15 +566,11 @@ def test_chat_resume_reuses_make_config_helper(app_with_mocks, monkeypatch):
             }},
         }
 
-    _stub_graph_app(
-        monkeypatch,
-        fake_astream_events,
-        snapshot_next=(),
-        app_with_mocks_fixture=app_with_mocks,
-    )
+    stub = _make_stub_graph(fake_astream_events, snapshot_next=())
     monkeypatch.setattr(chat_mod, "_next_turn_idx", AsyncMock(return_value=1))
 
     with TestClient(app_with_mocks) as client:
+        app_with_mocks.state.graph = stub
         with client.stream(
             "POST", "/api/chat",
             json={"thread_id": "tid-config", "approve": True},

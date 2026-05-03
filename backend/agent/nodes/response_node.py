@@ -182,6 +182,52 @@ def response_node(state: dict) -> dict:
     clarification_reason = state.get("clarification_reason")
     surcharge_result: Optional[dict] = state.get("surcharge_result")
 
+    # Phase 5 D-07: HITL deny short-circuit. When the user declined the
+    # recommended surcharge at the hitl_gate (approval_decision='deny'),
+    # render a 'partial' status with decline prose; do NOT include the
+    # surcharge breakdown table and null out surcharge_result in the
+    # final_payload so the FE knows there is no accepted recommendation.
+    if state.get("approval_decision") == "deny":
+        sr = state.get("surcharge_result") or {}
+        total = float(sr.get("total") or 0.0)
+        prose = (
+            f"You declined the recommended surcharge of {total:.2f} THB. "
+            "Review the inputs and adjust as needed, or ask for a different "
+            "shipping type or weight."
+        )
+        parts = [prose]
+        markdown = "\n\n".join(parts).rstrip() + f"\n\n{_FOOTER}"
+        # D-11 (Phase 5): preserve Market context prefix on the deny path
+        # too — provenance applies regardless of accept/decline.
+        mc_line = _market_context_line(state)
+        if mc_line:
+            markdown = f"{mc_line}\n\n{markdown}"
+        prior_steps = len(state.get("reasoning_trace") or [])
+        deny_trace = {
+            "step": prior_steps + 1,
+            "agent": "response",
+            "tool": None,
+            "tool_input": {"status": "partial"},
+            "tool_output": {
+                "status": "partial",
+                "approval_decision": "deny",
+            },
+            "reasoning": "User declined the recommended surcharge.",
+            "timestamp": datetime.now(timezone.utc)
+            .isoformat()
+            .replace("+00:00", "Z"),
+            "status": "ok",
+        }
+        return {
+            "final_payload": {
+                "markdown": markdown,
+                "surcharge_result": None,  # D-07: no breakdown on deny
+                "capped": False,
+                "status": "partial",
+            },
+            "reasoning_trace": [deny_trace],
+        }
+
     # Status precedence (D-10).
     if errors:
         status = "partial"
