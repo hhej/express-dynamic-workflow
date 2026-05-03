@@ -16,12 +16,14 @@ D-11 markdown contract:
 When ``surcharge_result.capped`` is True, the cap callout
 ``"> ⚠ Cap/floor applied — review recommended"`` is prepended.
 
-Status precedence (D-10):
+Status precedence (D-10, gap-3 extension 2026-05-03):
     1. state.errors non-empty             -> "partial"
-    2. state.clarification_reason set
+    2. state.search_context populated
+       AND no surcharge_result            -> "search_only" (gap-3)
+    3. state.clarification_reason set
        AND no surcharge_result            -> "clarify"
-    3. surcharge_result present           -> "ok"
-    4. fallback                           -> "clarify"
+    4. surcharge_result present           -> "ok"
+    5. fallback                           -> "clarify"
 
 Implementation note: per Plan 03-02 / RESEARCH Open Questions 3 & 5, the
 prose summary is rendered with a deterministic Python f-string — no Gemini
@@ -228,9 +230,26 @@ def response_node(state: dict) -> dict:
             "reasoning_trace": [deny_trace],
         }
 
-    # Status precedence (D-10).
+    # gap-3 fix (2026-05-03): when search_agent populated state.search_context
+    # but no surcharge was computed (search-only flow), render news prose
+    # instead of falling through to clarify. The Market context blockquote
+    # (D-11) still prepends below; this branch supplies the body prose so
+    # the user sees "Here's the latest market context" instead of the
+    # misleading "I need a bit more information to calculate your surcharge"
+    # that previously rendered when clarification_reason='planner_loop_budget_exhausted'
+    # was set by the D-04 guard. Errors still take precedence (status='partial')
+    # so a Tavily failure path that left search_context as a graceful-warn dict
+    # AND populated state.errors still renders the partial-error prose.
+    sc = state.get("search_context")
+    sc_has_content = bool(
+        sc and ((sc.get("summary") or "").strip() or sc.get("sources"))
+    )
+
+    # Status precedence (D-10, gap-3 extension).
     if errors:
         status = "partial"
+    elif sc_has_content and not surcharge_result:
+        status = "search_only"
     elif clarification_reason and not surcharge_result:
         status = "clarify"
     elif surcharge_result:
@@ -247,6 +266,14 @@ def response_node(state: dict) -> dict:
         markdown = f"{prose}\n\n{table}"
         if capped:
             markdown = f"{_CAP_CALLOUT}\n\n{markdown}"
+    elif status == "search_only":
+        # gap-3 fix: deterministic news prose; the Market context blockquote
+        # is prepended below (D-11) so the user sees provenance + summary +
+        # this prose. Sources are surfaced in the trace panel separately.
+        markdown = (
+            "Here's the latest market context.\n\n"
+            f"{_FOOTER}"
+        )
     elif status == "clarify":
         markdown = _render_prose_clarify(state)
     else:  # partial
