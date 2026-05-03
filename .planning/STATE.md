@@ -3,8 +3,8 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-stopped_at: "Completed quick-task 260503-qzx (gap-4 closure: pricing_agent guard against missing route_data/fuel_data; 186/186 backend tests green)"
-last_updated: "2026-05-03T12:33:38.294Z"
+stopped_at: "Completed quick-task 260503-rs8 (OBS fix: pin langchain==0.3.28 + add langfuse_trace_name='express-surcharge-agent' metadata; 186/186 backend tests green)"
+last_updated: "2026-05-03T13:04:12Z"
 last_activity: 2026-05-03
 progress:
   total_phases: 5
@@ -202,6 +202,9 @@ Recent decisions affecting current work:
 - [Phase 05]: Plan 05-10: gap-3 fix — planner early-return guard fires when state.search_context is populated AND user_intent in {news_query, out_of_scope}, BEFORE Gemini call. Guard placed between D-24 errors short-circuit and D-04 budget guard. Emits a minimal trace entry so observability shows 'planner ran twice, second was a short-circuit'.
 - [Phase 05]: Plan 05-10: news_query is a new PlannerOutput.user_intent Literal value distinct from out_of_scope; SYSTEM_PROMPT documents it for fuel/market questions. Early-return guard accepts BOTH values for backward compatibility (today's LLM still emits out_of_scope before being retrained on the updated prompt).
 - [Phase 05]: Plan 05-10: response_node status='search_only' branch renders 'Here's the latest market context.' prose when search_context populated AND no surcharge_result AND no errors. Status precedence: errors > search_only > clarify > ok > clarify(fallback). search_only sits BEFORE clarify so the news prose wins even if a future regression sets clarification_reason='planner_loop_budget_exhausted'.
+- [Quick 260503-rs8]: Pin langchain==0.3.28 in requirements.txt — root cause of silent Langfuse no-op was that `from langfuse.langchain import CallbackHandler` requires the top-level `langchain` package, but only `langchain-core` was pinned. The graceful no-op fallback (D-13) hid the import failure across all 186 tests; live install of 0.3.28 verified 25 traces reaching Langfuse Cloud.
+- [Quick 260503-rs8]: langfuse_trace_name in /api/chat metadata is a STRING CONSTANT 'express-surcharge-agent' (not derived from message/intent/turn_idx) — single stable name to filter all agent traces by in the Langfuse dashboard. Per-question dynamic naming explicitly out-of-scope.
+- [Quick 260503-rs8]: uvicorn must be restarted after deploying this fix — running server holds the OLD `_make_config` in memory; pytest exercises a fresh import each run so the test suite covers the new key without a server restart, but live `/api/chat` traffic does not pick up the trace_name until uvicorn is recycled.
 
 ### Pending Todos
 
@@ -221,9 +224,10 @@ None yet.
 | 260425-vyj | Fix planner bugs 999.1 (state merge on follow-ups) and 999.3 (stale next_step in trace) | 2026-04-25 | 231a54b | Verified | [260425-vyj-fix-planner-bugs-999-1-state-merge-on-fo](./quick/260425-vyj-fix-planner-bugs-999-1-state-merge-on-fo/) |
 | 260425-x2i | Fix D-04 loop-budget guard to window per turn (resolves 999.4 — cross-turn short-circuit) | 2026-04-25 | bd27c33 | Smoke-confirmed | [260425-x2i-fix-d-04-loop-budget-guard-to-window-per](./quick/260425-x2i-fix-d-04-loop-budget-guard-to-window-per/) |
 | 260503-qzx | Guard pricing_agent against missing route_data/fuel_data (resolves gap-4 from 20-question UAT — KeyError on hallucinated planner routing) | 2026-05-03 | 79d8ee0 | Verified (186/186 backend tests green) | [260503-qzx-guard-pricing-agent-against-missing-rout](./quick/260503-qzx-guard-pricing-agent-against-missing-rout/) |
+| 260503-rs8 | Pin langchain==0.3.28 (fixes silent CallbackHandler import failure) + add constant langfuse_trace_name='express-surcharge-agent' to /api/chat trace metadata (OBS-FIX-LANGCHAIN-PIN, OBS-FIX-TRACE-NAME) | 2026-05-03 | 529075f | Verified (186/186 backend tests green; uvicorn restart required for live metadata pickup) | [260503-rs8-pin-langchain-dep-set-langfuse-trace-nam](./quick/260503-rs8-pin-langchain-dep-set-langfuse-trace-nam/) |
 
 ## Session Continuity
 
-Last session: 2026-05-03T12:33:38.286Z
-Stopped at: Completed quick-task 260503-qzx (gap-4 closure: pricing_agent guard against missing route_data/fuel_data; 186/186 backend tests green)
+Last session: 2026-05-03T13:04:12Z
+Stopped at: Completed quick-task 260503-rs8 (OBS fix: pin langchain==0.3.28 + add langfuse_trace_name='express-surcharge-agent' metadata; 186/186 backend tests green)
 Resume file: None
