@@ -637,3 +637,119 @@ async def test_followup_param_switch_routes_through_pricing(
     assert lookup_calls["n"] == 2
     # Final payload renders successfully.
     assert result2["final_payload"]["status"] == "ok"
+
+
+# ---------------------------------------------------------------------------
+# Plan 05-09 — gap-2 E2E regression (2026-05-03)
+#
+# UAT test 4 reproducer: a Bangkok -> Lop Buri query with the calculate_route
+# tool stubbed to raise the same ValueError the live tool raises for
+# out-of-Bangkok-Metro destinations. Without the gap-2 fix the exception
+# bubbles through _wrap_error_sink (which re-raises ValueError unchanged)
+# and out the SSE error channel, dead-ending the user. With the fix
+# route_agent_node catches the zone-miss prefix, appends to state.errors,
+# returns next_step='respond' — Planner short-circuits on errors (D-24)
+# and Response renders a 'partial' clarify response naming route_agent.
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_out_of_metro_destination_renders_clarify(
+    monkeypatch, mocker, in_memory_checkpointer,
+):
+    """gap-2 E2E: Bangkok -> Lop Buri produces status='partial' clarify
+    prose mentioning route_agent; NO uncaught ValueError reaches the
+    SSE error channel."""
+    from backend.agent.nodes import planner as planner_mod
+    from backend.agent.nodes import fuel_agent as fuel_mod
+    from backend.agent.nodes import route_agent as route_mod
+
+    # Phase 5 D-01: with all extraction fields present and both caches
+    # stale on a fresh thread, the planner promotes fetch_fuel to
+    # fanout_fuel_route. Fuel runs successfully; route_agent catches the
+    # zone-miss ValueError, appends to state.errors, returns
+    # next_step='respond'. Planner is re-entered, sees state.errors, and
+    # short-circuits to respond. So we need TWO planner LLM responses:
+    # the initial fanout-trigger and the post-error short-circuit (the
+    # latter is actually consumed by the D-24 errors guard before the
+    # LLM call, but we provide it defensively).
+    planner_responses = [
+        _planner_response(
+            "fetch_fuel",
+            shipping_type="retail_fast",
+            weight_kg=200.0,
+            origin="Bangkok",
+            destination="Lop Buri",
+        ),
+        _planner_response(
+            "respond",
+            shipping_type="retail_fast",
+            weight_kg=200.0,
+            origin="Bangkok",
+            destination="Lop Buri",
+        ),
+    ]
+    monkeypatch.setattr(
+        planner_mod, "get_chat_model",
+        _stateful_factory(*planner_responses),
+    )
+    monkeypatch.setattr(
+        fuel_mod, "get_chat_model",
+        _stateful_factory(_NARR),
+    )
+    monkeypatch.setattr(
+        route_mod, "get_chat_model",
+        _stateful_factory(_NARR_R),
+    )
+
+    # Fuel succeeds (so the parallel fan-out exercises the route ValueError
+    # path concurrently with a successful fuel fetch — operator.add reducer
+    # safely merges both branches).
+    mocker.patch.object(
+        fuel_mod, "fetch_fuel_price",
+        return_value=FuelData(
+            price=31.0, date="2026-04-25", source="eppo_live",
+            baseline=29.94, delta_pct=0.0354,
+        ),
+    )
+
+    # Route raises the same ValueError the live tool raises for
+    # destinations outside the central-1/2/3 zone set.
+    def raise_zone_miss(origin, destination):
+        raise ValueError(f"No Bangkok Metro zone for {destination!r}")
+
+    mocker.patch.object(
+        route_mod, "calculate_route", side_effect=raise_zone_miss,
+    )
+
+    graph = build_graph(checkpointer=in_memory_checkpointer)
+    cfg = {"configurable": {"thread_id": "t-gap2-lop-buri"}}
+    state = _empty_state(
+        "Surcharge for 200kg retail_fast Bangkok to Lop Buri"
+    )
+
+    # CRITICAL: this must NOT raise — the gap-2 fix converts the ValueError
+    # to a graceful state.errors entry inside route_agent_node, BEFORE
+    # _wrap_error_sink sees it.
+    result = await graph.ainvoke(state, config=cfg)
+
+    # No surcharge produced (route data missing -> can't calculate).
+    assert result["surcharge_result"] is None
+
+    # state.errors populated by route_agent
+    assert len(result["errors"]) >= 1
+    route_err = next(
+        (e for e in result["errors"] if e.get("node") == "route_agent"),
+        None,
+    )
+    assert route_err is not None
+    assert route_err["exception_type"] == "ValueError"
+    assert route_err["message"].startswith("No Bangkok Metro zone")
+
+    # Response Node rendered status='partial' clarify response.
+    payload = result["final_payload"]
+    assert payload["status"] == "partial"
+    assert payload["surcharge_result"] is None
+    md = payload["markdown"]
+    assert "Could not complete analysis" in md
+    assert "route_agent" in md
