@@ -640,6 +640,158 @@ async def test_followup_param_switch_routes_through_pricing(
 
 
 # ---------------------------------------------------------------------------
+# Test 9: Plan 05-08 gap-1 E2E — reproduces UAT test 3 failure verbatim.
+# Q1: "Surcharge for 15kg bounce Bangkok to Nonthaburi" populates caches +
+# shipping_type=bounce + destination=Nonthaburi. Q2: "What about 25kg
+# instead?" — the LLM hallucinates shipping_type=retail_standard +
+# destination=Chiang Mai (truthy, so 999.1 merge accepts the hallucinations).
+# With the gap-1 fix, the new inheritance branch nulls out those
+# hallucinations, the 999.1 merge inherits bounce + Nonthaburi, and the
+# resulting surcharge uses the right multiplier.
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_followup_25kg_preserves_bounce_and_nonthaburi(
+    monkeypatch, mocker, in_memory_checkpointer,
+):
+    """gap-1 E2E reproducer for UAT test 3: a 25kg follow-up MUST inherit
+    shipping_type='bounce' and destination='Nonthaburi' from the prior turn
+    even when the planner LLM hallucinates retail_standard and Chiang Mai.
+    """
+    from backend.agent.nodes import planner as planner_mod
+    from backend.agent.nodes import fuel_agent as fuel_mod
+    from backend.agent.nodes import route_agent as route_mod
+    from backend.agent.nodes import pricing_agent as pricing_mod
+
+    # Turn 1: standard surcharge — fan-out promotion then post-fanout
+    # cascade promotes to calculate_price (one extra planner call after
+    # the parallel fuel+route superstep).
+    turn1 = [
+        _planner_response(
+            "fetch_fuel",
+            shipping_type="bounce",
+            weight_kg=15.0,
+            origin="Bangkok",
+            destination="Nonthaburi",
+        ),
+        _planner_response(
+            "calculate_price",
+            shipping_type="bounce",
+            weight_kg=15.0,
+            origin="Bangkok",
+            destination="Nonthaburi",
+        ),
+    ]
+    # Turn 2: the deliberately hallucinated emission matching the UAT
+    # bug shape. weight_kg=25 (legitimately changed by the user), but
+    # shipping_type='retail_standard' and destination='Chiang Mai' are
+    # hallucinated. user_intent='followup_query' triggers the gap-1
+    # inheritance branch.
+    turn2 = [
+        _planner_response(
+            "fetch_fuel",
+            user_intent="followup_query",
+            shipping_type="retail_standard",
+            weight_kg=25.0,
+            origin=None,
+            destination="Chiang Mai",
+        ),
+    ]
+    planner_responses = turn1 + turn2
+
+    monkeypatch.setattr(
+        planner_mod, "get_chat_model",
+        _stateful_factory(*planner_responses),
+    )
+    monkeypatch.setattr(
+        fuel_mod, "get_chat_model",
+        _stateful_factory(_NARR, _NARR),
+    )
+    monkeypatch.setattr(
+        route_mod, "get_chat_model",
+        _stateful_factory(_NARR_R, _NARR_R),
+    )
+    monkeypatch.setattr(
+        pricing_mod, "get_chat_model",
+        _stateful_factory(_NARR_P, _NARR_P),
+    )
+
+    fuel_calls = {"n": 0}
+    route_calls = {"n": 0}
+    lookup_calls = {"n": 0}
+
+    def count_fuel():
+        fuel_calls["n"] += 1
+        return FuelData(
+            price=31.0, date="2026-05-03", source="eppo_live",
+            baseline=29.94, delta_pct=0.0354,
+        )
+
+    def count_route(origin, destination):
+        route_calls["n"] += 1
+        return RouteData(
+            origin=origin, destination=destination,
+            distance_km=19.2, duration_min=30,
+            traffic_severity=1, zone="central-1",
+        )
+
+    def count_lookup(*args, **kwargs):
+        lookup_calls["n"] += 1
+        return RateResult(
+            base_rate=140.0, currency="THB", rate_tier="11-25kg",
+        )
+
+    mocker.patch.object(fuel_mod, "fetch_fuel_price", side_effect=count_fuel)
+    mocker.patch.object(route_mod, "calculate_route", side_effect=count_route)
+    mocker.patch.object(
+        pricing_mod, "lookup_rate", side_effect=count_lookup,
+    )
+
+    graph = build_graph(checkpointer=in_memory_checkpointer)
+    cfg = {"configurable": {"thread_id": "t-uat-test3"}}
+
+    # Turn 1 — establishes caches + shipping_type=bounce +
+    # destination=Nonthaburi.
+    state = _empty_state(
+        "Surcharge for 15kg bounce Bangkok to Nonthaburi"
+    )
+    result1 = await graph.ainvoke(state, config=cfg)
+    assert result1["surcharge_result"] is not None
+    assert result1["shipping_type"] == "bounce"
+    assert result1["destination"] == "Nonthaburi"
+    assert fuel_calls["n"] == 1
+    assert route_calls["n"] == 1
+
+    # Turn 2 — UAT bug reproducer: "What about 25kg instead?" with the
+    # planner LLM scripted to hallucinate retail_standard + Chiang Mai.
+    followup = {
+        "messages": [
+            {"role": "user", "content": "What about 25kg instead?"}
+        ]
+    }
+    result2 = await graph.ainvoke(followup, config=cfg)
+
+    # Headline assertion: gap-1 fix preserved bounce + Nonthaburi despite
+    # the LLM's hallucinations. Without the fix shipping_type would be
+    # 'retail_standard' and destination would be 'Chiang Mai'.
+    snapshot = await graph.aget_state(cfg)
+    assert snapshot.values["shipping_type"] == "bounce"
+    assert snapshot.values["destination"] == "Nonthaburi"
+    assert snapshot.values["weight_kg"] == 25.0
+    # And the post-turn-2 result echoes the same.
+    assert result2["shipping_type"] == "bounce"
+    assert result2["destination"] == "Nonthaburi"
+    assert result2["weight_kg"] == 25.0
+    # D-12 cache hits: fuel + route NOT re-fetched on turn 2 (route still
+    # matches prior Bangkok->Nonthaburi after inheritance).
+    assert fuel_calls["n"] == 1
+    assert route_calls["n"] == 1
+    # Rate re-looked-up for the new 25kg weight tier.
+    assert lookup_calls["n"] == 2
+
+
+# ---------------------------------------------------------------------------
 # Plan 05-09 — gap-2 E2E regression (2026-05-03)
 #
 # UAT test 4 reproducer: a Bangkok -> Lop Buri query with the calculate_route

@@ -200,6 +200,61 @@ def planner_node(state: dict) -> dict:
 
     assert parsed is not None  # for type checkers; loop break/return covers all paths
 
+    # gap-1 fix (2026-05-03): null-out hallucinated extraction fields on
+    # followup_query turns BEFORE the 999.1 merge picks them up. The 999.1
+    # merge is a null-only coalesce (`parsed.X or state.get("X")`); if the
+    # LLM hallucinates truthy values for fields the user did not mention,
+    # the merge will accept them. The planner SYSTEM_PROMPT now instructs
+    # the LLM to emit null for unmentioned fields on followup_query, but
+    # we defensively null them out here too in case Gemini ignores the
+    # contract. This branch is null-only — explicit overrides (non-null
+    # parsed.X on a followup) still win because we only erase parsed.X
+    # when the prior state has a value AND the user message does not
+    # contain a recognisable shipping_type / origin / destination token.
+    if parsed.user_intent == "followup_query":
+        last_user_text = (last_user.get("content") or "").lower()
+        # shipping_type tokens
+        if (
+            parsed.shipping_type
+            and state.get("shipping_type")
+            and parsed.shipping_type.lower() not in last_user_text
+            and not any(
+                tok in last_user_text
+                for tok in ("bounce", "retail_standard", "retail standard",
+                            "retail_fast", "retail fast")
+            )
+        ):
+            parsed.shipping_type = None
+        # destination — if prior state has destination and user message
+        # does not contain that destination's token NOR any "to <X>" pattern,
+        # null it out so the inherited destination wins
+        prior_dest = state.get("destination")
+        if (
+            parsed.destination
+            and prior_dest
+            and prior_dest.lower() not in last_user_text
+            and parsed.destination.lower() not in last_user_text
+        ):
+            parsed.destination = None
+        # origin — same logic
+        prior_origin = state.get("origin")
+        if (
+            parsed.origin
+            and prior_origin
+            and prior_origin.lower() not in last_user_text
+            and parsed.origin.lower() not in last_user_text
+        ):
+            parsed.origin = None
+        # weight_kg — if user message contains digits and parsed.weight_kg
+        # is non-null, accept it; otherwise null it out so prior weight inherits.
+        # We trust digits as the explicit override signal.
+        if (
+            parsed.weight_kg is not None
+            and state.get("weight_kg") is not None
+            and not any(c.isdigit() for c in last_user_text)
+        ):
+            parsed.weight_kg = None
+
     # 999.1 fix: merge parsed (latest user message) with prior state values
     # BEFORE deciding next_step. The LLM only sees the latest user message,
     # so on follow-up turns it emits null for unmentioned fields and routes

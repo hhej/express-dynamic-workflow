@@ -641,3 +641,122 @@ def test_graph_routes_search_context_to_search_agent():
     assert (
         _route_from_planner({"next_step": "search_context"}) == "search_agent"
     )
+
+
+# ---------------------------------------------------------------------------
+# Plan 05-08 / gap-1 (2026-05-03): on follow-up turns the LLM may hallucinate
+# truthy values for fields the user did not mention (e.g. shipping_type=
+# "retail_standard" and destination="Chiang Mai" when user only said "What
+# about 25kg instead?"). The 999.1 merge is null-only (`parsed.X or
+# state.get("X")`), so it short-circuits and the hallucinated value wins.
+# The fix nulls out parsed.X BEFORE the 999.1 merge when:
+# - parsed.user_intent == "followup_query"
+# - prior state has a value for X
+# - user message text does not contain a recognisable token for X
+# Explicit overrides (LLM emits non-null AND user message contains a token)
+# are preserved — this is null-only inheritance, never override.
+# ---------------------------------------------------------------------------
+
+
+def test_followup_inherits_unmentioned_fields(monkeypatch):
+    """gap-1: prior turn has full state; follow-up message says only "What
+    about 25kg instead?"; LLM hallucinates shipping_type='retail_standard'
+    and destination='Chiang Mai'. Planner MUST null those hallucinated
+    values out and inherit prior bounce + Nonthaburi.
+    """
+    state = _user_state(
+        "What about 25kg instead?",
+        shipping_type="bounce",
+        weight_kg=15.0,
+        origin="Bangkok",
+        destination="Nonthaburi",
+        fuel_data={
+            "price": 31.0,
+            "baseline": 29.94,
+            "delta_pct": 0.0354,
+            "date": "2026-05-03",
+            "unit": "THB/L",
+            "source": "eppo_live",
+            "fetched_at": _now_iso_z(),
+        },
+        route_data={
+            "origin": "Bangkok",
+            "destination": "Nonthaburi",
+            "distance_km": 19.2,
+            "duration_min": 30,
+            "traffic_severity": 1,
+            "zone": "central-1",
+        },
+    )
+    monkeypatch.setattr(
+        mod,
+        "get_chat_model",
+        lambda **_: _scripted_llm(
+            '{"user_intent": "followup_query", '
+            '"shipping_type": "retail_standard", "weight_kg": 25, '
+            '"origin": null, "destination": "Chiang Mai", '
+            '"missing_fields": [], '
+            '"next_step": "fetch_fuel", '
+            '"clarification_reason": null}'
+        ),
+    )
+
+    result = planner_node(state)
+
+    # Hallucinated values nulled out, prior state inherited via 999.1 merge.
+    assert result["shipping_type"] == "bounce"
+    assert result["weight_kg"] == 25
+    assert result["origin"] == "Bangkok"
+    assert result["destination"] == "Nonthaburi"
+
+
+def test_followup_explicit_override_wins_over_inheritance(monkeypatch):
+    """gap-1: when the user explicitly says "switch to retail_fast" the LLM
+    correctly emits non-null shipping_type='retail_fast' and null for the
+    other three fields. The inheritance branch MUST NOT erase the explicit
+    override; the other three MUST inherit from prior state.
+    """
+    state = _user_state(
+        "Switch to retail_fast",
+        shipping_type="bounce",
+        weight_kg=15.0,
+        origin="Bangkok",
+        destination="Nonthaburi",
+        fuel_data={
+            "price": 31.0,
+            "baseline": 29.94,
+            "delta_pct": 0.0354,
+            "date": "2026-05-03",
+            "unit": "THB/L",
+            "source": "eppo_live",
+            "fetched_at": _now_iso_z(),
+        },
+        route_data={
+            "origin": "Bangkok",
+            "destination": "Nonthaburi",
+            "distance_km": 19.2,
+            "duration_min": 30,
+            "traffic_severity": 1,
+            "zone": "central-1",
+        },
+    )
+    monkeypatch.setattr(
+        mod,
+        "get_chat_model",
+        lambda **_: _scripted_llm(
+            '{"user_intent": "followup_query", '
+            '"shipping_type": "retail_fast", "weight_kg": null, '
+            '"origin": null, "destination": null, '
+            '"missing_fields": [], '
+            '"next_step": "fetch_fuel", '
+            '"clarification_reason": null}'
+        ),
+    )
+
+    result = planner_node(state)
+
+    # Explicit override on shipping_type wins; the other three inherit.
+    assert result["shipping_type"] == "retail_fast"
+    assert result["weight_kg"] == 15.0
+    assert result["origin"] == "Bangkok"
+    assert result["destination"] == "Nonthaburi"
