@@ -126,7 +126,7 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5
 | 2. Tools & Agent Nodes | 0/3 | Not started | - |
 | 3. Graph Assembly & API Layer | 0/3 | Not started | - |
 | 4. Frontend & Reasoning Trace | 5/5 | Complete   | 2026-04-26 |
-| 5. Polish, Observability & Docs | 6/7 | Wave 5 complete | - |
+| 5. Polish, Observability & Docs | 6/7 | Wave 6 PARTIAL — Plan 05-07 Tasks 1-3 done (DOC-01/02/04 docs); Tasks 4-5 pending HUMAN action (demo + screenshots; v1.0 tag) | - |
 
 ## Backlog
 

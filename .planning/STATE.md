@@ -3,8 +3,8 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-stopped_at: Completed 05-06-PLAN.md (feedback API + frontend wires API-05, OBS-02)
-last_updated: "2026-05-03T10:25:00Z"
+stopped_at: Plan 05-07 PARTIAL — Tasks 1-3 done (DOC-01 README, DOC-02 architecture.md, DOC-04 data-sources.md); Tasks 4-5 pending HUMAN action (demo.mp4 + 5 screenshots; develop->main merge + v1.0 tag)
+last_updated: "2026-05-03T17:35:00Z"
 last_activity: 2026-05-03
 progress:
   total_phases: 5
@@ -26,9 +26,9 @@ See: .planning/PROJECT.md (updated 2026-04-04)
 ## Current Position
 
 Phase: 05 (polish-observability-docs) — EXECUTING
-Plan: 6 of 7 complete; Wave 5 finished
-Status: Ready to execute Wave 6 (Plan 05-07 docs + tag)
-Last activity: 2026-05-03 — Plan 05-06 complete (API-05, OBS-02)
+Plan: 6 of 7 complete; Plan 05-07 PARTIAL (3 of 5 tasks done — Tasks 4 + 5 pending HUMAN action)
+Status: Awaiting Task 4 (demo recording + 5 screenshots) and Task 5 (develop->main merge + v1.0 annotated tag) — both human-only checkpoints per autonomous: false plan
+Last activity: 2026-05-03 — Plan 05-07 Tasks 1-3 done (DOC-01 README + DOC-02 architecture.md + DOC-04 data-sources.md + screenshots/.gitkeep)
 
 Progress: [███░░░░░░░] 71%
 
@@ -75,6 +75,7 @@ Progress: [███░░░░░░░] 71%
 | Phase 05 P04 | ~30min | 3 tasks | 11 files |
 | Phase 05 P05 | ~50min | 2 tasks | 9 files |
 | Phase 05 P06 | ~45min | 3 tasks | 16 files |
+| Phase 05 P07 | ~30min | 3 of 5 tasks (T4+T5 pending human) | 4 files docs + SUMMARY.md |
 
 ## Accumulated Context
 
@@ -186,6 +187,10 @@ Recent decisions affecting current work:
 - [Phase 05]: Plan 05-06: AssistantMessage.payload widened to FinalPayload | null so the awaiting-approval slot can render ApprovalCard with no payload yet; backward-compatible since existing consumers always pass non-null
 - [Phase 05]: Plan 05-06: ChatRequest.message widened from required to optional in frontend/types/api.types.ts to mirror Plan 05-02 backend ChatRequest contract — required for the resume path that sends only {thread_id, approve}
 - [Phase 05]: Plan 05-06: PROCESS DEVIATION — executor agent's bash sandbox blocked git mutations (git add, git commit, gsd-tools commit) AND test runs (pytest, npm test); read-only git status/diff allowed. Per parallel_execution wrap-up discipline, executor finished all 3 tasks of code work, ran static verification via Read+Grep on every acceptance criterion, wrote SUMMARY.md and STATE.md updates inline, and handed off to orchestrator to commit the 16 staged files in task-aligned chunks. Same pattern as Plan 05-04 stall and Plan 05-01 wrap-up.
+- [Phase 05]: Plan 05-07: DOC-01 README wholesale rewrite (vs incremental edit) — Phase 4-era README was missing Phase 5 differentiator narrative (parallel / HITL / search / Langfuse) AND missing AI Tools Used + Limitations sections per AI/Vibe-Coding 15% rubric; wholesale rewrite per D-17 outline is the safer + faster path
+- [Phase 05]: Plan 05-07: DOC-02 architecture.md targeted update (vs full rewrite) — preserved high-quality Phase 1-4 sections (Surcharge Logic, Tools, Tech Stack, Shipping Types); appended Phase 5 sections (Observability Architecture Mermaid + Parallel Execution + Phase 5 Error Paths); REPLACED ASCII Agent Graph Flow with Mermaid + ASCII fallback inside <details> per D-18 hybrid layout
+- [Phase 05]: Plan 05-07: docs/screenshots/.gitkeep stub created so the directory is tracked even before Task 4 lands the 5 PNG artifacts — README references the EXACT 5 filenames the human will produce in Task 4
+- [Phase 05]: Plan 05-07: PROCESS DEVIATION — sandbox blocked git mutations (same as 05-04, 05-06); executor finished all 3 autonomous tasks (README + architecture.md + data-sources.md + screenshots stub), wrote SUMMARY.md inline, and handed off to orchestrator for the 3 task-aligned commits. Tasks 4 (demo recording + 5 screenshots) and Task 5 (develop->main merge + v1.0 annotated tag per D-21) are HUMAN-only checkpoints by plan design — autonomous: false.
 
 ### Pending Todos
 
@@ -207,6 +212,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-05-03T10:25:00Z
-Stopped at: Completed 05-06-PLAN.md (feedback API + frontend wires API-05, OBS-02 — POST /api/feedback handler with deterministic trace_id resolution, frontend types extended for sixth SSE event + new agent names + SearchContext + ApprovalPayload, api.postFeedback wrapper, useChatStream.approve() callback, ApprovalCard + SearchContextLine components, FeedbackButtons localStorage→API swap, MarkdownAnswer SearchContextLine prepend, MessageList ApprovalCard branch)
-Resume file: None
+Last session: 2026-05-03T17:35:00Z
+Stopped at: Plan 05-07 PARTIAL — Tasks 1-3 done autonomously (README rewritten per DOC-01 with 9 sections + Mermaid agent topology; docs/architecture.md extended with 2 Mermaid blocks + AgentState reducers table + 6 SSE events + Observability Architecture + Parallel Execution + Phase 5 Error Paths; docs/data-sources.md created with EPPO + Simulated Express Rate Table + Google Maps + Tavily + SQLite + Langfuse + Internal Constants table; docs/screenshots/.gitkeep stub). Tasks 4-5 pending HUMAN action: Task 4 = record docs/demo.mp4 + capture 5 screenshots into docs/screenshots/; Task 5 = develop->main merge + v1.0 annotated tag per D-21 IT Lead push.
+Resume file: .planning/phases/05-polish-observability-docs/05-07-PLAN.md (Tasks 4 + 5)
