@@ -37,6 +37,7 @@ from backend.agent.nodes.route_agent import route_agent_node
 from backend.agent.nodes.pricing_agent import pricing_agent_node
 from backend.agent.nodes.response_node import response_node
 from backend.agent.nodes.search_agent import search_agent_node
+from backend.agent.nodes.hitl_gate import hitl_gate_node
 
 __all__ = ["build_graph", "phase3_retry_on"]
 
@@ -194,6 +195,10 @@ def build_graph(checkpointer=None):
     # for any non-retryable post-RuntimeError surprise.
     g.add_node("search_agent", _wrap_error_sink("search_agent", search_agent_node), retry_policy=retry)
     g.add_node("pricing_agent", pricing_agent_node, retry_policy=retry)
+    # Phase 5 ORCH-09: hitl_gate sits between pricing_agent and response.
+    # NOT wrapped in error sink (interrupt is by-design pause, not error)
+    # and NOT given a retry_policy (the interrupt should not be retried).
+    g.add_node("hitl_gate", hitl_gate_node)
     g.add_node("response", _wrap_error_sink("response", response_node), retry_policy=retry)
 
     g.add_edge(START, "planner")
@@ -212,7 +217,13 @@ def build_graph(checkpointer=None):
     g.add_edge("fuel_agent", "planner")
     g.add_edge("route_agent", "planner")
     g.add_edge("search_agent", "planner")  # Phase 5 D-03 loop closure
-    g.add_edge("pricing_agent", "planner")
+    # Phase 5 ORCH-09: pricing -> hitl_gate -> response (was: pricing -> planner
+    # per Phase 3 D-03). Per RESEARCH Pitfall 6, this bypass is intentional —
+    # pricing is the final compute step within a turn, so the next-turn
+    # planner loop is entered via fresh chat invocations, not via the
+    # in-turn loop edge.
+    g.add_edge("pricing_agent", "hitl_gate")
+    g.add_edge("hitl_gate", "response")
     g.add_edge("response", END)
 
     compiled = g.compile(checkpointer=checkpointer)

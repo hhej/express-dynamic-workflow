@@ -517,9 +517,12 @@ async def test_followup_param_switch_routes_through_pricing(
 
     # Phase 5 D-01: turn 1's first fetch_fuel emission is promoted to
     # 'fanout_fuel_route', which schedules fuel + route in the same
-    # superstep. Planner is then re-entered just twice more — once after
-    # fanout (cascade promotes to calculate_price) and once after pricing
-    # to emit respond. So turn 1 needs only 3 LLM responses, not 4.
+    # superstep. Planner is then re-entered just once more — after fanout
+    # the cascade promotes to calculate_price.
+    # Phase 5 ORCH-09 (Plan 05-05) Pitfall 6: pricing -> hitl_gate -> response
+    # REPLACES the Phase 3 pricing -> planner edge, so planner is NOT
+    # re-invoked after pricing within a single turn. Turn 1 therefore needs
+    # only 2 planner LLM responses, not 3.
     turn1 = [
         _planner_response(
             "fetch_fuel", shipping_type="retail_standard",
@@ -531,15 +534,12 @@ async def test_followup_param_switch_routes_through_pricing(
             weight_kg=50.0, origin="Bangkok",
             destination="Pathum Thani",
         ),
-        _planner_response(
-            "respond", shipping_type="retail_standard",
-            weight_kg=50.0, origin="Bangkok",
-            destination="Pathum Thani",
-        ),
     ]
     # Turn 2 reproducer shape: only shipping_type extracted, others null,
     # next_step=clarify, user_intent=followup_query — exactly what the
-    # live LLM emitted on 2026-04-25 smoke testing.
+    # live LLM emitted on 2026-04-25 smoke testing. Phase 5 Pitfall 6:
+    # pricing -> hitl_gate -> response, so only the FIRST planner LLM call
+    # is consumed on turn 2 (no post-pricing planner re-invocation).
     turn2 = [
         _planner_response(
             "clarify",
@@ -548,13 +548,6 @@ async def test_followup_param_switch_routes_through_pricing(
             weight_kg=None, origin=None, destination=None,
             missing_fields=["weight_kg", "origin", "destination"],
             clarification_reason="missing_inputs",
-        ),
-        _planner_response(
-            "respond",
-            user_intent="followup_query",
-            shipping_type="bounce",
-            weight_kg=50.0, origin="Bangkok",
-            destination="Pathum Thani",
         ),
     ]
     planner_responses = turn1 + turn2
