@@ -35,6 +35,7 @@ def test_chat_attaches_callback_when_enabled(monkeypatch):
     assert cfg["metadata"]["langfuse_user_id"] == "demo"
     assert "express-surcharge" in cfg["metadata"]["langfuse_tags"]
     assert "turn-0" in cfg["metadata"]["langfuse_tags"]
+    assert cfg["metadata"]["langfuse_trace_name"] == "express-surcharge-agent"
 
 
 def test_chat_skips_callback_when_disabled(monkeypatch):

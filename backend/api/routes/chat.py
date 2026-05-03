@@ -78,6 +78,8 @@ def _make_config(thread_id: str, turn_idx: int) -> dict:
           - ``configurable.thread_id``: routes the checkpointer.
           - ``callbacks``: ``[CallbackHandler]`` when LANGFUSE_* set, else ``[]``.
           - ``metadata.langfuse_session_id``: thread_id (Langfuse session group).
+          - ``metadata.langfuse_trace_name``: ``"express-surcharge-agent"`` —
+            constant agent name so all traces filter under one Langfuse name.
           - ``metadata.langfuse_user_id``: ``"demo"`` (single-user demo build).
           - ``metadata.langfuse_tags``: ``["express-surcharge", f"turn-{turn_idx}"]``.
           - ``metadata.langfuse_trace_id``: deterministic 32-hex (D-14)
@@ -92,6 +94,7 @@ def _make_config(thread_id: str, turn_idx: int) -> dict:
         "callbacks": [handler] if handler else [],
         "metadata": {
             "langfuse_session_id": thread_id,
+            "langfuse_trace_name": "express-surcharge-agent",
             "langfuse_user_id": "demo",
             "langfuse_tags": ["express-surcharge", f"turn-{turn_idx}"],
             "langfuse_trace_id": trace_id,
