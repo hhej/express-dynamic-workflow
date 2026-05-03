@@ -114,7 +114,49 @@ def route_agent_node(state: dict) -> dict:
             f"in state; got origin={origin!r}, destination={destination!r}"
         )
 
-    route_data = calculate_route(origin, destination)
+    # gap-2 fix (Plan 05-09, 2026-05-03): out-of-Bangkok-Metro destinations
+    # raise ValueError from calculate_route._zone_for_destination. The
+    # Phase 3 D-23 retry-allow-list excludes ValueError and the Phase 3
+    # D-24 _wrap_error_sink in graph.py re-raises ValueError unchanged
+    # (see graph.py:99-101), so without this catch the exception
+    # propagates as an SSE error event with no recovery path. Catch ONLY
+    # the zone-miss ValueError (string-match on the message prefix from
+    # calculate_route.py:100) — the D-10 ValueError on missing
+    # origin/destination raised above MUST still bubble per Phase 2
+    # Plan 05 decision (it surfaces a Planner pre-extraction contract
+    # violation eagerly).
+    try:
+        route_data = calculate_route(origin, destination)
+    except ValueError as exc:
+        msg = str(exc)
+        if msg.startswith("No Bangkok Metro zone"):
+            ts = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
+            prior_steps = len(state.get("reasoning_trace") or [])
+            warn_trace = {
+                "step": prior_steps + 1,
+                "agent": "route_agent",
+                "tool": "calculate_route",
+                "tool_input": {"origin": origin, "destination": destination},
+                "tool_output": None,
+                "reasoning": (
+                    f"Destination {destination!r} is outside the Bangkok Metro "
+                    f"zone set (central-1/2/3). Supported provinces are listed "
+                    f"in docs/data-sources.md."
+                ),
+                "timestamp": ts,
+                "status": "warn",
+            }
+            return {
+                "errors": [{
+                    "node": "route_agent",
+                    "exception_type": "ValueError",
+                    "message": msg,
+                    "timestamp": ts,
+                }],
+                "next_step": "respond",
+                "reasoning_trace": [warn_trace],
+            }
+        raise  # any other ValueError bubbles per D-10 / D-23
     reasoning = _narrate_with_llm(route_data)
 
     prior_steps = len(state.get("reasoning_trace") or [])

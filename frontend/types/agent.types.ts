@@ -4,12 +4,15 @@
  * backend/agent/nodes/response_node.py. snake_case is intentional.
  */
 
+/** AgentName extended with hitl_gate + search_agent (Plan 05-04 / 05-05). */
 export type AgentName =
   | 'planner'
   | 'fuel_agent'
   | 'route_agent'
   | 'pricing_agent'
-  | 'response';
+  | 'response'
+  | 'hitl_gate' // Plan 05-05
+  | 'search_agent'; // Plan 05-04
 
 export type TraceStatus = 'ok' | 'warn' | 'error';
 
@@ -35,18 +38,44 @@ export interface SurchargeResult {
 
 export type FinalStatus = 'ok' | 'partial' | 'clarify';
 
+/** One source row inside a SearchContext (Plan 05-04). */
+export interface SearchContextSource {
+  title: string;
+  url: string;
+  snippet: string;
+  published_at: string | null;
+}
+
+/** Search context payload from response_node when search_agent ran (D-11). */
+export interface SearchContext {
+  query: string;
+  summary: string | null;
+  sources: SearchContextSource[];
+  fetched_at: string;
+}
+
 /** Mirrors backend AgentState.final_payload built by response_node. */
 export interface FinalPayload {
   markdown: string;
   surcharge_result: SurchargeResult | null;
   capped: boolean;
   status: FinalStatus;
+  /** Plan 05-04 — populated when search_agent ran on this turn. */
+  search_context?: SearchContext | null;
 }
 
-/** SSE envelope — 5 event types per Phase 3 D-18. */
+/** Approval payload from the sixth SSE event (Plan 05-05). */
+export interface ApprovalPayload {
+  thread_id: string;
+  surcharge_result: SurchargeResult;
+  threshold: number;
+}
+
+/** SSE envelope — 6 event types after Plan 05-05. */
 export type SSEEvent =
   | { type: 'meta'; payload: { thread_id: string } }
   | { type: 'trace'; payload: TraceEntry }
   | { type: 'answer'; payload: FinalPayload }
   | { type: 'error'; payload: { message: string; retryable: boolean } }
-  | { type: 'done'; payload: Record<string, never> };
+  | { type: 'done'; payload: Record<string, never> }
+  | { type: 'approval_required'; payload: ApprovalPayload };

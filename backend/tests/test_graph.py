@@ -515,14 +515,17 @@ async def test_followup_param_switch_routes_through_pricing(
     # needed — passing this test against the default budget is the strongest
     # signal the D-04 fix actually closes the cross-turn short-circuit gap.
 
+    # Phase 5 D-01: turn 1's first fetch_fuel emission is promoted to
+    # 'fanout_fuel_route', which schedules fuel + route in the same
+    # superstep. Planner is then re-entered just once more — after fanout
+    # the cascade promotes to calculate_price.
+    # Phase 5 ORCH-09 (Plan 05-05) Pitfall 6: pricing -> hitl_gate -> response
+    # REPLACES the Phase 3 pricing -> planner edge, so planner is NOT
+    # re-invoked after pricing within a single turn. Turn 1 therefore needs
+    # only 2 planner LLM responses, not 3.
     turn1 = [
         _planner_response(
             "fetch_fuel", shipping_type="retail_standard",
-            weight_kg=50.0, origin="Bangkok",
-            destination="Pathum Thani",
-        ),
-        _planner_response(
-            "fetch_route", shipping_type="retail_standard",
             weight_kg=50.0, origin="Bangkok",
             destination="Pathum Thani",
         ),
@@ -531,15 +534,12 @@ async def test_followup_param_switch_routes_through_pricing(
             weight_kg=50.0, origin="Bangkok",
             destination="Pathum Thani",
         ),
-        _planner_response(
-            "respond", shipping_type="retail_standard",
-            weight_kg=50.0, origin="Bangkok",
-            destination="Pathum Thani",
-        ),
     ]
     # Turn 2 reproducer shape: only shipping_type extracted, others null,
     # next_step=clarify, user_intent=followup_query — exactly what the
-    # live LLM emitted on 2026-04-25 smoke testing.
+    # live LLM emitted on 2026-04-25 smoke testing. Phase 5 Pitfall 6:
+    # pricing -> hitl_gate -> response, so only the FIRST planner LLM call
+    # is consumed on turn 2 (no post-pricing planner re-invocation).
     turn2 = [
         _planner_response(
             "clarify",
@@ -548,13 +548,6 @@ async def test_followup_param_switch_routes_through_pricing(
             weight_kg=None, origin=None, destination=None,
             missing_fields=["weight_kg", "origin", "destination"],
             clarification_reason="missing_inputs",
-        ),
-        _planner_response(
-            "respond",
-            user_intent="followup_query",
-            shipping_type="bounce",
-            weight_kg=50.0, origin="Bangkok",
-            destination="Pathum Thani",
         ),
     ]
     planner_responses = turn1 + turn2
@@ -644,3 +637,381 @@ async def test_followup_param_switch_routes_through_pricing(
     assert lookup_calls["n"] == 2
     # Final payload renders successfully.
     assert result2["final_payload"]["status"] == "ok"
+
+
+# ---------------------------------------------------------------------------
+# Test 9: Plan 05-08 gap-1 E2E — reproduces UAT test 3 failure verbatim.
+# Q1: "Surcharge for 15kg bounce Bangkok to Nonthaburi" populates caches +
+# shipping_type=bounce + destination=Nonthaburi. Q2: "What about 25kg
+# instead?" — the LLM hallucinates shipping_type=retail_standard +
+# destination=Chiang Mai (truthy, so 999.1 merge accepts the hallucinations).
+# With the gap-1 fix, the new inheritance branch nulls out those
+# hallucinations, the 999.1 merge inherits bounce + Nonthaburi, and the
+# resulting surcharge uses the right multiplier.
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_followup_25kg_preserves_bounce_and_nonthaburi(
+    monkeypatch, mocker, in_memory_checkpointer,
+):
+    """gap-1 E2E reproducer for UAT test 3: a 25kg follow-up MUST inherit
+    shipping_type='bounce' and destination='Nonthaburi' from the prior turn
+    even when the planner LLM hallucinates retail_standard and Chiang Mai.
+    """
+    from backend.agent.nodes import planner as planner_mod
+    from backend.agent.nodes import fuel_agent as fuel_mod
+    from backend.agent.nodes import route_agent as route_mod
+    from backend.agent.nodes import pricing_agent as pricing_mod
+
+    # Turn 1: standard surcharge — fan-out promotion then post-fanout
+    # cascade promotes to calculate_price (one extra planner call after
+    # the parallel fuel+route superstep).
+    turn1 = [
+        _planner_response(
+            "fetch_fuel",
+            shipping_type="bounce",
+            weight_kg=15.0,
+            origin="Bangkok",
+            destination="Nonthaburi",
+        ),
+        _planner_response(
+            "calculate_price",
+            shipping_type="bounce",
+            weight_kg=15.0,
+            origin="Bangkok",
+            destination="Nonthaburi",
+        ),
+    ]
+    # Turn 2: the deliberately hallucinated emission matching the UAT
+    # bug shape. weight_kg=25 (legitimately changed by the user), but
+    # shipping_type='retail_standard' and destination='Chiang Mai' are
+    # hallucinated. user_intent='followup_query' triggers the gap-1
+    # inheritance branch.
+    turn2 = [
+        _planner_response(
+            "fetch_fuel",
+            user_intent="followup_query",
+            shipping_type="retail_standard",
+            weight_kg=25.0,
+            origin=None,
+            destination="Chiang Mai",
+        ),
+    ]
+    planner_responses = turn1 + turn2
+
+    monkeypatch.setattr(
+        planner_mod, "get_chat_model",
+        _stateful_factory(*planner_responses),
+    )
+    monkeypatch.setattr(
+        fuel_mod, "get_chat_model",
+        _stateful_factory(_NARR, _NARR),
+    )
+    monkeypatch.setattr(
+        route_mod, "get_chat_model",
+        _stateful_factory(_NARR_R, _NARR_R),
+    )
+    monkeypatch.setattr(
+        pricing_mod, "get_chat_model",
+        _stateful_factory(_NARR_P, _NARR_P),
+    )
+
+    fuel_calls = {"n": 0}
+    route_calls = {"n": 0}
+    lookup_calls = {"n": 0}
+
+    def count_fuel():
+        fuel_calls["n"] += 1
+        return FuelData(
+            price=31.0, date="2026-05-03", source="eppo_live",
+            baseline=29.94, delta_pct=0.0354,
+        )
+
+    def count_route(origin, destination):
+        route_calls["n"] += 1
+        return RouteData(
+            origin=origin, destination=destination,
+            distance_km=19.2, duration_min=30,
+            traffic_severity=1, zone="central-1",
+        )
+
+    def count_lookup(*args, **kwargs):
+        lookup_calls["n"] += 1
+        return RateResult(
+            base_rate=140.0, currency="THB", rate_tier="11-25kg",
+        )
+
+    mocker.patch.object(fuel_mod, "fetch_fuel_price", side_effect=count_fuel)
+    mocker.patch.object(route_mod, "calculate_route", side_effect=count_route)
+    mocker.patch.object(
+        pricing_mod, "lookup_rate", side_effect=count_lookup,
+    )
+
+    graph = build_graph(checkpointer=in_memory_checkpointer)
+    cfg = {"configurable": {"thread_id": "t-uat-test3"}}
+
+    # Turn 1 — establishes caches + shipping_type=bounce +
+    # destination=Nonthaburi.
+    state = _empty_state(
+        "Surcharge for 15kg bounce Bangkok to Nonthaburi"
+    )
+    result1 = await graph.ainvoke(state, config=cfg)
+    assert result1["surcharge_result"] is not None
+    assert result1["shipping_type"] == "bounce"
+    assert result1["destination"] == "Nonthaburi"
+    assert fuel_calls["n"] == 1
+    assert route_calls["n"] == 1
+
+    # Turn 2 — UAT bug reproducer: "What about 25kg instead?" with the
+    # planner LLM scripted to hallucinate retail_standard + Chiang Mai.
+    followup = {
+        "messages": [
+            {"role": "user", "content": "What about 25kg instead?"}
+        ]
+    }
+    result2 = await graph.ainvoke(followup, config=cfg)
+
+    # Headline assertion: gap-1 fix preserved bounce + Nonthaburi despite
+    # the LLM's hallucinations. Without the fix shipping_type would be
+    # 'retail_standard' and destination would be 'Chiang Mai'.
+    snapshot = await graph.aget_state(cfg)
+    assert snapshot.values["shipping_type"] == "bounce"
+    assert snapshot.values["destination"] == "Nonthaburi"
+    assert snapshot.values["weight_kg"] == 25.0
+    # And the post-turn-2 result echoes the same.
+    assert result2["shipping_type"] == "bounce"
+    assert result2["destination"] == "Nonthaburi"
+    assert result2["weight_kg"] == 25.0
+    # D-12 cache hits: fuel + route NOT re-fetched on turn 2 (route still
+    # matches prior Bangkok->Nonthaburi after inheritance).
+    assert fuel_calls["n"] == 1
+    assert route_calls["n"] == 1
+    # Rate re-looked-up for the new 25kg weight tier.
+    assert lookup_calls["n"] == 2
+
+
+# ---------------------------------------------------------------------------
+# Plan 05-09 — gap-2 E2E regression (2026-05-03)
+#
+# UAT test 4 reproducer: a Bangkok -> Lop Buri query with the calculate_route
+# tool stubbed to raise the same ValueError the live tool raises for
+# out-of-Bangkok-Metro destinations. Without the gap-2 fix the exception
+# bubbles through _wrap_error_sink (which re-raises ValueError unchanged)
+# and out the SSE error channel, dead-ending the user. With the fix
+# route_agent_node catches the zone-miss prefix, appends to state.errors,
+# returns next_step='respond' — Planner short-circuits on errors (D-24)
+# and Response renders a 'partial' clarify response naming route_agent.
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_out_of_metro_destination_renders_clarify(
+    monkeypatch, mocker, in_memory_checkpointer,
+):
+    """gap-2 E2E: Bangkok -> Lop Buri produces status='partial' clarify
+    prose mentioning route_agent; NO uncaught ValueError reaches the
+    SSE error channel."""
+    from backend.agent.nodes import planner as planner_mod
+    from backend.agent.nodes import fuel_agent as fuel_mod
+    from backend.agent.nodes import route_agent as route_mod
+
+    # Phase 5 D-01: with all extraction fields present and both caches
+    # stale on a fresh thread, the planner promotes fetch_fuel to
+    # fanout_fuel_route. Fuel runs successfully; route_agent catches the
+    # zone-miss ValueError, appends to state.errors, returns
+    # next_step='respond'. Planner is re-entered, sees state.errors, and
+    # short-circuits to respond. So we need TWO planner LLM responses:
+    # the initial fanout-trigger and the post-error short-circuit (the
+    # latter is actually consumed by the D-24 errors guard before the
+    # LLM call, but we provide it defensively).
+    planner_responses = [
+        _planner_response(
+            "fetch_fuel",
+            shipping_type="retail_fast",
+            weight_kg=200.0,
+            origin="Bangkok",
+            destination="Lop Buri",
+        ),
+        _planner_response(
+            "respond",
+            shipping_type="retail_fast",
+            weight_kg=200.0,
+            origin="Bangkok",
+            destination="Lop Buri",
+        ),
+    ]
+    monkeypatch.setattr(
+        planner_mod, "get_chat_model",
+        _stateful_factory(*planner_responses),
+    )
+    monkeypatch.setattr(
+        fuel_mod, "get_chat_model",
+        _stateful_factory(_NARR),
+    )
+    monkeypatch.setattr(
+        route_mod, "get_chat_model",
+        _stateful_factory(_NARR_R),
+    )
+
+    # Fuel succeeds (so the parallel fan-out exercises the route ValueError
+    # path concurrently with a successful fuel fetch — operator.add reducer
+    # safely merges both branches).
+    mocker.patch.object(
+        fuel_mod, "fetch_fuel_price",
+        return_value=FuelData(
+            price=31.0, date="2026-04-25", source="eppo_live",
+            baseline=29.94, delta_pct=0.0354,
+        ),
+    )
+
+    # Route raises the same ValueError the live tool raises for
+    # destinations outside the central-1/2/3 zone set.
+    def raise_zone_miss(origin, destination):
+        raise ValueError(f"No Bangkok Metro zone for {destination!r}")
+
+    mocker.patch.object(
+        route_mod, "calculate_route", side_effect=raise_zone_miss,
+    )
+
+    graph = build_graph(checkpointer=in_memory_checkpointer)
+    cfg = {"configurable": {"thread_id": "t-gap2-lop-buri"}}
+    state = _empty_state(
+        "Surcharge for 200kg retail_fast Bangkok to Lop Buri"
+    )
+
+    # CRITICAL: this must NOT raise — the gap-2 fix converts the ValueError
+    # to a graceful state.errors entry inside route_agent_node, BEFORE
+    # _wrap_error_sink sees it.
+    result = await graph.ainvoke(state, config=cfg)
+
+    # No surcharge produced (route data missing -> can't calculate).
+    assert result["surcharge_result"] is None
+
+    # state.errors populated by route_agent
+    assert len(result["errors"]) >= 1
+    route_err = next(
+        (e for e in result["errors"] if e.get("node") == "route_agent"),
+        None,
+    )
+    assert route_err is not None
+    assert route_err["exception_type"] == "ValueError"
+    assert route_err["message"].startswith("No Bangkok Metro zone")
+
+    # Response Node rendered status='partial' clarify response.
+    payload = result["final_payload"]
+    assert payload["status"] == "partial"
+    assert payload["surcharge_result"] is None
+    md = payload["markdown"]
+    assert "Could not complete analysis" in md
+    assert "route_agent" in md
+
+
+# ---------------------------------------------------------------------------
+# Plan 05-10 / gap-3 E2E (2026-05-03): UAT test 6 reproducer.
+# News/trend queries previously triggered planner_count=5, search_agent_count=5
+# (D-04 budget exhaust), AND the response prose mis-rendered "I need a bit more
+# information to calculate your surcharge. (planner_loop_budget_exhausted)".
+# Fix: planner early-returns when state.search_context is populated AND
+# user_intent in {news_query, out_of_scope}; response_node renders the new
+# 'search_only' status prose ("Here's the latest market context.") with the
+# Market context blockquote prepended (D-11).
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_news_query_no_loop_renders_market_context(
+    monkeypatch, mocker, in_memory_checkpointer,
+):
+    """gap-3 E2E: a news query produces ONE search_agent invocation +
+    exactly TWO planner invocations (initial routing + early-return short-
+    circuit) — NOT 5 + 5 with the misleading clarify prose. Final markdown
+    contains the Market context blockquote summary and does NOT contain
+    "I need a bit more information to calculate your surcharge".
+    """
+    from backend.agent.nodes import planner as planner_mod
+    from backend.agent.nodes import search_agent as search_mod
+    from backend.agent.tools.models import SearchResult, SearchSource
+
+    # Single planner LLM response: news_query → search_context. With the
+    # gap-3 fix, the second planner re-entry early-returns BEFORE calling the
+    # LLM, so we only need one scripted response.
+    planner_responses = [
+        _planner_response(
+            "search_context",
+            user_intent="news_query",
+            shipping_type=None,
+            weight_kg=None,
+            origin=None,
+            destination=None,
+        ),
+    ]
+    monkeypatch.setattr(
+        planner_mod, "get_chat_model",
+        _stateful_factory(*planner_responses),
+    )
+    # search_agent narration LLM — invalid JSON forces deterministic fallback
+    # so reasoning == result.summary.
+    monkeypatch.setattr(
+        search_mod, "get_chat_model",
+        _stateful_factory("not json"),
+    )
+
+    fake_search = SearchResult(
+        query="Why are diesel prices rising this week?",
+        summary="Diesel prices up 3% on supply concerns this week",
+        sources=[
+            SearchSource(
+                title="EPPO weekly diesel report",
+                url="https://example.com/diesel",
+                snippet="Diesel B7 retail price up 3%.",
+                published_at="2026-05-01",
+            ),
+            SearchSource(
+                title="Bangkok Post fuel update",
+                url="https://example.com/bp-fuel",
+                snippet="Refinery shutdown nudges Thai diesel prices.",
+                published_at="2026-05-02",
+            ),
+        ],
+        fetched_at="2026-05-03T10:00:00Z",
+    )
+    mocker.patch.object(
+        search_mod, "search_fuel_news", return_value=fake_search,
+    )
+
+    graph = build_graph(checkpointer=in_memory_checkpointer)
+    cfg = {"configurable": {"thread_id": "t-gap3-news"}}
+    state = _empty_state("Why are diesel prices rising this week?")
+    result = await graph.ainvoke(state, config=cfg)
+
+    # Final payload exists.
+    final_payload = result["final_payload"]
+    assert final_payload is not None
+
+    # Count planner + search_agent invocations from the reasoning_trace.
+    trace = result["reasoning_trace"]
+    planner_count = sum(1 for e in trace if e.get("agent") == "planner")
+    search_agent_count = sum(
+        1 for e in trace if e.get("agent") == "search_agent"
+    )
+
+    # Headline assertions: NO loop. Exactly 2 planner steps (initial routing +
+    # short-circuit early-return) and exactly 1 search_agent invocation.
+    assert planner_count == 2
+    assert search_agent_count == 1
+
+    # The clarification_reason MUST NOT be the budget-exhaustion sentinel.
+    assert (
+        result.get("clarification_reason") != "planner_loop_budget_exhausted"
+    )
+
+    # Markdown contains the Market context blockquote summary.
+    md = final_payload["markdown"]
+    assert "Diesel prices up 3% on supply concerns this week" in md
+
+    # Markdown does NOT contain the misleading clarify prose.
+    assert "I need a bit more information to calculate your surcharge" not in md
+
+    # Status is NOT 'clarify' — it's either 'ok' or 'search_only'.
+    assert final_payload["status"] != "clarify"

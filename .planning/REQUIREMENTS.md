@@ -21,7 +21,7 @@ Requirements for initial release. Each maps to roadmap phases.
 - [x] **TOOL-02**: calculate_route tool computes distance, duration, traffic severity, and zone via Google Maps API with 15-min caching
 - [x] **TOOL-03**: lookup_rate tool queries SQLite rate table by shipping_type, zone, and weight_kg
 - [x] **TOOL-04**: calculate_surcharge tool applies formula: fuel_delta_pct * multiplier[shipping_type] with traffic adjustment and cap/floor
-- [ ] **TOOL-05**: search_fuel_news tool searches fuel trends via Tavily API for reasoning context
+- [x] **TOOL-05**: search_fuel_news tool searches fuel trends via Tavily API for reasoning context
 - [x] **TOOL-06**: All tools use structured Pydantic input/output models for deterministic, testable responses
 
 ### Agent Orchestration
@@ -32,9 +32,9 @@ Requirements for initial release. Each maps to roadmap phases.
 - [x] **ORCH-04**: Pricing Agent node wraps lookup_rate and calculate_surcharge tools
 - [x] **ORCH-05**: Response node formats final answer with surcharge breakdown table and reasoning
 - [x] **ORCH-06**: Agent state schema (AgentState TypedDict) manages messages, fuel_data, route_data, shipping_type, weight_kg, surcharge_result, reasoning_trace, next_step
-- [ ] **ORCH-07**: Fuel Agent and Route Agent execute in parallel via LangGraph Send API
+- [x] **ORCH-07**: Fuel Agent and Route Agent execute in parallel via LangGraph Send API
 - [x] **ORCH-08**: Agentic retry loop with exponential backoff (max 2 retries per tool) and graceful fallback with explanation
-- [ ] **ORCH-09**: Human-in-the-loop approval gate for high-value shipments before finalizing surcharge
+- [x] **ORCH-09**: Human-in-the-loop approval gate for high-value shipments before finalizing surcharge
 - [x] **ORCH-10**: Conversation memory via LangGraph SQLite checkpointer — follow-up queries reuse cached fuel/route data
 
 ### Surcharge Logic
@@ -50,7 +50,7 @@ Requirements for initial release. Each maps to roadmap phases.
 - [x] **API-02**: GET /api/conversations lists all past conversation threads
 - [x] **API-03**: GET /api/conversations/:id returns full conversation history for a thread
 - [x] **API-04**: GET /api/fuel-prices?days=30 returns historical fuel price data for charts
-- [ ] **API-05**: POST /api/feedback accepts user feedback (score + reason) and forwards to Langfuse
+- [x] **API-05**: POST /api/feedback accepts user feedback (score + reason) and forwards to Langfuse
 
 ### Frontend
 
@@ -63,16 +63,16 @@ Requirements for initial release. Each maps to roadmap phases.
 
 ### Observability
 
-- [ ] **OBS-01**: Langfuse callback handler traces all LLM calls, tool calls, and agent steps
-- [ ] **OBS-02**: User feedback scores forwarded to Langfuse Score API for evaluation tracking
-- [ ] **OBS-03**: Formula accuracy auto-eval: independent calculation vs agent output on every query
+- [x] **OBS-01**: Langfuse callback handler traces all LLM calls, tool calls, and agent steps
+- [x] **OBS-02**: User feedback scores forwarded to Langfuse Score API for evaluation tracking
+- [x] **OBS-03**: Formula accuracy auto-eval: independent calculation vs agent output on every query
 
 ### Documentation
 
-- [ ] **DOC-01**: README.md covers project overview, team, problem statement, agent design, data sources, setup instructions, AI tools used, limitations
-- [ ] **DOC-02**: docs/architecture.md finalized with accurate agent design diagrams
+- [x] **DOC-01**: README.md covers project overview, team, problem statement, agent design, data sources, setup instructions, AI tools used, limitations
+- [x] **DOC-02**: docs/architecture.md finalized with accurate agent design diagrams
 - [x] **DOC-03**: .env.example with all required API key placeholders
-- [ ] **DOC-04**: Data source documentation with URLs, assumptions for simulated data
+- [x] **DOC-04**: Data source documentation with URLs, assumptions for simulated data
 
 ## v2 Requirements
 
@@ -116,7 +116,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | TOOL-02 | Phase 2 | Complete |
 | TOOL-03 | Phase 2 | Complete |
 | TOOL-04 | Phase 2 | Complete |
-| TOOL-05 | Phase 5 | Pending |
+| TOOL-05 | Phase 5 | Complete |
 | TOOL-06 | Phase 1 | Complete |
 | ORCH-01 | Phase 3 | Complete |
 | ORCH-02 | Phase 2 | Complete |
@@ -124,9 +124,9 @@ Which phases cover which requirements. Updated during roadmap creation.
 | ORCH-04 | Phase 3 | Complete |
 | ORCH-05 | Phase 3 | Complete |
 | ORCH-06 | Phase 1 | Complete |
-| ORCH-07 | Phase 5 | Pending |
+| ORCH-07 | Phase 5 | Complete |
 | ORCH-08 | Phase 3 | Active |
-| ORCH-09 | Phase 5 | Pending |
+| ORCH-09 | Phase 5 | Complete |
 | ORCH-10 | Phase 3 | Active |
 | CALC-01 | Phase 1 | Complete |
 | CALC-02 | Phase 1 | Complete |
@@ -136,20 +136,20 @@ Which phases cover which requirements. Updated during roadmap creation.
 | API-02 | Phase 3 | Complete |
 | API-03 | Phase 3 | Complete |
 | API-04 | Phase 3 | Complete |
-| API-05 | Phase 5 | Pending |
+| API-05 | Phase 5 | Complete |
 | UI-01 | Phase 4 | Complete |
 | UI-02 | Phase 4 | Complete |
 | UI-03 | Phase 4 | Complete |
 | UI-04 | Phase 4 | Complete |
 | UI-05 | Phase 4 | Complete |
 | UI-06 | Phase 4 | Complete |
-| OBS-01 | Phase 5 | Pending |
-| OBS-02 | Phase 5 | Pending |
-| OBS-03 | Phase 5 | Pending |
-| DOC-01 | Phase 5 | Pending |
-| DOC-02 | Phase 5 | Pending |
+| OBS-01 | Phase 5 | Complete |
+| OBS-02 | Phase 5 | Complete |
+| OBS-03 | Phase 5 | Complete |
+| DOC-01 | Phase 5 | Complete |
+| DOC-02 | Phase 5 | Complete |
 | DOC-03 | Phase 1 | Complete |
-| DOC-04 | Phase 5 | Pending |
+| DOC-04 | Phase 5 | Complete |
 
 **Coverage:**
 - v1 requirements: 43 total

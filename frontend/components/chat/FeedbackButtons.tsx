@@ -1,7 +1,7 @@
 'use client';
 import { useState } from 'react';
 import clsx from 'clsx';
-import { LOCAL_STORAGE_KEYS } from '@/lib/constants';
+import { api } from '@/lib/api';
 
 interface Props {
   threadId: string;
@@ -10,30 +10,26 @@ interface Props {
 
 type Score = 'up' | 'down';
 
+/**
+ * Plan 05-06 D-16: swap localStorage stub for api.postFeedback().
+ * UI is unchanged — same glyphs, same aria-pressed, same disabled-after-vote.
+ * On POST failure: button stays voted, error logged to console (silent — no
+ * toast). Feedback failure must NEVER block the surcharge UX.
+ */
 export function FeedbackButtons({ threadId, messageId }: Props) {
   const [voted, setVoted] = useState<Score | null>(null);
 
-  function vote(score: Score) {
+  async function vote(score: Score) {
     setVoted(score);
-    const payload = {
-      thread_id: threadId,
-      message_id: messageId,
-      score,
-      ts: new Date().toISOString(),
-    };
-    // D-17: local-only stub. Phase 5 swaps to api.postFeedback(payload).
-    console.log('[feedback]', payload);
     try {
-      const stored = JSON.parse(
-        window.localStorage.getItem(LOCAL_STORAGE_KEYS.feedback) ?? '[]',
-      );
-      stored.push(payload);
-      window.localStorage.setItem(
-        LOCAL_STORAGE_KEYS.feedback,
-        JSON.stringify(stored),
-      );
-    } catch {
-      /* localStorage may be full; non-fatal */
+      await api.postFeedback({
+        thread_id: threadId,
+        message_id: messageId,
+        score,
+      });
+    } catch (err) {
+      // eslint-disable-next-line no-console
+      console.error('[feedback]', err);
     }
   }
 

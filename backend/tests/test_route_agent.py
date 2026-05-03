@@ -139,3 +139,74 @@ def test_fetched_at_added_to_dump(sample_agent_state, mocker, monkeypatch):
     assert fetched_at.endswith("Z")
     # Parses as ISO-8601 without raising.
     datetime.fromisoformat(fetched_at.replace("Z", "+00:00"))
+
+
+# ---------------------------------------------------------------------------
+# Plan 05-09 (gap-2 fix, 2026-05-03): out-of-Bangkok-Metro destinations
+# raise ValueError("No Bangkok Metro zone for ...") from
+# calculate_route._zone_for_destination. The Phase 3 D-23 retry-allow-list
+# excludes ValueError and the Phase 3 D-24 _wrap_error_sink re-raises
+# ValueError unchanged, so without an in-node catch the exception
+# propagates as an SSE error event with no recovery path. The fix
+# selectively catches the zone-miss prefix and converts it to a graceful
+# state.errors entry + next_step='respond' (matching the 999.something
+# retry-exhaustion sink shape so response_node can render a 'partial'
+# clarify response). The D-10 ValueError on missing origin/destination
+# MUST still bubble per Phase 2 Plan 05 decision.
+# ---------------------------------------------------------------------------
+
+
+def test_zone_miss_returns_clarify_eligible_state(
+    sample_agent_state, mocker, monkeypatch
+):
+    """gap-2: out-of-Metro destination should NOT raise; instead append a
+    structured entry to state.errors and route to respond."""
+    state = dict(sample_agent_state)
+    state["origin"] = "Bangkok"
+    state["destination"] = "Lop Buri"
+
+    mocker.patch.object(
+        mod,
+        "calculate_route",
+        side_effect=ValueError("No Bangkok Metro zone for 'Lop Buri'"),
+    )
+    # Gemini is never reached on this path (we short-circuit before
+    # narration), but install a benign LLM stub anyway so a stray call
+    # would fail loudly rather than silently 404 the test.
+    monkeypatch.setattr(
+        mod,
+        "get_chat_model",
+        lambda **_: _scripted_llm(
+            '{"summary": "n/a", "traffic_label": "moderate"}'
+        ),
+    )
+
+    result = route_agent_node(state)
+
+    # Headline assertion: no raise + the gap-2 contract is honored.
+    assert "errors" in result
+    assert isinstance(result["errors"], list)
+    assert len(result["errors"]) == 1
+    err = result["errors"][0]
+    assert err["node"] == "route_agent"
+    assert err["exception_type"] == "ValueError"
+    assert err["message"].startswith("No Bangkok Metro zone")
+    assert "timestamp" in err
+    assert result["next_step"] == "respond"
+
+    # Trace panel surfaces the cause as a 'warn' status so the FE
+    # reasoning panel renders the failure visibly (not silent).
+    trace = result.get("reasoning_trace") or []
+    assert len(trace) == 1
+    assert trace[0]["agent"] == "route_agent"
+    assert trace[0]["status"] == "warn"
+
+
+def test_missing_origin_destination_still_raises(sample_agent_state):
+    """gap-2 invariant: the D-10 ValueError on missing origin/destination
+    MUST still bubble — only the zone-miss ValueError is caught."""
+    # No origin/destination set on the state; the gap-2 catch must NOT
+    # swallow this — it surfaces a Planner pre-extraction contract
+    # violation eagerly per Phase 2 Plan 05 decision.
+    with pytest.raises(ValueError, match="route_agent_node requires both"):
+        route_agent_node(dict(sample_agent_state))

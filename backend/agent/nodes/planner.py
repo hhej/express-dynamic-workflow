@@ -53,7 +53,11 @@ class PlannerOutput(BaseModel):
     """
 
     user_intent: Literal[
-        "surcharge_query", "followup_query", "clarification", "out_of_scope"
+        "surcharge_query",
+        "followup_query",
+        "clarification",
+        "out_of_scope",
+        "news_query",
     ]
     shipping_type: Optional[str] = None
     weight_kg: Optional[float] = None
@@ -155,6 +159,39 @@ def planner_node(state: dict) -> dict:
     if state.get("errors"):
         return {"next_step": "respond"}
 
+    # gap-3 fix (2026-05-03): when search_agent has already populated
+    # state.search_context for a news/out-of-scope query, the next planner
+    # iteration should advance to respond — NOT re-route to search_context
+    # again, which would loop until D-04 budget exhausts (UAT test 6).
+    # The guard accepts BOTH 'news_query' (the new dedicated intent value
+    # added by this plan) AND 'out_of_scope' (the legacy bucket the LLM
+    # uses today before being retrained on the updated SYSTEM_PROMPT).
+    # Surcharge queries with search_context (a future hybrid flow) MUST
+    # NOT short-circuit here because the user still wants a surcharge.
+    # We append a minimal trace entry so observability sees "planner ran
+    # twice, second was a short-circuit" — informative for Langfuse demos
+    # AND consumed by the integration test's planner_count == 2 assertion.
+    if (
+        state.get("search_context") is not None
+        and state.get("user_intent") in {"news_query", "out_of_scope"}
+    ):
+        ts = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
+        prior_steps = len(state.get("reasoning_trace") or [])
+        short_circuit_trace = {
+            "step": prior_steps + 1,
+            "agent": "planner",
+            "tool": None,
+            "tool_input": None,
+            "tool_output": None,
+            "reasoning": "search_context populated; routing to respond",
+            "timestamp": ts,
+            "status": "ok",
+        }
+        return {
+            "next_step": "respond",
+            "reasoning_trace": [short_circuit_trace],
+        }
+
     # D-04 loop budget guard runs BEFORE any Gemini call.
     if _loop_budget_exhausted(state):
         return {
@@ -200,6 +237,61 @@ def planner_node(state: dict) -> dict:
 
     assert parsed is not None  # for type checkers; loop break/return covers all paths
 
+    # gap-1 fix (2026-05-03): null-out hallucinated extraction fields on
+    # followup_query turns BEFORE the 999.1 merge picks them up. The 999.1
+    # merge is a null-only coalesce (`parsed.X or state.get("X")`); if the
+    # LLM hallucinates truthy values for fields the user did not mention,
+    # the merge will accept them. The planner SYSTEM_PROMPT now instructs
+    # the LLM to emit null for unmentioned fields on followup_query, but
+    # we defensively null them out here too in case Gemini ignores the
+    # contract. This branch is null-only — explicit overrides (non-null
+    # parsed.X on a followup) still win because we only erase parsed.X
+    # when the prior state has a value AND the user message does not
+    # contain a recognisable shipping_type / origin / destination token.
+    if parsed.user_intent == "followup_query":
+        last_user_text = (last_user.get("content") or "").lower()
+        # shipping_type tokens
+        if (
+            parsed.shipping_type
+            and state.get("shipping_type")
+            and parsed.shipping_type.lower() not in last_user_text
+            and not any(
+                tok in last_user_text
+                for tok in ("bounce", "retail_standard", "retail standard",
+                            "retail_fast", "retail fast")
+            )
+        ):
+            parsed.shipping_type = None
+        # destination — if prior state has destination and user message
+        # does not contain that destination's token NOR any "to <X>" pattern,
+        # null it out so the inherited destination wins
+        prior_dest = state.get("destination")
+        if (
+            parsed.destination
+            and prior_dest
+            and prior_dest.lower() not in last_user_text
+            and parsed.destination.lower() not in last_user_text
+        ):
+            parsed.destination = None
+        # origin — same logic
+        prior_origin = state.get("origin")
+        if (
+            parsed.origin
+            and prior_origin
+            and prior_origin.lower() not in last_user_text
+            and parsed.origin.lower() not in last_user_text
+        ):
+            parsed.origin = None
+        # weight_kg — if user message contains digits and parsed.weight_kg
+        # is non-null, accept it; otherwise null it out so prior weight inherits.
+        # We trust digits as the explicit override signal.
+        if (
+            parsed.weight_kg is not None
+            and state.get("weight_kg") is not None
+            and not any(c.isdigit() for c in last_user_text)
+        ):
+            parsed.weight_kg = None
+
     # 999.1 fix: merge parsed (latest user message) with prior state values
     # BEFORE deciding next_step. The LLM only sees the latest user message,
     # so on follow-up turns it emits null for unmentioned fields and routes
@@ -233,23 +325,48 @@ def planner_node(state: dict) -> dict:
     if next_step == "clarify" and not missing:
         next_step = "fetch_fuel"
 
+    # Phase 5 D-01: parallel fan-out promotion. When the LLM emits
+    # fetch_fuel or fetch_route (signalling a surcharge_query path) AND
+    # neither fuel nor route is cached, promote next_step to the
+    # "fanout_fuel_route" sentinel. The list-returning conditional edge
+    # in graph.py picks this up and schedules both nodes in the same
+    # superstep. Required pre-conditions: shipping_type, weight, origin,
+    # destination all present (otherwise we'd race ahead of clarification).
+    if (
+        next_step in ("fetch_fuel", "fetch_route")
+        and not _fuel_fresh(state)
+        and not _route_matches(state, merged_origin, merged_destination)
+        and merged_shipping
+        and merged_weight is not None
+        and merged_origin
+        and merged_destination
+    ):
+        next_step = "fanout_fuel_route"
+
     # D-12 cache-aware override on (possibly promoted) next_step. Uses
     # merged_origin/merged_destination so route-cache hits work on
     # follow-ups where origin/destination were inherited from prior state.
-    if next_step == "fetch_fuel" and _fuel_fresh(state):
-        # Fuel is cached and fresh — advance to next logical step.
-        if _route_matches(state, merged_origin, merged_destination):
-            # Route also cached: only need pricing (assuming inputs present).
-            if merged_shipping and merged_weight is not None:
-                next_step = "calculate_price"
+    # Note: when next_step="fanout_fuel_route" (Phase 5 D-01) neither branch
+    # below matches, so the sequential cache-skip cascade is preserved.
+    #
+    # Phase 5 D-09: search_context is intent-driven, not state-driven —
+    # skip the cache-aware override entirely so news/market questions
+    # always reach the search_agent regardless of fuel/route cache state.
+    if next_step != "search_context":
+        if next_step == "fetch_fuel" and _fuel_fresh(state):
+            # Fuel is cached and fresh — advance to next logical step.
+            if _route_matches(state, merged_origin, merged_destination):
+                # Route also cached: only need pricing (assuming inputs present).
+                if merged_shipping and merged_weight is not None:
+                    next_step = "calculate_price"
+                else:
+                    next_step = "clarify"
             else:
-                next_step = "clarify"
-        else:
-            next_step = "fetch_route"
-    elif next_step == "fetch_route" and _route_matches(
-        state, merged_origin, merged_destination
-    ):
-        next_step = "calculate_price" if _fuel_fresh(state) else "fetch_fuel"
+                next_step = "fetch_route"
+        elif next_step == "fetch_route" and _route_matches(
+            state, merged_origin, merged_destination
+        ):
+            next_step = "calculate_price" if _fuel_fresh(state) else "fetch_fuel"
 
     prior = len(state.get("reasoning_trace") or [])
     return {

@@ -36,6 +36,8 @@ from backend.agent.nodes.fuel_agent import fuel_agent_node
 from backend.agent.nodes.route_agent import route_agent_node
 from backend.agent.nodes.pricing_agent import pricing_agent_node
 from backend.agent.nodes.response_node import response_node
+from backend.agent.nodes.search_agent import search_agent_node
+from backend.agent.nodes.hitl_gate import hitl_gate_node
 
 __all__ = ["build_graph", "phase3_retry_on"]
 
@@ -128,21 +130,33 @@ def _wrap_error_sink(node_name: str, node_fn):
     return _wrapped
 
 
-def _route_from_planner(state: dict) -> str:
+def _route_from_planner(state: dict):
     """Conditional-edge selector keyed on state.next_step.
 
     Maps the locked next_step vocabulary to graph node names. The
-    search_context value (Phase-5 stub) routes to response so the user
-    gets a graceful "not supported" message rather than a graph error.
+    search_context value routes to the new search_agent node (Phase 5 D-10);
+    earlier phases routed it to response as a stub.
+
+    Phase 5 D-01: returns a list[str] for parallel fan-out — when the
+    planner emits the "fanout_fuel_route" sentinel (set when both fuel
+    and route caches are stale and all extraction inputs are present),
+    this function returns ["fuel_agent", "route_agent"] which a
+    list-returning conditional edge in LangGraph schedules in the same
+    Pregel superstep. The operator.add reducers on reasoning_trace and
+    errors (Phase 2 Pitfall 1, Phase 3 D-05) safely carry the concurrent
+    appends; fuel_data and route_data are written by disjoint branches
+    so last-write-wins is correct.
     """
     ns = state.get("next_step", "respond")
+    if ns == "fanout_fuel_route":
+        return ["fuel_agent", "route_agent"]
     return {
         "fetch_fuel": "fuel_agent",
         "fetch_route": "route_agent",
         "calculate_price": "pricing_agent",
         "clarify": "response",
         "respond": "response",
-        "search_context": "response",
+        "search_context": "search_agent",  # Phase 5 D-10 — was response stub
     }.get(ns, "response")
 
 
@@ -175,7 +189,16 @@ def build_graph(checkpointer=None):
     g.add_node("planner", _wrap_error_sink("planner", planner_node), retry_policy=retry)
     g.add_node("fuel_agent", _wrap_error_sink("fuel_agent", fuel_agent_node), retry_policy=retry)
     g.add_node("route_agent", _wrap_error_sink("route_agent", route_agent_node), retry_policy=retry)
+    # Phase 5 D-10: search_agent is wrapped in the same error sink as the
+    # other specialists. Tavily failures already convert to search_context=None
+    # inside the node (D-12 graceful warn), so the sink is belt-and-braces
+    # for any non-retryable post-RuntimeError surprise.
+    g.add_node("search_agent", _wrap_error_sink("search_agent", search_agent_node), retry_policy=retry)
     g.add_node("pricing_agent", pricing_agent_node, retry_policy=retry)
+    # Phase 5 ORCH-09: hitl_gate sits between pricing_agent and response.
+    # NOT wrapped in error sink (interrupt is by-design pause, not error)
+    # and NOT given a retry_policy (the interrupt should not be retried).
+    g.add_node("hitl_gate", hitl_gate_node)
     g.add_node("response", _wrap_error_sink("response", response_node), retry_policy=retry)
 
     g.add_edge(START, "planner")
@@ -185,6 +208,7 @@ def build_graph(checkpointer=None):
         {
             "fuel_agent": "fuel_agent",
             "route_agent": "route_agent",
+            "search_agent": "search_agent",  # Phase 5 D-10 NEW
             "pricing_agent": "pricing_agent",
             "response": "response",
         },
@@ -192,7 +216,14 @@ def build_graph(checkpointer=None):
     # D-03: specialists return to planner for next routing decision
     g.add_edge("fuel_agent", "planner")
     g.add_edge("route_agent", "planner")
-    g.add_edge("pricing_agent", "planner")
+    g.add_edge("search_agent", "planner")  # Phase 5 D-03 loop closure
+    # Phase 5 ORCH-09: pricing -> hitl_gate -> response (was: pricing -> planner
+    # per Phase 3 D-03). Per RESEARCH Pitfall 6, this bypass is intentional —
+    # pricing is the final compute step within a turn, so the next-turn
+    # planner loop is entered via fresh chat invocations, not via the
+    # in-turn loop edge.
+    g.add_edge("pricing_agent", "hitl_gate")
+    g.add_edge("hitl_gate", "response")
     g.add_edge("response", END)
 
     compiled = g.compile(checkpointer=checkpointer)

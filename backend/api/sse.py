@@ -10,7 +10,17 @@ from typing import Any, Dict, Literal
 
 __all__ = ["format_sse", "EventType"]
 
-EventType = Literal["meta", "trace", "answer", "error", "done"]
+EventType = Literal[
+    "meta",
+    "trace",
+    "answer",
+    "error",
+    "done",
+    # Phase 5 D-06 sixth event type — emitted by POST /api/chat when the
+    # graph pauses on the HITL gate (interrupt). Carries the surcharge
+    # breakdown + threshold so the FE can render Approve/Deny buttons.
+    "approval_required",
+]
 
 
 def format_sse(event_type: EventType, payload: Dict[str, Any]) -> bytes:

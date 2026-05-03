@@ -104,12 +104,16 @@ Plans:
   3. Langfuse dashboard shows traced LLM calls, tool invocations, and user feedback scores for completed queries
   4. User feedback (thumbs up/down) on a response is visible in Langfuse as a score entry
   5. README.md, architecture.md, and data source docs are complete and accurate for submission
-**Plans**: 5 plans
+**Plans**: 7 plans
 
 Plans:
-- [ ] 05-01: TBD
-- [ ] 05-02: TBD
-- [ ] 05-03: TBD
+- [x] 05-01-PLAN.md — Wave 0 foundation: Python 3.11 bump, deps (langfuse, tavily-python), AgentState v3 (approval_decision, search_context), config constants, observability.py + Pydantic models + conftest fixtures
+- [x] 05-02-PLAN.md — Langfuse callback wiring in chat handler + formula accuracy auto-eval after pricing_agent (OBS-01, OBS-03)
+- [x] 05-03-PLAN.md — Parallel fan-out: planner emits fanout_fuel_route sentinel; graph router returns list[str] for same-superstep parallel scheduling (ORCH-07)
+- [x] 05-04-PLAN.md — Tavily search agent: search_fuel_news tool + search_agent_node + planner news intent + graph wiring + response_node Market context line (TOOL-05)
+- [x] 05-05-PLAN.md — HITL approval gate: hitl_gate_node + interrupt() + sixth SSE event approval_required + Command(resume) in chat handler + deny path in response_node (ORCH-09)
+- [x] 05-06-PLAN.md — Backend POST /api/feedback + frontend wires (postFeedback, useChatStream approve, ApprovalCard, SearchContextLine, FeedbackButtons swap, MessageList branch) (API-05, OBS-02)
+- [x] 05-07-PLAN.md — Documentation: README.md (DOC-01), docs/architecture.md update (DOC-02), docs/data-sources.md (DOC-04), screenshots, demo.mp4, v1.0 tag (D-21)
 
 ## Progress
 
@@ -122,7 +126,7 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5
 | 2. Tools & Agent Nodes | 0/3 | Not started | - |
 | 3. Graph Assembly & API Layer | 0/3 | Not started | - |
 | 4. Frontend & Reasoning Trace | 5/5 | Complete   | 2026-04-26 |
-| 5. Polish, Observability & Docs | 0/3 | Not started | - |
+| 5. Polish, Observability & Docs | 6/7 | Wave 6 PARTIAL — Plan 05-07 Tasks 1-3 done (DOC-01/02/04 docs); Tasks 4-5 pending HUMAN action (demo + screenshots; v1.0 tag) | - |
 
 ## Backlog
 

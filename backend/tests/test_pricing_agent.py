@@ -142,3 +142,51 @@ def test_gemini_failure_deterministic_fallback(mocker, monkeypatch):
         or f"{surcharge['surcharge_pct']*100:.1f}" in reasoning
         or "120" in reasoning  # base rate
     )
+
+
+def test_guards_missing_route_data():
+    """gap-4 (UAT 260503-qzx): when planner hallucinates next_step='calculate_price'
+    before route_agent ran, pricing_agent must short-circuit gracefully instead of
+    raising KeyError on state['route_data']['zone']."""
+    state = _full_state()
+    state["route_data"] = None
+
+    # Should NOT raise.
+    result = pricing_agent_node(state)
+
+    assert result["next_step"] == "respond"
+    assert len(result["errors"]) == 1
+    err = result["errors"][0]
+    assert err["node"] == "pricing_agent"
+    assert err["exception_type"] == "KeyError"
+    assert "route_data" in err["message"]
+    assert err["timestamp"].endswith("Z")
+
+    assert len(result["reasoning_trace"]) == 1
+    trace = result["reasoning_trace"][0]
+    assert trace["agent"] == "pricing_agent"
+    assert trace["status"] == "warn"
+    assert trace["tool"] is None
+
+    # Partial-state return must NOT include a surcharge_result key
+    # (response_node renders status='partial' on its absence).
+    assert "surcharge_result" not in result
+
+
+def test_guards_missing_fuel_data():
+    """gap-4 (UAT 260503-qzx): symmetric to missing route_data — guard fires when
+    fuel_data is absent (e.g. fuel_agent skipped or failed silently upstream)."""
+    state = _full_state()
+    state["fuel_data"] = None
+
+    result = pricing_agent_node(state)
+
+    assert result["next_step"] == "respond"
+    assert len(result["errors"]) == 1
+    err = result["errors"][0]
+    assert err["node"] == "pricing_agent"
+    assert err["exception_type"] == "KeyError"
+    assert "fuel_data" in err["message"]
+
+    assert result["reasoning_trace"][0]["status"] == "warn"
+    assert "surcharge_result" not in result

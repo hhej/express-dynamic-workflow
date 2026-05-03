@@ -6,8 +6,10 @@
 
 /** POST /api/chat request body. Mirrors backend ChatRequest. */
 export interface ChatRequest {
-  message: string;
+  message?: string;
   thread_id?: string;
+  /** Plan 05-05 D-06: HITL resume decision; pair with thread_id, omit message. */
+  approve?: boolean;
 }
 
 /** Item in `GET /api/conversations` array. Mirrors backend ConversationSummary. */

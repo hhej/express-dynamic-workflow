@@ -1,6 +1,8 @@
 """Pydantic input/output models for all agent tools (TOOL-06)."""
 from __future__ import annotations
 
+from typing import List, Optional
+
 from pydantic import BaseModel, Field
 
 __all__ = [
@@ -9,6 +11,10 @@ __all__ = [
     "FuelData",
     "RouteData",
     "RateResult",
+    # Phase 5 additions
+    "SearchInput",
+    "SearchSource",
+    "SearchResult",
 ]
 
 
@@ -117,3 +123,39 @@ class RateResult(BaseModel):
     base_rate: float = Field(description="Base rate in THB")
     currency: str = Field(default="THB")
     rate_tier: str = Field(description="Weight tier description")
+
+
+# ----- Phase 5 search models (TOOL-05) -----
+
+
+class SearchInput(BaseModel):
+    """Input for search_fuel_news tool (TOOL-05)."""
+
+    query: str = Field(min_length=1, description="Normalized search query")
+    max_results: int = Field(default=5, ge=1, le=10)
+
+
+class SearchSource(BaseModel):
+    """One ranked Tavily news result."""
+
+    title: str
+    url: str
+    snippet: str = Field(default="", description="First ~240 chars of content")
+    published_at: Optional[str] = Field(
+        default=None,
+        description="Tavily 'published_date' (ISO-8601 when present)",
+    )
+
+
+class SearchResult(BaseModel):
+    """Output of search_fuel_news (D-11 search_context shape)."""
+
+    query: str
+    summary: Optional[str] = Field(
+        default=None,
+        description="1-line LLM-generated answer from Tavily 'answer' field",
+    )
+    sources: List[SearchSource] = Field(default_factory=list)
+    fetched_at: str = Field(
+        description="ISO-8601 UTC with 'Z' suffix (Phase 3 D-13 pattern)"
+    )
