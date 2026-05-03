@@ -50,7 +50,7 @@ Requirements for initial release. Each maps to roadmap phases.
 - [x] **API-02**: GET /api/conversations lists all past conversation threads
 - [x] **API-03**: GET /api/conversations/:id returns full conversation history for a thread
 - [x] **API-04**: GET /api/fuel-prices?days=30 returns historical fuel price data for charts
-- [ ] **API-05**: POST /api/feedback accepts user feedback (score + reason) and forwards to Langfuse
+- [x] **API-05**: POST /api/feedback accepts user feedback (score + reason) and forwards to Langfuse
 
 ### Frontend
 
@@ -64,7 +64,7 @@ Requirements for initial release. Each maps to roadmap phases.
 ### Observability
 
 - [x] **OBS-01**: Langfuse callback handler traces all LLM calls, tool calls, and agent steps
-- [ ] **OBS-02**: User feedback scores forwarded to Langfuse Score API for evaluation tracking
+- [x] **OBS-02**: User feedback scores forwarded to Langfuse Score API for evaluation tracking
 - [x] **OBS-03**: Formula accuracy auto-eval: independent calculation vs agent output on every query
 
 ### Documentation
@@ -136,7 +136,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | API-02 | Phase 3 | Complete |
 | API-03 | Phase 3 | Complete |
 | API-04 | Phase 3 | Complete |
-| API-05 | Phase 5 | Pending |
+| API-05 | Phase 5 | Complete |
 | UI-01 | Phase 4 | Complete |
 | UI-02 | Phase 4 | Complete |
 | UI-03 | Phase 4 | Complete |
@@ -144,7 +144,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | UI-05 | Phase 4 | Complete |
 | UI-06 | Phase 4 | Complete |
 | OBS-01 | Phase 5 | Complete |
-| OBS-02 | Phase 5 | Pending |
+| OBS-02 | Phase 5 | Complete |
 | OBS-03 | Phase 5 | Complete |
 | DOC-01 | Phase 5 | Pending |
 | DOC-02 | Phase 5 | Pending |

@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-stopped_at: Completed 05-05-PLAN.md (HITL approval gate ORCH-09)
-last_updated: "2026-05-03T09:38:05Z"
+stopped_at: Completed 05-06-PLAN.md (feedback API + frontend wires API-05, OBS-02)
+last_updated: "2026-05-03T10:25:00Z"
 last_activity: 2026-05-03
 progress:
   total_phases: 5
   completed_phases: 4
   total_plans: 25
-  completed_plans: 22
+  completed_plans: 23
   percent: 17
 ---
 
@@ -26,9 +26,9 @@ See: .planning/PROJECT.md (updated 2026-04-04)
 ## Current Position
 
 Phase: 05 (polish-observability-docs) — EXECUTING
-Plan: 5 of 7 complete; Wave 4 (Plan 05-05 HITL gate) finished
-Status: Ready to execute Wave 5 (Plan 05-06 frontend feedback + HITL UI)
-Last activity: 2026-05-03 — Plan 05-05 complete (ORCH-09)
+Plan: 6 of 7 complete; Wave 5 finished
+Status: Ready to execute Wave 6 (Plan 05-07 docs + tag)
+Last activity: 2026-05-03 — Plan 05-06 complete (API-05, OBS-02)
 
 Progress: [███░░░░░░░] 71%
 
@@ -74,6 +74,7 @@ Progress: [███░░░░░░░] 71%
 | Phase 05 P02 | 30min | 2 tasks | 5 files |
 | Phase 05 P04 | ~30min | 3 tasks | 11 files |
 | Phase 05 P05 | ~50min | 2 tasks | 9 files |
+| Phase 05 P06 | ~45min | 3 tasks | 16 files |
 
 ## Accumulated Context
 
@@ -175,6 +176,16 @@ Recent decisions affecting current work:
 - [Phase 05]: Plan 05-05: _drain_events helper centralizes astream_events filter logic across fresh + resume paths — eliminates contract-drift risk on what counts as a trace/answer event
 - [Phase 05]: Plan 05-05: response_node deny short-circuit — status='partial', surcharge_result=None in final_payload, prose contains 'declined', NO breakdown table (D-07); Market context prefix (D-11) preserved on deny path so provenance applies regardless of accept/decline
 - [Phase 05]: Plan 05-05: Test fixture pattern adapted from `async_client` (referenced in plan but doesn't exist in conftest) to existing TestClient + app_with_mocks pattern — install MagicMock graph stub AFTER lifespan enters since lifespan replaces app.state.graph with the real compiled graph (Rule 3 blocking + Rule 1 bug fixes documented in 05-05-SUMMARY.md)
+- [Phase 05]: Plan 05-06: Deterministic feedback wire — backend POST /api/feedback parses message_id "{thread_id}-{turn_idx}" (anchored on trailing -<digits>) and calls seed_trace_id(thread_id, turn_idx); SAME helper Plan 05-02 used to attach the per-turn Langfuse CallbackHandler, so user_feedback Score lands on the EXACT trace WITHOUT a name lookup
+- [Phase 05]: Plan 05-06: Defense-in-depth thread_id mismatch returns 400 — body thread_id and message_id-encoded thread_id must agree; protects against accidental cross-thread Score posting if FE serialises inconsistently
+- [Phase 05]: Plan 05-06: D-13 graceful no-op preserved on /api/feedback — when LANGFUSE_* keys missing, returns 200 with delivered=false (NOT a user-facing error), so FE silent-error contract stays clean
+- [Phase 05]: Plan 05-06: useChatStream reducer DONE guard for Pitfall 2 — `if state.status === 'awaiting_approval' return state` prevents the unconditional finally-block DONE dispatch from auto-flipping the FE out of the paused HITL state; single chokepoint vs forking send()/approve() finally logic
+- [Phase 05]: Plan 05-06: FeedbackButtons UI is intentionally unchanged from Phase 4 (same glyphs, same aria-pressed, same disabled-after-vote) — only the side-effect swaps from localStorage write to api.postFeedback POST; on POST failure, error is console.error'd and button stays voted (silent — no toast)
+- [Phase 05]: Plan 05-06: ApprovalCard uses NEUTRAL outline buttons (border-gray-300 bg-white) NOT accent blue per UI-SPEC D-07 — deliberate user choice; CapCallout's yellow-50/yellow-300 palette reused so no new color tokens introduced
+- [Phase 05]: Plan 05-06: MarkdownAnswer strips backend-emitted "> **Market context:**" blockquote and renders typed SearchContextLine instead — avoids dual-rendering anti-pattern; backend still emits the blockquote so non-FE consumers see the provenance
+- [Phase 05]: Plan 05-06: AssistantMessage.payload widened to FinalPayload | null so the awaiting-approval slot can render ApprovalCard with no payload yet; backward-compatible since existing consumers always pass non-null
+- [Phase 05]: Plan 05-06: ChatRequest.message widened from required to optional in frontend/types/api.types.ts to mirror Plan 05-02 backend ChatRequest contract — required for the resume path that sends only {thread_id, approve}
+- [Phase 05]: Plan 05-06: PROCESS DEVIATION — executor agent's bash sandbox blocked git mutations (git add, git commit, gsd-tools commit) AND test runs (pytest, npm test); read-only git status/diff allowed. Per parallel_execution wrap-up discipline, executor finished all 3 tasks of code work, ran static verification via Read+Grep on every acceptance criterion, wrote SUMMARY.md and STATE.md updates inline, and handed off to orchestrator to commit the 16 staged files in task-aligned chunks. Same pattern as Plan 05-04 stall and Plan 05-01 wrap-up.
 
 ### Pending Todos
 
@@ -196,6 +207,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-05-03T09:38:05Z
-Stopped at: Completed 05-05-PLAN.md (HITL approval gate ORCH-09 — hitl_gate node, pricing → hitl_gate → response topology, sixth SSE event approval_required, Command(resume) handler, response_node deny path)
+Last session: 2026-05-03T10:25:00Z
+Stopped at: Completed 05-06-PLAN.md (feedback API + frontend wires API-05, OBS-02 — POST /api/feedback handler with deterministic trace_id resolution, frontend types extended for sixth SSE event + new agent names + SearchContext + ApprovalPayload, api.postFeedback wrapper, useChatStream.approve() callback, ApprovalCard + SearchContextLine components, FeedbackButtons localStorage→API swap, MarkdownAnswer SearchContextLine prepend, MessageList ApprovalCard branch)
 Resume file: None
