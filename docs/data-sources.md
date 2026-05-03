@@ -58,14 +58,16 @@ Metro is the single supported region (`central-1` / `central-2` /
   severity (1–5).
 - **Cache:** 15-minute TTL via `backend/agent/tools/_cache.py::TTLCache`,
   keyed on `(origin_normalised, destination_normalised)`.
-- **Bangkok Metro provinces covered:** Bangkok, Nonthaburi, Pathum Thani,
-  Samut Prakan, Nakhon Pathom, Samut Sakhon, Ayutthaya.
-- **Province → zone mapping (verbatim):**
-  - `central-1`: Bangkok
-  - `central-2`: Nonthaburi, Pathum Thani, Samut Prakan, Nakhon Pathom,
-    Samut Sakhon, Ayutthaya
-  - `central-3`: Reserved for outer Bangkok Metro ring (e.g., outer
-    Ayutthaya districts, far Pathum Thani) — currently sparse.
+- **Bangkok Metro provinces covered:** Bangkok, Nonthaburi, Pathum Thani, Samut Prakan, Ayutthaya, Ang Thong, Saraburi, Nakhon Pathom, Samut Sakhon, Lop Buri, Sing Buri, Chai Nat, Suphan Buri, Kanchanaburi, Ratchaburi.
+- **Province -> zone mapping (verbatim from `data/raw/zone_definitions.json`):**
+  - `central-1` (Bangkok Metro core): Bangkok, Nonthaburi, Pathum Thani, Samut Prakan
+  - `central-2` (Greater Central): Ayutthaya, Ang Thong, Saraburi, Nakhon Pathom, Samut Sakhon
+  - `central-3` (Extended Central): Lop Buri, Sing Buri, Chai Nat, Suphan Buri, Kanchanaburi, Ratchaburi
+- **Out-of-scope provinces (raise ValueError "No Bangkok Metro zone for ..." -> graceful status='partial' clarify response):**
+  Any Thai province NOT in the lists above (e.g. Chiang Mai, Phuket, Khon Kaen,
+  Songkhla). Per backlog 999.2, the original Central Region scope was reduced
+  to Bangkok Metro to keep rate-table coverage tight.
+  Multi-region expansion is V2-02 (deferred).
 - **Free-tier quota:** $200/month Google Maps credit (sufficient for
   demo + dev).
 

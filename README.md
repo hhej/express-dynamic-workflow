@@ -214,9 +214,13 @@ never affects the user response.
 
 ## Limitations
 
-- **Bangkok Metro only** — central-1/2/3 zones cover Bangkok plus
-  Nonthaburi, Pathum Thani, Samut Prakan, Nakhon Pathom, Samut Sakhon,
-  and Ayutthaya. Multi-region expansion is V2-02 (deferred).
+- **Bangkok Metro only** — the route tool covers central-1 (Bangkok core),
+  central-2 (Greater Central including Ayutthaya, Saraburi, Nakhon Pathom),
+  and central-3 (Extended Central including Lop Buri, Kanchanaburi, Ratchaburi).
+  Out-of-scope destinations (e.g. Chiang Mai, Phuket) trigger a graceful status='partial' clarify response naming the supported zone set — see
+  [docs/data-sources.md](docs/data-sources.md) for the full province list.
+  Multi-region expansion is V2-02 (deferred). The original Central Region
+  scope was renamed to Bangkok Metro per backlog 999.2 (resolved 2026-04-25).
 - **Gemini Flash 15 RPM** — sufficient for demo; not production
   throughput. Free tier limit.
 - **Tavily 1000 searches/month** — free tier; demo footprint ~10/run.
