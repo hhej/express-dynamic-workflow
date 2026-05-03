@@ -141,3 +141,42 @@ remediation_hint: |
   Also consider adding a dedicated user_intent="news_query" enum value so news queries don't
   share the "out_of_scope" bucket with truly unsupported queries.
 debug_session: null
+
+### gap-4: pricing_agent crashes on missing route_data/fuel_data
+status: resolved
+resolved_by: quick-task 260503-qzx
+test: 20
+severity: medium
+symptom: |
+  Q06 of the 20-question UAT ("Surcharge for 100kg bounce Bangkok to Samut Sakhon?")
+  crashed with KeyError: 'route_data' in 2.7 seconds — far below a normal turn's
+  latency, indicating the planner LLM emitted next_step="calculate_price" before
+  route_agent had run. pricing_agent_node read state["route_data"]["zone"] at line
+  138 with no defensive check and the KeyError propagated as an SSE error event,
+  killing the conversation. Stochastic — same query may succeed on retry — but
+  a real defect that crashes user conversations.
+suspected_root_cause: |
+  Two contributing causes, only one of which we fix here:
+  (1) The planner LLM occasionally hallucinates next_step="calculate_price" without
+      first routing through fetch_route (and possibly fetch_fuel). This is a
+      planner-side prompt/reliability issue — out of scope for this fix.
+  (2) pricing_agent_node had no precondition guard on state["route_data"] or
+      state["fuel_data"]. Defense-in-depth at the consumer is the right layer:
+      even with a perfect planner, a guard here makes the node robust to upstream
+      regressions and stochastic LLM misbehaviour.
+remediation_hint: |
+  Add a precondition guard at the TOP of pricing_agent_node, before any subscript
+  reads. If state.get("route_data") is None/missing OR state.get("fuel_data") is
+  None/missing:
+    - Append a structured error to state["errors"] (D-24 sink shape:
+      {node, exception_type, message, timestamp}; see route_agent.py:128-159
+      for the canonical pattern from gap-2)
+    - Append a reasoning_trace entry with status="warn" so the trace panel shows
+      what happened
+    - Return next_step="respond" so response_node renders a status='partial'
+      answer
+  Do NOT route back to planner (loop risk with a misbehaving planner LLM).
+  Add 2 regression tests asserting the function does not raise, returns
+  next_step='respond', and state.errors has one entry with node='pricing_agent'.
+  Do NOT modify the planner — that's a separate, larger problem.
+debug_session: null
