@@ -556,3 +556,88 @@ def test_planner_trace_entry_records_fanout(monkeypatch):
     assert trace[0]["agent"] == "planner"
     # 999.3 fix: tool_output uses post-override next_step.
     assert trace[0]["tool_output"]["next_step"] == "fanout_fuel_route"
+
+
+# ---------------------------------------------------------------------------
+# Phase 5 TOOL-05 search_context routing
+# ---------------------------------------------------------------------------
+
+
+def test_planner_emits_search_context_for_news_intent(monkeypatch):
+    """D-09: planner passes search_context next_step through unchanged.
+
+    The cache-aware override block must NOT downgrade search_context to
+    fetch_route just because route_data is missing — search is intent-driven,
+    not state-driven.
+    """
+    state = _user_state("What's driving diesel prices this week?")
+    monkeypatch.setattr(
+        mod,
+        "get_chat_model",
+        lambda **_: _scripted_llm(
+            '{"user_intent": "surcharge_query", '
+            '"shipping_type": null, "weight_kg": null, '
+            '"origin": null, "destination": null, '
+            '"missing_fields": [], '
+            '"next_step": "search_context", '
+            '"clarification_reason": null}'
+        ),
+    )
+
+    result = planner_node(state)
+
+    assert result["next_step"] == "search_context"
+
+
+def test_planner_search_context_bypasses_cache_override(monkeypatch):
+    """D-09: even with fresh fuel_data + matching route_data the planner
+    does NOT downgrade search_context to calculate_price — search runs."""
+    state = _user_state(
+        "Why is diesel up?",
+        shipping_type="bounce",
+        weight_kg=15.0,
+        origin="Bangkok",
+        destination="Nonthaburi",
+        fuel_data={
+            "price": 31.0,
+            "baseline": 29.94,
+            "delta_pct": 0.0354,
+            "date": "2026-05-01",
+            "unit": "THB/L",
+            "source": "eppo_live",
+            "fetched_at": _now_iso_z(),
+        },
+        route_data={
+            "origin": "Bangkok",
+            "destination": "Nonthaburi",
+            "distance_km": 18.5,
+            "duration_min": 30,
+            "traffic_severity": 2,
+            "zone": "central-1",
+        },
+    )
+    monkeypatch.setattr(
+        mod,
+        "get_chat_model",
+        lambda **_: _scripted_llm(
+            '{"user_intent": "surcharge_query", '
+            '"shipping_type": "bounce", "weight_kg": 15, '
+            '"origin": "Bangkok", "destination": "Nonthaburi", '
+            '"missing_fields": [], '
+            '"next_step": "search_context", '
+            '"clarification_reason": null}'
+        ),
+    )
+
+    result = planner_node(state)
+
+    assert result["next_step"] == "search_context"
+
+
+def test_graph_routes_search_context_to_search_agent():
+    """D-10: _route_from_planner maps search_context → search_agent."""
+    from backend.agent.graph import _route_from_planner
+
+    assert (
+        _route_from_planner({"next_step": "search_context"}) == "search_agent"
+    )

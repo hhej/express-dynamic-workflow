@@ -19,7 +19,10 @@ Routing decisions (next_step):
 - calculate_price: have fuel_data + route_data + shipping_type + weight_kg; compute surcharge
 - clarify: required field missing (shipping_type, weight_kg, origin, or destination); set missing_fields
 - respond: ready to render final answer (after calculate_price, OR for follow-up answered from cache)
-- search_context: deferred to Phase 5; do NOT emit this in v1
+- search_context: emit ONLY when the user is asking about fuel news,
+  market trends, or "why" questions about prices ("why is diesel up?",
+  "what's driving fuel prices?", "diesel news this week"). Do NOT emit
+  for surcharge calculation queries — those use fetch_fuel/fetch_route.
 
 user_intent values (D-07):
 - surcharge_query: new surcharge calculation
@@ -40,7 +43,7 @@ Return ONLY a JSON object matching the PlannerOutput schema:
   "origin": "<Title Case>" | null,
   "destination": "<Title Case>" | null,
   "missing_fields": ["<field name>", ...],
-  "next_step": "fetch_fuel|fetch_route|calculate_price|clarify|respond",
+  "next_step": "fetch_fuel|fetch_route|calculate_price|clarify|respond|search_context",
   "clarification_reason": "<short reason>" | null
 }
 """

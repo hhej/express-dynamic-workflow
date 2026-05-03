@@ -42,6 +42,24 @@ _FOOTER = "*Reasoning trace available below.*"
 _CAP_CALLOUT = "> ⚠ Cap/floor applied — review recommended"
 
 
+def _market_context_line(state: dict) -> Optional[str]:
+    """D-11 (Phase 5): "Market context: ..." prefix when search_context present.
+
+    Returns ``None`` when ``state.search_context`` is missing/None or
+    when its ``summary`` is empty/whitespace. Frontend may also render
+    this from the trace panel, but emitting the prose here keeps the
+    markdown self-contained for Langfuse trace inspection and any
+    non-FE consumers.
+    """
+    sc = state.get("search_context")
+    if not sc:
+        return None
+    summary = (sc.get("summary") or "").strip()
+    if not summary:
+        return None
+    return f"> **Market context:** {summary}"
+
+
 def _render_table(surcharge_result: dict) -> str:
     """Render the 4-row D-11 markdown table from a surcharge_result dict.
 
@@ -194,6 +212,14 @@ def response_node(state: dict) -> dict:
                 markdown = f"{_CAP_CALLOUT}\n\n{markdown}"
         else:
             markdown = prose
+
+    # Phase 5 D-11: prepend a "Market context: <summary>" line whenever
+    # state.search_context.summary is present. Sits ABOVE the cap callout
+    # (provenance first, then warnings, then prose/table) so the user
+    # sees the explanatory context before the rest of the breakdown.
+    mc_line = _market_context_line(state)
+    if mc_line:
+        markdown = f"{mc_line}\n\n{markdown}"
 
     final_payload = {
         "markdown": markdown,

@@ -256,20 +256,25 @@ def planner_node(state: dict) -> dict:
     # follow-ups where origin/destination were inherited from prior state.
     # Note: when next_step="fanout_fuel_route" (Phase 5 D-01) neither branch
     # below matches, so the sequential cache-skip cascade is preserved.
-    if next_step == "fetch_fuel" and _fuel_fresh(state):
-        # Fuel is cached and fresh — advance to next logical step.
-        if _route_matches(state, merged_origin, merged_destination):
-            # Route also cached: only need pricing (assuming inputs present).
-            if merged_shipping and merged_weight is not None:
-                next_step = "calculate_price"
+    #
+    # Phase 5 D-09: search_context is intent-driven, not state-driven —
+    # skip the cache-aware override entirely so news/market questions
+    # always reach the search_agent regardless of fuel/route cache state.
+    if next_step != "search_context":
+        if next_step == "fetch_fuel" and _fuel_fresh(state):
+            # Fuel is cached and fresh — advance to next logical step.
+            if _route_matches(state, merged_origin, merged_destination):
+                # Route also cached: only need pricing (assuming inputs present).
+                if merged_shipping and merged_weight is not None:
+                    next_step = "calculate_price"
+                else:
+                    next_step = "clarify"
             else:
-                next_step = "clarify"
-        else:
-            next_step = "fetch_route"
-    elif next_step == "fetch_route" and _route_matches(
-        state, merged_origin, merged_destination
-    ):
-        next_step = "calculate_price" if _fuel_fresh(state) else "fetch_fuel"
+                next_step = "fetch_route"
+        elif next_step == "fetch_route" and _route_matches(
+            state, merged_origin, merged_destination
+        ):
+            next_step = "calculate_price" if _fuel_fresh(state) else "fetch_fuel"
 
     prior = len(state.get("reasoning_trace") or [])
     return {

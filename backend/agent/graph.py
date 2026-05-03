@@ -36,6 +36,7 @@ from backend.agent.nodes.fuel_agent import fuel_agent_node
 from backend.agent.nodes.route_agent import route_agent_node
 from backend.agent.nodes.pricing_agent import pricing_agent_node
 from backend.agent.nodes.response_node import response_node
+from backend.agent.nodes.search_agent import search_agent_node
 
 __all__ = ["build_graph", "phase3_retry_on"]
 
@@ -132,8 +133,8 @@ def _route_from_planner(state: dict):
     """Conditional-edge selector keyed on state.next_step.
 
     Maps the locked next_step vocabulary to graph node names. The
-    search_context value (Phase-5 stub) routes to response so the user
-    gets a graceful "not supported" message rather than a graph error.
+    search_context value routes to the new search_agent node (Phase 5 D-10);
+    earlier phases routed it to response as a stub.
 
     Phase 5 D-01: returns a list[str] for parallel fan-out — when the
     planner emits the "fanout_fuel_route" sentinel (set when both fuel
@@ -154,7 +155,7 @@ def _route_from_planner(state: dict):
         "calculate_price": "pricing_agent",
         "clarify": "response",
         "respond": "response",
-        "search_context": "response",
+        "search_context": "search_agent",  # Phase 5 D-10 — was response stub
     }.get(ns, "response")
 
 
@@ -187,6 +188,11 @@ def build_graph(checkpointer=None):
     g.add_node("planner", _wrap_error_sink("planner", planner_node), retry_policy=retry)
     g.add_node("fuel_agent", _wrap_error_sink("fuel_agent", fuel_agent_node), retry_policy=retry)
     g.add_node("route_agent", _wrap_error_sink("route_agent", route_agent_node), retry_policy=retry)
+    # Phase 5 D-10: search_agent is wrapped in the same error sink as the
+    # other specialists. Tavily failures already convert to search_context=None
+    # inside the node (D-12 graceful warn), so the sink is belt-and-braces
+    # for any non-retryable post-RuntimeError surprise.
+    g.add_node("search_agent", _wrap_error_sink("search_agent", search_agent_node), retry_policy=retry)
     g.add_node("pricing_agent", pricing_agent_node, retry_policy=retry)
     g.add_node("response", _wrap_error_sink("response", response_node), retry_policy=retry)
 
@@ -197,6 +203,7 @@ def build_graph(checkpointer=None):
         {
             "fuel_agent": "fuel_agent",
             "route_agent": "route_agent",
+            "search_agent": "search_agent",  # Phase 5 D-10 NEW
             "pricing_agent": "pricing_agent",
             "response": "response",
         },
@@ -204,6 +211,7 @@ def build_graph(checkpointer=None):
     # D-03: specialists return to planner for next routing decision
     g.add_edge("fuel_agent", "planner")
     g.add_edge("route_agent", "planner")
+    g.add_edge("search_agent", "planner")  # Phase 5 D-03 loop closure
     g.add_edge("pricing_agent", "planner")
     g.add_edge("response", END)
 
