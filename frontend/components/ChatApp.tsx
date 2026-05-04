@@ -57,7 +57,12 @@ export function ChatApp() {
         ...stripped,
         {
           role: 'assistant',
-          id: `a-${Date.now()}`,
+          // Phase 7 D-03: BE-stamped message_id from FinalPayload (replaces
+          // a-${Date.now()} clock-derived id — audit Issue 3 root cause).
+          // Single source of truth: backend builds the string at
+          // backend/api/routes/chat.py::_drain_events and the frontend reads
+          // it verbatim. NEVER reconstruct on the FE side.
+          id: chat.finalPayload!.message_id,
           payload: chat.finalPayload as FinalPayload,
         },
       ];
@@ -113,13 +118,28 @@ export function ChatApp() {
         // minimal FinalPayload so MessageList's renderer keeps working.
         const replayed: ChatMessage[] = detail.messages.map((m, i) => {
           if (m.role === 'assistant') {
+            // Phase 7 D-05: BE attaches message_id to the LAST assistant of each
+            // turn (see backend/api/routes/conversations.py::_attach_message_ids).
+            // Earlier in-turn assistants (HITL pre-pause partials) get no field —
+            // we propagate the absence into payload.message_id (empty string)
+            // so the MessageList feedback-button gate (Task 3 / D-08) suppresses
+            // FeedbackButtons on non-canonical rows.
             const payload: FinalPayload = {
               markdown: m.content,
               surcharge_result: detail.surcharge_result,
               capped: detail.surcharge_result?.capped ?? false,
               status: 'ok',
+              message_id: m.message_id ?? '',
             };
-            return { role: 'assistant', id: `replay-${i}`, payload };
+            return {
+              role: 'assistant',
+              // Use BE-supplied id when present; fall back to a synthetic
+              // non-canonical id for non-last in-turn assistant rows so React's
+              // reconciliation key stays stable (FeedbackButtons won't render
+              // anyway because payload.message_id is empty — Task 3 gate).
+              id: m.message_id ?? `replay-noncanonical-${i}`,
+              payload,
+            };
           }
           return { role: 'user', content: m.content };
         });
