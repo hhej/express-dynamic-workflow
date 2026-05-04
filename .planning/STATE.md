@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-stopped_at: Completed 07-01-PLAN.md
-last_updated: "2026-05-04T07:08:43.709Z"
+stopped_at: Completed 07-02-PLAN.md
+last_updated: "2026-05-04T07:21:34.346Z"
 last_activity: 2026-05-04
 progress:
   total_phases: 8
   completed_phases: 6
   total_plans: 34
-  completed_plans: 32
+  completed_plans: 33
   percent: 71
 ---
 
@@ -26,7 +26,7 @@ See: .planning/PROJECT.md (updated 2026-04-04)
 ## Current Position
 
 Phase: 07 (feedback-contract-alignment) — EXECUTING
-Plan: 2 of 3
+Plan: 3 of 3
 Status: Ready to execute
 Last activity: 2026-05-04
 
@@ -83,6 +83,7 @@ Progress: [███░░░░░░░] 71%
 | Phase 06 P02 | 7min | 2 tasks | 7 files |
 | Phase 06 P03 | 2min | 1 tasks | 1 files |
 | Phase 07 P01 | 7min | 3 tasks | 6 files |
+| Phase 07 P02 | 7min | 3 tasks | 7 files |
 
 ## Accumulated Context
 
@@ -225,6 +226,10 @@ Recent decisions affecting current work:
 - [Phase 07]: Plan 07-01: _resume_stream passes cfg_turn (clamped) NOT turn_idx into _drain_events so message_id matches the SAME Langfuse trace the CallbackHandler attached to during the original paused turn — preserves Phase 5 D-14 trace continuity
 - [Phase 07]: Plan 07-01 [Rule 2 deviation]: response_node now appends rendered assistant markdown to state.messages on BOTH happy and deny paths — without this the FE resume path renders zero assistants (degenerate) and the plan's _attach_message_ids contract has no rows to stamp; deeper symptom of audit Issue 3 surfaced during RED phase
 - [Phase 07]: Plan 07-01: _attach_message_ids uses three-pass derivation (turn_for / last_assistant_per_turn / stamping) mirroring chat.py:_next_turn_idx semantics verbatim — 1 user message = 1 turn; ONLY last assistant per turn carries message_id (D-07); user + non-last assistants get silent absence (D-06)
+- [Phase 07]: Plan 07-02: FinalPayload.message_id REQUIRED at type-system boundary (D-04) — TypeScript compiler is the drift-prevention chokepoint, not runtime guards; cascade impact zero because all four shared fixtures propagated the field cleanly
+- [Phase 07]: Plan 07-02: handleResume map fallback id is synthetic literal (replay-noncanonical-i) NOT empty string — keeps React reconciliation keys stable while payload.message_id='' tells the MessageList gate (D-08) to suppress FeedbackButtons; two distinct values for two distinct concerns
+- [Phase 07]: Plan 07-02 [Rule 2 deviation]: useChatStream.setThreadId added — without it chat.threadId stayed null after every resume click and FeedbackButtons gate's threadId-truthy check silently suppressed feedback on EVERY resumed conversation; deeper bug than audit Issue 3 captured but exactly the class Plan 07-01 Rule 2 deviation hinted at
+- [Phase 07]: Plan 07-02: MessageList messageId prop reads m.payload.message_id NOT m.id (D-08) — both equal for canonical rows post-Task 2 but reading from payload makes feedback identity-of-truth visible at the call site; explicit data flow over reuse-the-React-key shortcut
 
 ### Pending Todos
 
@@ -249,6 +254,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-05-04T07:08:43.705Z
-Stopped at: Completed 07-01-PLAN.md
+Last session: 2026-05-04T07:21:16.920Z
+Stopped at: Completed 07-02-PLAN.md
 Resume file: None
