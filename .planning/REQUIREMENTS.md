@@ -54,7 +54,7 @@ Requirements for initial release. Each maps to roadmap phases.
 
 ### Frontend
 
-- [ ] **UI-01**: Chat interface for natural language surcharge queries with SSE streaming display
+- [x] **UI-01**: Chat interface for natural language surcharge queries with SSE streaming display
 - [x] **UI-02**: Reasoning trace panel showing agent steps, tool calls, and decisions for each query
 - [x] **UI-03**: Surcharge breakdown table in chat responses (base rate, surcharge %, amount, total)
 - [x] **UI-04**: Dashboard with fuel price trends and surcharge history charts (Recharts)
@@ -137,7 +137,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | API-03 | Phase 3 | Complete |
 | API-04 | Phase 3 | Complete |
 | API-05 | Phase 7 | Pending |
-| UI-01 | Phase 6 | Pending |
+| UI-01 | Phase 6 | Complete |
 | UI-02 | Phase 4 | Complete |
 | UI-03 | Phase 4 | Complete |
 | UI-04 | Phase 4 | Complete |

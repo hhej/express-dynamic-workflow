@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-stopped_at: Phase 6 context gathered
-last_updated: "2026-05-03T13:54:23.412Z"
-last_activity: 2026-05-03
+stopped_at: Completed 06-01-PLAN.md
+last_updated: "2026-05-04T05:11:30.003Z"
+last_activity: 2026-05-04
 progress:
   total_phases: 8
   completed_phases: 5
-  total_plans: 28
-  completed_plans: 28
+  total_plans: 31
+  completed_plans: 29
   percent: 71
 ---
 
@@ -21,14 +21,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-04-04)
 
 **Core value:** The agent must transparently reason through fuel price, route, and shipping data to produce an accurate, explainable surcharge recommendation.
-**Current focus:** Phase 05 — polish-observability-docs
+**Current focus:** Phase 06 — hitl-approval-ui-wiring
 
 ## Current Position
 
-Phase: 05 (polish-observability-docs) — EXECUTING
-Plan: 4 of 10
+Phase: 06 (hitl-approval-ui-wiring) — EXECUTING
+Plan: 2 of 3
 Status: Ready to execute
-Last activity: 2026-05-03
+Last activity: 2026-05-04
 
 Progress: [███░░░░░░░] 71%
 
@@ -79,6 +79,7 @@ Progress: [███░░░░░░░] 71%
 | Phase 05 P08 | 25min | 2 tasks | 4 files |
 | Phase 05 P09 | 6min | 2 tasks | 6 files |
 | Phase 05 P10 | 15min | 2 tasks | 6 files |
+| Phase 06 P01 | 3 min | 1 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -207,6 +208,8 @@ Recent decisions affecting current work:
 - [Quick 260503-rs8]: uvicorn must be restarted after deploying this fix — running server holds the OLD `_make_config` in memory; pytest exercises a fresh import each run so the test suite covers the new key without a server restart, but live `/api/chat` traffic does not pick up the trace_name until uvicorn is recycled.
 - [Quick 260503-s2h]: Top-level RunnableConfig.run_name='express-surcharge-agent' (sibling to configurable/callbacks/metadata, NOT inside metadata) — populates the Langfuse Observations 'Name' column via the langfuse-langchain CallbackHandler reading the LangChain root span name. Pairs with 260503-rs8's metadata.langfuse_trace_name (which populates the 'Trace Name' column) so both columns now match under one constant agent identity for dashboard filtering.
 - [Quick 260503-s2h]: Single in-place test extension in test_chat_attaches_callback_when_enabled (no new test function) — preserves the 186-test baseline established post-260503-rs8; success criteria explicitly required no test count delta.
+- [Phase 06]: Plan 06-01 D-01 + D-15.1: extended TraceStep.AGENT_LABEL with hitl_gate -> 'Approval gate' and search_agent -> 'Search agent'; added Vitest exhaustive-loop test (AGENT_NAMES) so any future AgentName addition that forgets AGENT_LABEL fails BOTH at tsc (Record<AgentName,string> TS2739) AND at runtime (loop assertion). Defense-in-depth drift prevention.
+- [Phase 06]: Plan 06-01 PROCESS DEVIATION: parallel 06-02 executor agent's git stage swept Plan 06-01's already-staged TraceStep.tsx + TraceStep.test.tsx files into commit ff68f26 'feat(06-02): add ApprovalCard errorMessage prop'. Code is correct AND committed (git show ff68f26 confirms exact spec match), only commit-message slug attribution drifted from (06-01) to (06-02). SUMMARY.md commit will land under (06-01) for grep-by-plan traceability. No functional impact.
 
 ### Pending Todos
 
@@ -231,6 +234,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-05-03T13:54:23.401Z
-Stopped at: Phase 6 context gathered
-Resume file: .planning/phases/06-hitl-approval-ui-wiring/06-CONTEXT.md
+Last session: 2026-05-04T05:11:30.000Z
+Stopped at: Completed 06-01-PLAN.md
+Resume file: None

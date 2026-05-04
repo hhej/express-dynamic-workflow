@@ -133,7 +133,7 @@ Plans:
 **UI hint**: yes
 
 Plans:
-- [ ] 06-01-PLAN.md — TraceStep AGENT_LABEL keys + exhaustive AgentName loop test (closes audit Issue 1; ROADMAP §SC 1)
+- [x] 06-01-PLAN.md — TraceStep AGENT_LABEL keys + exhaustive AgentName loop test (closes audit Issue 1; ROADMAP §SC 1)
 - [ ] 06-02-PLAN.md — ChatApp ↔ ChatColumn ↔ MessageList HITL prop chain + ChatInput disable + ApprovalCard error prop + ChatColumn forwarding test (closes audit Issues 2 + 5; ROADMAP §SC 2/3/4/5)
 - [ ] 06-03-PLAN.md — ChatApp.integration.test.tsx with approve + deny SSE integration via MSW (drift-prevention layer per D-15.3)
 
