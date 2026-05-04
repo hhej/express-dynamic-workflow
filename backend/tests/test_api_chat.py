@@ -590,3 +590,72 @@ def test_chat_resume_reuses_make_config_helper(app_with_mocks, monkeypatch):
     assert isinstance(md["langfuse_trace_id"], str)
     assert len(md["langfuse_trace_id"]) == 32
 
+
+# ---------------------------------------------------------------------------
+# Phase 7 D-01 / D-02 — message_id stamped on SSE answer payload
+# ---------------------------------------------------------------------------
+
+import re
+
+
+def test_happy_path_answer_payload_contains_message_id(app_with_mocks):
+    """Phase 7 D-01: every SSE answer payload carries message_id = '{thread_id}-{turn_idx}'.
+
+    Drift-prevention sibling for the Vitest+MSW round-trip in Plan 07-02.
+    Asserts the BE-stamped string is exactly what the frontend will read
+    and POST back to /api/feedback.
+    """
+    with TestClient(app_with_mocks) as client:
+        with client.stream(
+            "POST", "/api/chat",
+            json={
+                "message": (
+                    "Surcharge for 15kg Bounce Bangkok to Nonthaburi"
+                ),
+                "thread_id": "t-happy",
+            },
+        ) as r:
+            assert r.status_code == 200
+            body = "".join(chunk for chunk in r.iter_text())
+
+    events = _parse_sse_events(body)
+    answer = next(e for e in events if e["type"] == "answer")
+    assert "message_id" in answer["payload"], (
+        "answer payload must carry message_id (Phase 7 D-01); "
+        f"got payload keys: {list(answer['payload'].keys())}"
+    )
+    assert answer["payload"]["message_id"] == "t-happy-0"
+
+
+def test_answer_message_id_matches_feedback_regex(app_with_mocks):
+    """Phase 7: BE-stamped message_id must parse cleanly through feedback.py regex.
+
+    Reproduces the exact contract feedback.py enforces: regex match
+    '^(.+)-(\\d+)$' AND parsed thread_id == request thread_id. If this
+    assertion fails, the FE click would 400 even though the FE wires
+    message_id through correctly — single chokepoint.
+    """
+    with TestClient(app_with_mocks) as client:
+        with client.stream(
+            "POST", "/api/chat",
+            json={
+                "message": (
+                    "Surcharge for 15kg Bounce Bangkok to Nonthaburi"
+                ),
+                "thread_id": "t-regex",
+            },
+        ) as r:
+            assert r.status_code == 200
+            body = "".join(chunk for chunk in r.iter_text())
+
+    events = _parse_sse_events(body)
+    answer = next(e for e in events if e["type"] == "answer")
+    message_id = answer["payload"]["message_id"]
+    m = re.match(r"^(.+)-(\d+)$", message_id)
+    assert m is not None, (
+        f"message_id {message_id!r} must match feedback.py regex "
+        f"'^(.+)-(\\d+)$'"
+    )
+    assert m.group(1) == "t-regex"
+    assert m.group(2) == "0"
+

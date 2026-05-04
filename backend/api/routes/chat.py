@@ -127,8 +127,21 @@ async def _next_turn_idx(graph, thread_id: str) -> int:
         return 0
 
 
-async def _drain_events(graph, payload, config, _node_names=_NODE_NAMES):
+async def _drain_events(
+    graph,
+    payload,
+    config,
+    _node_names=_NODE_NAMES,
+    *,
+    thread_id: str,
+    turn_idx: int,
+):
     """Async generator yielding (event_type, payload_dict) tuples.
+
+    Phase 7 D-01: stamps message_id = f"{thread_id}-{turn_idx}" on the
+    answer payload before yielding. Single source of truth for the FE
+    assistant message id contract — FE never reconstructs the string
+    from parts (audit Issue 3 root cause).
 
     Centralized so fresh and resume paths share the SAME filter logic on
     ``astream_events``. The streaming client receives:
@@ -147,7 +160,10 @@ async def _drain_events(graph, payload, config, _node_names=_NODE_NAMES):
             for entry in (output.get("reasoning_trace") or []):
                 yield "trace", entry
             if name == "response" and "final_payload" in output:
-                yield "answer", output["final_payload"]
+                final_payload = output["final_payload"]
+                # Phase 7 D-01 / D-02: stamp the FULL message_id string here, once.
+                final_payload["message_id"] = f"{thread_id}-{turn_idx}"
+                yield "answer", final_payload
 
 
 @router.post("/api/chat")
@@ -208,7 +224,8 @@ async def _fresh_stream(graph, thread_id: str, message: str):
                 "messages": [{"role": "user", "content": message}],
             }
             async for kind, payload in _drain_events(
-                graph, initial_state, config
+                graph, initial_state, config,
+                thread_id=thread_id, turn_idx=turn_idx,
             ):
                 yield format_sse(kind, payload)
 
@@ -272,7 +289,8 @@ async def _resume_stream(graph, thread_id: str, approve: bool):
         yield format_sse("meta", {"thread_id": thread_id})
         try:
             async for kind, payload in _drain_events(
-                graph, Command(resume=approve), config
+                graph, Command(resume=approve), config,
+                thread_id=thread_id, turn_idx=cfg_turn,
             ):
                 yield format_sse(kind, payload)
         except Exception as exc:  # noqa: BLE001
