@@ -2,15 +2,15 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-status: executing
-stopped_at: Completed 06-02-PLAN.md
-last_updated: "2026-05-04T05:16:27.498Z"
+status: verifying
+stopped_at: Completed 06-03-PLAN.md
+last_updated: "2026-05-04T05:22:33.586Z"
 last_activity: 2026-05-04
 progress:
   total_phases: 8
-  completed_phases: 5
+  completed_phases: 6
   total_plans: 31
-  completed_plans: 30
+  completed_plans: 31
   percent: 71
 ---
 
@@ -27,7 +27,7 @@ See: .planning/PROJECT.md (updated 2026-04-04)
 
 Phase: 06 (hitl-approval-ui-wiring) — EXECUTING
 Plan: 3 of 3
-Status: Ready to execute
+Status: Phase complete — ready for verification
 Last activity: 2026-05-04
 
 Progress: [███░░░░░░░] 71%
@@ -81,6 +81,7 @@ Progress: [███░░░░░░░] 71%
 | Phase 05 P10 | 15min | 2 tasks | 6 files |
 | Phase 06 P01 | 3 min | 1 tasks | 2 files |
 | Phase 06 P02 | 7min | 2 tasks | 7 files |
+| Phase 06 P03 | 2min | 1 tasks | 1 files |
 
 ## Accumulated Context
 
@@ -216,6 +217,9 @@ Recent decisions affecting current work:
 - [Phase 06]: ApprovalCard waiting state resets via useEffect when errorMessage flips truthy: parent-supplied error means prior attempt failed, so buttons must re-enable per D-11
 - [Phase 06]: Two-render pattern in D-15.2 ChatColumn props-forwarding test: ApprovalCard internal waiting would otherwise disable second click without errorMessage to reset
 - [Phase 06]: ChatInput placeholder default preserved as ORIGINAL literal so all pre-existing tests pass without modification — optional prop is purely additive
+- [Phase 06]: Plan 06-03 D-15.3: end-to-end MSW SSE integration test in ChatApp.integration.test.tsx exercises both approve and deny flows through the production prop chain — drift-prevention layer that catches any future regression dropping chat.approve/chat.approvalPayload from ChatApp
+- [Phase 06]: Plan 06-03 call-counter MSW handler installPauseThenResumeHandler — single server.use registration switches behaviour on call number; first call returns paused fresh-turn SSE, second call returns resume SSE with defensive thread_id/approve assertions inside the handler closure
+- [Phase 06]: Plan 06-03 deviation: ChatInput Send-button disabled predicate is 'disabled || empty-textarea' — re-enable assertion needs a follow-up keystroke first to disambiguate the inputDisabled-driven lock from the empty-text lock; mirrors pre-existing ChatApp.test.tsx line-79 pattern
 
 ### Pending Todos
 
@@ -240,6 +244,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-05-04T05:16:27.494Z
-Stopped at: Completed 06-02-PLAN.md
+Last session: 2026-05-04T05:22:21.997Z
+Stopped at: Completed 06-03-PLAN.md
 Resume file: None
