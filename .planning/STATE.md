@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-stopped_at: Completed 06-01-PLAN.md
-last_updated: "2026-05-04T05:11:30.003Z"
+stopped_at: Completed 06-02-PLAN.md
+last_updated: "2026-05-04T05:16:27.498Z"
 last_activity: 2026-05-04
 progress:
   total_phases: 8
   completed_phases: 5
   total_plans: 31
-  completed_plans: 29
+  completed_plans: 30
   percent: 71
 ---
 
@@ -26,7 +26,7 @@ See: .planning/PROJECT.md (updated 2026-04-04)
 ## Current Position
 
 Phase: 06 (hitl-approval-ui-wiring) — EXECUTING
-Plan: 2 of 3
+Plan: 3 of 3
 Status: Ready to execute
 Last activity: 2026-05-04
 
@@ -80,6 +80,7 @@ Progress: [███░░░░░░░] 71%
 | Phase 05 P09 | 6min | 2 tasks | 6 files |
 | Phase 05 P10 | 15min | 2 tasks | 6 files |
 | Phase 06 P01 | 3 min | 1 tasks | 2 files |
+| Phase 06 P02 | 7min | 2 tasks | 7 files |
 
 ## Accumulated Context
 
@@ -210,6 +211,11 @@ Recent decisions affecting current work:
 - [Quick 260503-s2h]: Single in-place test extension in test_chat_attaches_callback_when_enabled (no new test function) — preserves the 186-test baseline established post-260503-rs8; success criteria explicitly required no test count delta.
 - [Phase 06]: Plan 06-01 D-01 + D-15.1: extended TraceStep.AGENT_LABEL with hitl_gate -> 'Approval gate' and search_agent -> 'Search agent'; added Vitest exhaustive-loop test (AGENT_NAMES) so any future AgentName addition that forgets AGENT_LABEL fails BOTH at tsc (Record<AgentName,string> TS2739) AND at runtime (loop assertion). Defense-in-depth drift prevention.
 - [Phase 06]: Plan 06-01 PROCESS DEVIATION: parallel 06-02 executor agent's git stage swept Plan 06-01's already-staged TraceStep.tsx + TraceStep.test.tsx files into commit ff68f26 'feat(06-02): add ApprovalCard errorMessage prop'. Code is correct AND committed (git show ff68f26 confirms exact spec match), only commit-message slug attribution drifted from (06-01) to (06-02). SUMMARY.md commit will land under (06-01) for grep-by-plan traceability. No functional impact.
+- [Phase 06]: ChatColumn isStreaming -> inputDisabled rename per D-07: name boolean for what it gates (input), not state that happens to be true (streaming)
+- [Phase 06]: Pending-assistant-slot strip-and-replace on done: placeholder id pending-${ts} never persists into history per D-06
+- [Phase 06]: ApprovalCard waiting state resets via useEffect when errorMessage flips truthy: parent-supplied error means prior attempt failed, so buttons must re-enable per D-11
+- [Phase 06]: Two-render pattern in D-15.2 ChatColumn props-forwarding test: ApprovalCard internal waiting would otherwise disable second click without errorMessage to reset
+- [Phase 06]: ChatInput placeholder default preserved as ORIGINAL literal so all pre-existing tests pass without modification — optional prop is purely additive
 
 ### Pending Todos
 
@@ -234,6 +240,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-05-04T05:11:30.000Z
-Stopped at: Completed 06-01-PLAN.md
+Last session: 2026-05-04T05:16:27.494Z
+Stopped at: Completed 06-02-PLAN.md
 Resume file: None

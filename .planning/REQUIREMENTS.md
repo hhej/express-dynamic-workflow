@@ -34,7 +34,7 @@ Requirements for initial release. Each maps to roadmap phases.
 - [x] **ORCH-06**: Agent state schema (AgentState TypedDict) manages messages, fuel_data, route_data, shipping_type, weight_kg, surcharge_result, reasoning_trace, next_step
 - [x] **ORCH-07**: Fuel Agent and Route Agent execute in parallel via LangGraph Send API
 - [x] **ORCH-08**: Agentic retry loop with exponential backoff (max 2 retries per tool) and graceful fallback with explanation
-- [ ] **ORCH-09**: Human-in-the-loop approval gate for high-value shipments before finalizing surcharge
+- [x] **ORCH-09**: Human-in-the-loop approval gate for high-value shipments before finalizing surcharge
 - [x] **ORCH-10**: Conversation memory via LangGraph SQLite checkpointer — follow-up queries reuse cached fuel/route data
 
 ### Surcharge Logic
@@ -126,7 +126,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | ORCH-06 | Phase 1 | Complete |
 | ORCH-07 | Phase 5 | Complete |
 | ORCH-08 | Phase 3 | Active |
-| ORCH-09 | Phase 6 | Pending |
+| ORCH-09 | Phase 6 | Complete |
 | ORCH-10 | Phase 3 | Active |
 | CALC-01 | Phase 1 | Complete |
 | CALC-02 | Phase 1 | Complete |
