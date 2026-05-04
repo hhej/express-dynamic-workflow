@@ -26,6 +26,10 @@ export function ChatApp() {
   // Track the finalPayload we've already appended so a re-render after `done`
   // doesn't double-append the same assistant message.
   const lastAppendedPayloadRef = useRef<FinalPayload | null>(null);
+  // Plan 06-02 D-06: ref guards the placeholder pending-assistant slot so it
+  // is appended at most once per HITL pause window (re-renders during the
+  // awaiting_approval status do not re-push the placeholder).
+  const pendingApprovalSlotRef = useRef<boolean>(false);
 
   // When a finalPayload arrives, append it as an assistant message and
   // refresh the sidebar so the new (or updated) thread shows up.
@@ -34,16 +38,50 @@ export function ChatApp() {
     if (chat.status !== 'done') return;
     if (lastAppendedPayloadRef.current === chat.finalPayload) return;
     lastAppendedPayloadRef.current = chat.finalPayload;
+    setMessages((prev) => {
+      // Plan 06-02 D-06: if a placeholder pending assistant slot was appended
+      // for HITL, replace it with the real payload so the placeholder id
+      // (`pending-${ts}`) never persists into history (Phase 7 will rewrite
+      // assistant message ids — the strip-and-replace path keeps the
+      // placeholder from leaking into that contract).
+      const stripped =
+        pendingApprovalSlotRef.current &&
+        prev.length > 0 &&
+        prev[prev.length - 1].role === 'assistant' &&
+        (prev[prev.length - 1] as { payload: FinalPayload | null }).payload ===
+          null
+          ? prev.slice(0, -1)
+          : prev;
+      pendingApprovalSlotRef.current = false;
+      return [
+        ...stripped,
+        {
+          role: 'assistant',
+          id: `a-${Date.now()}`,
+          payload: chat.finalPayload as FinalPayload,
+        },
+      ];
+    });
+    void conversations.refresh();
+  }, [chat.finalPayload, chat.status, conversations]);
+
+  // Plan 06-02 D-06: when SSE emits approval_required, append a placeholder
+  // assistant message whose null payload is the slot ApprovalCard hangs off
+  // (MessageList renders ApprovalCard in the last assistant slot when
+  // awaitingApproval is set).
+  useEffect(() => {
+    if (chat.status !== 'awaiting_approval') return;
+    if (pendingApprovalSlotRef.current) return;
+    pendingApprovalSlotRef.current = true;
     setMessages((prev) => [
       ...prev,
       {
         role: 'assistant',
-        id: `a-${Date.now()}`,
-        payload: chat.finalPayload as FinalPayload,
+        id: `pending-${Date.now()}`,
+        payload: null,
       },
     ]);
-    void conversations.refresh();
-  }, [chat.finalPayload, chat.status, conversations]);
+  }, [chat.status]);
 
   const handleSend = useCallback(
     (message: string) => {
@@ -52,6 +90,19 @@ export function ChatApp() {
     },
     [chat],
   );
+
+  // Plan 06-02 D-03: thin handler callbacks consume chat.approve so the
+  // ApprovalCard buttons (rendered three layers down) only need synchronous
+  // void-returning handlers.
+  const handleApprove = useCallback(() => {
+    if (!chat.threadId) return;
+    void chat.approve(chat.threadId, true);
+  }, [chat]);
+
+  const handleDeny = useCallback(() => {
+    if (!chat.threadId) return;
+    void chat.approve(chat.threadId, false);
+  }, [chat]);
 
   const handleResume = useCallback(
     async (threadId: string) => {
@@ -88,7 +139,25 @@ export function ChatApp() {
     chat.reset();
     setMessages([]);
     lastAppendedPayloadRef.current = null;
+    // Plan 06-02 D-06: also clear the pending slot guard so a "+ New
+    // conversation" click during a paused HITL turn cleanly resets state.
+    pendingApprovalSlotRef.current = false;
   }, [chat]);
+
+  // Plan 06-02 D-07: inputDisabled true while streaming OR awaiting approval.
+  const inputDisabled =
+    chat.status === 'streaming' || chat.status === 'awaiting_approval';
+  // Plan 06-02 D-08: contextual placeholder during HITL pause.
+  const placeholder =
+    chat.status === 'awaiting_approval'
+      ? 'Awaiting your approval — use Approve / Deny above'
+      : undefined;
+  // Plan 06-02 D-13: surface error message to ApprovalCard when an
+  // approve/deny POST failed AND we are still in the awaiting-approval window.
+  const approvalErrorMessage =
+    chat.status === 'error' && chat.approvalPayload
+      ? chat.error?.message ?? 'Could not send your decision — try again.'
+      : null;
 
   return (
     <main className="flex h-screen w-screen overflow-hidden bg-white">
@@ -102,8 +171,13 @@ export function ChatApp() {
       <ChatColumn
         messages={messages}
         threadId={chat.threadId}
-        isStreaming={chat.status === 'streaming'}
+        inputDisabled={inputDisabled}
         onSend={handleSend}
+        awaitingApproval={chat.approvalPayload}
+        onApprove={handleApprove}
+        onDeny={handleDeny}
+        approvalErrorMessage={approvalErrorMessage}
+        placeholder={placeholder}
       />
       <div className="hidden md:flex">
         <TracePanel

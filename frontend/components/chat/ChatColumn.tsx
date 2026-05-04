@@ -4,14 +4,24 @@ import clsx from 'clsx';
 import { ChatInput } from '@/components/chat/ChatInput';
 import { MessageList, type ChatMessage } from '@/components/chat/MessageList';
 import { DashboardView } from '@/components/dashboard/DashboardView';
+import type { ApprovalPayload } from '@/types/agent.types';
 
 export type CenterTab = 'chat' | 'dashboard';
 
 interface Props {
   messages: ChatMessage[];
   threadId: string | null;
-  isStreaming: boolean;
+  /** Plan 06-02 D-07 — RENAMED from isStreaming. True when chat is streaming OR awaiting approval. */
+  inputDisabled: boolean;
   onSend: (message: string) => void;
+  /** Plan 06-02 D-04 — sixth SSE event payload; rendered in the last assistant slot via MessageList. */
+  awaitingApproval?: ApprovalPayload | null;
+  onApprove?: () => void | Promise<void>;
+  onDeny?: () => void | Promise<void>;
+  /** Plan 06-02 D-13 — forwarded to ApprovalCard.errorMessage when set. */
+  approvalErrorMessage?: string | null;
+  /** Plan 06-02 D-08 — overrides ChatInput's default placeholder when set. */
+  placeholder?: string;
 }
 
 /**
@@ -24,7 +34,17 @@ interface Props {
  *   - Active tab: bg-blue-600 + text-white (accent)
  *   - Inactive tab: bg-white + text-gray-700
  */
-export function ChatColumn({ messages, threadId, isStreaming, onSend }: Props) {
+export function ChatColumn({
+  messages,
+  threadId,
+  inputDisabled,
+  onSend,
+  awaitingApproval,
+  onApprove,
+  onDeny,
+  approvalErrorMessage,
+  placeholder,
+}: Props) {
   const [tab, setTab] = useState<CenterTab>('chat');
 
   return (
@@ -52,8 +72,19 @@ export function ChatColumn({ messages, threadId, isStreaming, onSend }: Props) {
           tab === 'chat' ? 'flex' : 'hidden',
         )}
       >
-        <MessageList messages={messages} threadId={threadId} />
-        <ChatInput onSend={onSend} disabled={isStreaming} />
+        <MessageList
+          messages={messages}
+          threadId={threadId}
+          awaitingApproval={awaitingApproval}
+          onApprove={onApprove}
+          onDeny={onDeny}
+          approvalErrorMessage={approvalErrorMessage}
+        />
+        <ChatInput
+          onSend={onSend}
+          disabled={inputDisabled}
+          placeholder={placeholder}
+        />
       </div>
       <div
         className={clsx(
