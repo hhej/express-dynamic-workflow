@@ -89,4 +89,52 @@ describe('ApprovalCard (Plan 05-06)', () => {
     );
     expect(screen.getByText(/Bangkok Metro/)).toBeInTheDocument();
   });
+
+  it('renders inline red error line when errorMessage is set (D-10)', () => {
+    render(
+      <ApprovalCard
+        payload={PAYLOAD}
+        onApprove={() => {}}
+        onDeny={() => {}}
+        errorMessage="Could not send your decision — try again."
+      />,
+    );
+    const errorEl = screen.getByText(/Could not send your decision/);
+    expect(errorEl).toBeInTheDocument();
+    // D-10 locks the red color tone — text-red-700.
+    expect(errorEl.className).toContain('text-red-700');
+  });
+
+  it('Approve and Deny buttons remain clickable when errorMessage is set (D-11)', () => {
+    const onApprove = vi.fn();
+    const onDeny = vi.fn();
+    render(
+      <ApprovalCard
+        payload={PAYLOAD}
+        onApprove={onApprove}
+        onDeny={onDeny}
+        errorMessage="Could not send your decision — try again."
+      />,
+    );
+    const approveBtn = screen.getByRole('button', { name: /Approve/ });
+    const denyBtn = screen.getByRole('button', { name: /Deny/ });
+    expect(approveBtn).not.toBeDisabled();
+    expect(denyBtn).not.toBeDisabled();
+    fireEvent.click(approveBtn);
+    expect(onApprove).toHaveBeenCalled();
+    fireEvent.click(denyBtn);
+    expect(onDeny).toHaveBeenCalled();
+  });
+
+  it('does NOT render an error line when errorMessage is null/undefined', () => {
+    render(
+      <ApprovalCard
+        payload={PAYLOAD}
+        onApprove={() => {}}
+        onDeny={() => {}}
+      />,
+    );
+    // Heuristic: no element matching the canonical error copy is in the tree.
+    expect(screen.queryByText(/Could not send your decision/)).toBeNull();
+  });
 });

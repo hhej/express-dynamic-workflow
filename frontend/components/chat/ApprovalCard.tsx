@@ -1,11 +1,13 @@
 'use client';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import type { ApprovalPayload } from '@/types/agent.types';
 
 interface Props {
   payload: ApprovalPayload;
   onApprove: () => void | Promise<void>;
   onDeny: () => void | Promise<void>;
+  /** Plan 06-02 D-10 — when set, renders an inline red error line below the buttons. Buttons stay clickable per D-11. */
+  errorMessage?: string | null;
 }
 
 /**
@@ -14,11 +16,24 @@ interface Props {
  * color. Approve and Deny buttons use NEUTRAL outline (not accent blue) —
  * D-07 requires deliberate user choice. Body copy uses Bangkok Metro phrasing
  * (UI-SPEC §Copywriting — never "Central Region").
+ *
+ * Plan 06-02 D-10: optional `errorMessage` renders an inline red line below
+ * the buttons when an approve/deny POST fails. Buttons stay clickable so the
+ * user can retry without dismissing (D-11).
  */
-export function ApprovalCard({ payload, onApprove, onDeny }: Props) {
+export function ApprovalCard({ payload, onApprove, onDeny, errorMessage }: Props) {
   const [waiting, setWaiting] = useState(false);
   const total = formatTHB(payload.surcharge_result.total);
   const threshold = formatTHB(payload.threshold);
+
+  // Plan 06-02 D-11: when the parent surfaces an errorMessage, the prior
+  // approve/deny POST failed — reset the waiting flag so both buttons stay
+  // clickable for retry without dismissing the card.
+  useEffect(() => {
+    if (errorMessage) {
+      setWaiting(false);
+    }
+  }, [errorMessage]);
 
   async function handle(action: () => void | Promise<void>) {
     setWaiting(true);
@@ -29,6 +44,10 @@ export function ApprovalCard({ payload, onApprove, onDeny }: Props) {
       setWaiting(false);
     }
   }
+
+  // Buttons disabled while in flight, but a parent-supplied errorMessage
+  // forces them re-enabled (D-11 — clickable on POST error).
+  const buttonsDisabled = waiting && !errorMessage;
 
   return (
     <div className="rounded border border-yellow-300 bg-yellow-50 p-4 text-yellow-900">
@@ -67,7 +86,7 @@ export function ApprovalCard({ payload, onApprove, onDeny }: Props) {
         <button
           type="button"
           aria-label="Approve recommended surcharge"
-          disabled={waiting}
+          disabled={buttonsDisabled}
           onClick={() => handle(onApprove)}
           className="rounded border border-gray-300 bg-white px-4 py-2 text-base font-semibold text-gray-900 hover:bg-gray-100 disabled:opacity-60"
         >
@@ -76,13 +95,21 @@ export function ApprovalCard({ payload, onApprove, onDeny }: Props) {
         <button
           type="button"
           aria-label="Deny recommended surcharge"
-          disabled={waiting}
+          disabled={buttonsDisabled}
           onClick={() => handle(onDeny)}
           className="rounded border border-gray-300 bg-white px-4 py-2 text-base font-semibold text-gray-900 hover:bg-gray-100 disabled:opacity-60"
         >
           Deny
         </button>
       </div>
+      {errorMessage && (
+        <p
+          role="alert"
+          className="mt-2 text-sm text-red-700"
+        >
+          {errorMessage}
+        </p>
+      )}
       {waiting && (
         <p
           role="status"

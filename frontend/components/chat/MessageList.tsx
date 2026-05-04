@@ -27,6 +27,8 @@ interface Props {
   awaitingApproval?: ApprovalPayload | null;
   onApprove?: () => void | Promise<void>;
   onDeny?: () => void | Promise<void>;
+  /** Plan 06-02 D-13 — optional error message forwarded to ApprovalCard. */
+  approvalErrorMessage?: string | null;
 }
 
 function renderAssistant(
@@ -34,6 +36,7 @@ function renderAssistant(
   awaitingApproval: ApprovalPayload | null | undefined,
   onApprove: (() => void | Promise<void>) | undefined,
   onDeny: (() => void | Promise<void>) | undefined,
+  approvalErrorMessage: string | null | undefined,
 ) {
   // Plan 05-06 D-06: when awaiting approval, replace MarkdownAnswer with ApprovalCard.
   if (awaitingApproval && onApprove && onDeny) {
@@ -42,6 +45,7 @@ function renderAssistant(
         payload={awaitingApproval}
         onApprove={onApprove}
         onDeny={onDeny}
+        errorMessage={approvalErrorMessage}
       />
     );
   }
@@ -64,6 +68,7 @@ export function MessageList({
   awaitingApproval,
   onApprove,
   onDeny,
+  approvalErrorMessage,
 }: Props) {
   return (
     <ol
@@ -89,7 +94,7 @@ export function MessageList({
             key={`a-${m.id}`}
             className="max-w-[85%] space-y-2 self-start rounded-lg bg-white px-4 py-2 text-sm text-gray-900"
           >
-            {renderAssistant(m, slotApproval, onApprove, onDeny)}
+            {renderAssistant(m, slotApproval, onApprove, onDeny, approvalErrorMessage)}
             {threadId && m.payload && !slotApproval && (
               <FeedbackButtons threadId={threadId} messageId={m.id} />
             )}

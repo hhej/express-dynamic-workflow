@@ -3,13 +3,15 @@ import { useState } from 'react';
 import { TraceStatusBadge } from '@/components/trace/TraceStatusBadge';
 import type { AgentName, TraceEntry } from '@/types/agent.types';
 
-/** D-07: agent display labels. */
+/** D-07: agent display labels. Plan 06-01 D-01: extended with hitl_gate + search_agent (Plan 05-05 / 05-04). */
 const AGENT_LABEL: Record<AgentName, string> = {
   planner: 'Planner',
   fuel_agent: 'Fuel agent',
   route_agent: 'Route agent',
   pricing_agent: 'Pricing agent',
   response: 'Response',
+  hitl_gate: 'Approval gate',
+  search_agent: 'Search agent',
 };
 
 interface Props {
