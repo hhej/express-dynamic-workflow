@@ -31,6 +31,13 @@ export interface FuelPricePoint {
 export interface ReplayedMessage {
   role: string;
   content: string;
+  /**
+   * Phase 7 D-05/D-06 — OPTIONAL. Backend attaches message_id to the LAST
+   * assistant message of each turn ONLY (per backend/api/routes/conversations.py::_attach_message_ids).
+   * User-role messages and non-last in-turn assistants have NO message_id
+   * field (silent absence is the FE feedback-button gate signal — D-08).
+   */
+  message_id?: string;
 }
 
 /** `GET /api/conversations/:id` response shape. */

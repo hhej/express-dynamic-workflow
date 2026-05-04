@@ -76,6 +76,7 @@ export const HAPPY_TRACE: TraceEntry[] = [
 export const HAPPY_PAYLOAD: FinalPayload = {
   status: 'ok',
   capped: false,
+  message_id: 'thread-happy-0',
   surcharge_result: {
     surcharge_pct: 0.0187,
     surcharge_amount: 2.5,
@@ -89,6 +90,7 @@ export const HAPPY_PAYLOAD: FinalPayload = {
 export const CAPPED_PAYLOAD: FinalPayload = {
   status: 'ok',
   capped: true,
+  message_id: 'thread-capped-0',
   surcharge_result: {
     surcharge_pct: 0.15,
     surcharge_amount: 22.5,
@@ -102,6 +104,7 @@ export const CAPPED_PAYLOAD: FinalPayload = {
 export const CLARIFY_PAYLOAD: FinalPayload = {
   status: 'clarify',
   capped: false,
+  message_id: 'thread-clarify-0',
   surcharge_result: null,
   markdown: 'I need a bit more info. Please share weight, origin, and destination.',
 };
@@ -109,6 +112,7 @@ export const CLARIFY_PAYLOAD: FinalPayload = {
 export const PARTIAL_PAYLOAD: FinalPayload = {
   status: 'partial',
   capped: false,
+  message_id: 'thread-partial-0',
   surcharge_result: null,
   markdown: 'Limited result — fuel data fetched but route lookup failed.',
 };
