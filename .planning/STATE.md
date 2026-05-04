@@ -2,15 +2,15 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-status: verifying
-stopped_at: Phase 7 context gathered
-last_updated: "2026-05-04T05:59:59.732Z"
+status: executing
+stopped_at: Completed 07-01-PLAN.md
+last_updated: "2026-05-04T07:08:43.709Z"
 last_activity: 2026-05-04
 progress:
   total_phases: 8
   completed_phases: 6
-  total_plans: 31
-  completed_plans: 31
+  total_plans: 34
+  completed_plans: 32
   percent: 71
 ---
 
@@ -21,13 +21,13 @@ progress:
 See: .planning/PROJECT.md (updated 2026-04-04)
 
 **Core value:** The agent must transparently reason through fuel price, route, and shipping data to produce an accurate, explainable surcharge recommendation.
-**Current focus:** Phase 06 — hitl-approval-ui-wiring
+**Current focus:** Phase 07 — feedback-contract-alignment
 
 ## Current Position
 
-Phase: 07
-Plan: Not started
-Status: Phase complete — ready for verification
+Phase: 07 (feedback-contract-alignment) — EXECUTING
+Plan: 2 of 3
+Status: Ready to execute
 Last activity: 2026-05-04
 
 Progress: [███░░░░░░░] 71%
@@ -82,6 +82,7 @@ Progress: [███░░░░░░░] 71%
 | Phase 06 P01 | 3 min | 1 tasks | 2 files |
 | Phase 06 P02 | 7min | 2 tasks | 7 files |
 | Phase 06 P03 | 2min | 1 tasks | 1 files |
+| Phase 07 P01 | 7min | 3 tasks | 6 files |
 
 ## Accumulated Context
 
@@ -220,6 +221,10 @@ Recent decisions affecting current work:
 - [Phase 06]: Plan 06-03 D-15.3: end-to-end MSW SSE integration test in ChatApp.integration.test.tsx exercises both approve and deny flows through the production prop chain — drift-prevention layer that catches any future regression dropping chat.approve/chat.approvalPayload from ChatApp
 - [Phase 06]: Plan 06-03 call-counter MSW handler installPauseThenResumeHandler — single server.use registration switches behaviour on call number; first call returns paused fresh-turn SSE, second call returns resume SSE with defensive thread_id/approve assertions inside the handler closure
 - [Phase 06]: Plan 06-03 deviation: ChatInput Send-button disabled predicate is 'disabled || empty-textarea' — re-enable assertion needs a follow-up keystroke first to disambiguate the inputDisabled-driven lock from the empty-text lock; mirrors pre-existing ChatApp.test.tsx line-79 pattern
+- [Phase 07]: Plan 07-01: BE stamps message_id at _drain_events answer-yield site (D-01/D-02) — single source of truth eliminates audit Issue 3 drift class; FE never reconstructs from parts
+- [Phase 07]: Plan 07-01: _resume_stream passes cfg_turn (clamped) NOT turn_idx into _drain_events so message_id matches the SAME Langfuse trace the CallbackHandler attached to during the original paused turn — preserves Phase 5 D-14 trace continuity
+- [Phase 07]: Plan 07-01 [Rule 2 deviation]: response_node now appends rendered assistant markdown to state.messages on BOTH happy and deny paths — without this the FE resume path renders zero assistants (degenerate) and the plan's _attach_message_ids contract has no rows to stamp; deeper symptom of audit Issue 3 surfaced during RED phase
+- [Phase 07]: Plan 07-01: _attach_message_ids uses three-pass derivation (turn_for / last_assistant_per_turn / stamping) mirroring chat.py:_next_turn_idx semantics verbatim — 1 user message = 1 turn; ONLY last assistant per turn carries message_id (D-07); user + non-last assistants get silent absence (D-06)
 
 ### Pending Todos
 
@@ -244,6 +249,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-05-04T05:59:59.722Z
-Stopped at: Phase 7 context gathered
-Resume file: .planning/phases/07-feedback-contract-alignment/07-CONTEXT.md
+Last session: 2026-05-04T07:08:43.705Z
+Stopped at: Completed 07-01-PLAN.md
+Resume file: None

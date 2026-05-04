@@ -50,7 +50,7 @@ Requirements for initial release. Each maps to roadmap phases.
 - [x] **API-02**: GET /api/conversations lists all past conversation threads
 - [x] **API-03**: GET /api/conversations/:id returns full conversation history for a thread
 - [x] **API-04**: GET /api/fuel-prices?days=30 returns historical fuel price data for charts
-- [ ] **API-05**: POST /api/feedback accepts user feedback (score + reason) and forwards to Langfuse
+- [x] **API-05**: POST /api/feedback accepts user feedback (score + reason) and forwards to Langfuse
 
 ### Frontend
 
@@ -58,13 +58,13 @@ Requirements for initial release. Each maps to roadmap phases.
 - [x] **UI-02**: Reasoning trace panel showing agent steps, tool calls, and decisions for each query
 - [x] **UI-03**: Surcharge breakdown table in chat responses (base rate, surcharge %, amount, total)
 - [x] **UI-04**: Dashboard with fuel price trends and surcharge history charts (Recharts)
-- [ ] **UI-05**: User feedback buttons (thumbs up/down) on agent responses with reason selector on thumbs down
+- [x] **UI-05**: User feedback buttons (thumbs up/down) on agent responses with reason selector on thumbs down
 - [x] **UI-06**: Conversation history sidebar for resuming past threads
 
 ### Observability
 
 - [x] **OBS-01**: Langfuse callback handler traces all LLM calls, tool calls, and agent steps
-- [ ] **OBS-02**: User feedback scores forwarded to Langfuse Score API for evaluation tracking
+- [x] **OBS-02**: User feedback scores forwarded to Langfuse Score API for evaluation tracking
 - [x] **OBS-03**: Formula accuracy auto-eval: independent calculation vs agent output on every query
 
 ### Documentation
@@ -136,15 +136,15 @@ Which phases cover which requirements. Updated during roadmap creation.
 | API-02 | Phase 3 | Complete |
 | API-03 | Phase 3 | Complete |
 | API-04 | Phase 3 | Complete |
-| API-05 | Phase 7 | Pending |
+| API-05 | Phase 7 | Complete |
 | UI-01 | Phase 6 | Complete |
 | UI-02 | Phase 4 | Complete |
 | UI-03 | Phase 4 | Complete |
 | UI-04 | Phase 4 | Complete |
-| UI-05 | Phase 7 | Pending |
+| UI-05 | Phase 7 | Complete |
 | UI-06 | Phase 4 | Complete |
 | OBS-01 | Phase 5 | Complete |
-| OBS-02 | Phase 7 | Pending |
+| OBS-02 | Phase 7 | Complete |
 | OBS-03 | Phase 5 | Complete |
 | DOC-01 | Phase 5 | Complete |
 | DOC-02 | Phase 5 | Complete |
