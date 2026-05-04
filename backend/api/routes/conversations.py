@@ -86,6 +86,52 @@ async def list_conversations(
     return summaries
 
 
+def _attach_message_ids(
+    messages: list[Dict[str, Any]],
+    thread_id: str,
+) -> list[Dict[str, Any]]:
+    """Attach message_id to the LAST assistant message of each turn.
+
+    Turn rule (Phase 7 D-07, mirrors backend/api/routes/chat.py:_next_turn_idx):
+    one user message starts one turn; assistants belong to the most recent
+    preceding user message's turn. ONLY the LAST assistant per turn is
+    canonical (the one a thumbs vote should score). User messages and
+    non-last in-turn assistant rows get NO message_id field — silent
+    absence is the FE gate signal (D-06, D-08).
+
+    Args:
+        messages: Raw messages list from the AgentState snapshot.
+        thread_id: Conversation thread identifier (Phase 7 D-02 single
+            source of truth for the FULL message_id string).
+
+    Returns:
+        Copy of messages with message_id stamped on canonical assistants.
+    """
+    # First pass: which turn (zero-indexed) does each row belong to?
+    turn_for: list[int] = []
+    n_users_seen = 0
+    for m in messages:
+        if (m or {}).get("role") == "user":
+            n_users_seen += 1
+        turn_for.append(max(0, n_users_seen - 1))
+
+    # Second pass: which row is the LAST assistant in each turn?
+    last_assistant_per_turn: dict[int, int] = {}
+    for i, m in enumerate(messages):
+        if (m or {}).get("role") == "assistant":
+            last_assistant_per_turn[turn_for[i]] = i
+    last_indices = set(last_assistant_per_turn.values())
+
+    # Third pass: emit copies, stamping message_id on canonical assistants only.
+    out: list[Dict[str, Any]] = []
+    for i, m in enumerate(messages):
+        m_out = dict(m or {})
+        if i in last_indices:
+            m_out["message_id"] = f"{thread_id}-{turn_for[i]}"
+        out.append(m_out)
+    return out
+
+
 @router.get("/api/conversations/{thread_id}")
 async def get_conversation(
     thread_id: str, request: Request
@@ -111,7 +157,10 @@ async def get_conversation(
         )
     return {
         "thread_id": thread_id,
-        "messages": values.get("messages") or [],
+        "messages": _attach_message_ids(
+            values.get("messages") or [],
+            thread_id,
+        ),
         "surcharge_result": values.get("surcharge_result"),
         "reasoning_trace": values.get("reasoning_trace") or [],
         "fuel_data": values.get("fuel_data"),
