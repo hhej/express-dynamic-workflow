@@ -18,7 +18,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 4: Frontend & Reasoning Trace** - Chat UI, reasoning trace panel, dashboard, SSE streaming display (completed 2026-04-26)
 - [ ] **Phase 5: Polish, Observability & Docs** - Parallel agents, HITL gate, Langfuse tracing, Tavily search, documentation
 - [ ] **Phase 6: HITL Approval UI Wiring + Compile Fix** - Gap closure: TraceStep keys, ApprovalCard prop chain, ChatInput disable
-- [ ] **Phase 7: Feedback Contract Alignment** - Gap closure: message_id format `{thread_id}-{turn_idx}` + drift-prevention tests
+- [x] **Phase 7: Feedback Contract Alignment** - Gap closure: message_id format `{thread_id}-{turn_idx}` + drift-prevention tests (completed 2026-05-04)
 - [ ] **Phase 8: Search Context Wiring + Sidebar Polish** - Gap closure: search_context in final_payload, useConversations as context provider
 
 ## Phase Details
@@ -152,7 +152,7 @@ Plans:
 Plans:
 - [x] 07-01-PLAN.md — Backend message_id contract: _drain_events stamps SSE answer payload + _attach_message_ids walks GET /api/conversations/:id messages + UUIDv4 backend feedback test (D-01/D-05/D-07/D-10)
 - [x] 07-02-PLAN.md — Frontend wiring: FinalPayload.message_id required + ChatApp live-append/resume use BE-supplied id + MessageList gate + Vitest+MSW round-trip drift-prevention tests (D-03/D-04/D-08/D-09/D-11)
-- [ ] 07-03-PLAN.md — Documentation + HUMAN-only live verification: data-sources.md § Live Verification appended + langfuse-feedback-score.png reserved + IT lead executes 6-step smoke (D-14/D-15/D-16)
+- [x] 07-03-PLAN.md — Documentation + HUMAN-only live verification: data-sources.md § Live Verification appended + langfuse-feedback-score.png reserved + IT lead executes 6-step smoke (D-14/D-15/D-16)
 
 ### Phase 8: Search Context Wiring + Sidebar Polish
 **Goal**: Tavily news queries surface typed sources via SearchContextLine, the `'search_only'` FinalStatus branch is reachable, and the conversation sidebar refreshes after every completed turn — closing the remaining minor integration drift from the v1.0 audit
@@ -178,7 +178,7 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5
 | 4. Frontend & Reasoning Trace | 5/5 | Complete   | 2026-04-26 |
 | 5. Polish, Observability & Docs | 6/7 | Wave 6 PARTIAL — Plan 05-07 Tasks 1-3 done (DOC-01/02/04 docs); Tasks 4-5 pending HUMAN action (demo + screenshots; v1.0 tag) | - |
 | 6. HITL Approval UI Wiring + Compile Fix | 0/3 | Planning complete | - |
-| 7. Feedback Contract Alignment | 0/3 | Gap closure — planning complete | - |
+| 7. Feedback Contract Alignment | 3/3 | Complete   | 2026-05-04 |
 | 8. Search Context Wiring + Sidebar Polish | 0/0 | Gap closure — planning pending | - |
 
 ## Backlog
