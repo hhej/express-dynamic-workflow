@@ -95,8 +95,8 @@ export function MessageList({
             className="max-w-[85%] space-y-2 self-start rounded-lg bg-white px-4 py-2 text-sm text-gray-900"
           >
             {renderAssistant(m, slotApproval, onApprove, onDeny, approvalErrorMessage)}
-            {threadId && m.payload && !slotApproval && (
-              <FeedbackButtons threadId={threadId} messageId={m.id} />
+            {threadId && m.payload && m.payload.message_id && !slotApproval && (
+              <FeedbackButtons threadId={threadId} messageId={m.payload.message_id} />
             )}
           </li>
         );

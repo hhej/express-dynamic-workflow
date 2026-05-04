@@ -292,5 +292,22 @@ export function useChatStream() {
     dispatch({ type: 'RESET', threadId: null });
   }, []);
 
-  return { ...state, send, reset, approve };
+  /**
+   * Phase 7 Rule 2 / D-11 — public setter so handleResume in ChatApp can
+   * propagate the resumed thread_id into chat state. Without this the
+   * FeedbackButtons render gate (threadId truthy) never fires for replayed
+   * messages — feedback was silently broken on every resumed conversation
+   * before Phase 7.
+   *
+   * Resets transient turn state (liveTrace, finalPayload, error,
+   * approvalPayload) so a resume cleanly drops the previous turn's UI
+   * before replaying history; mirrors RESET semantics with a non-null
+   * threadId.
+   */
+  const setThreadId = useCallback((threadId: string) => {
+    threadIdRef.current = threadId;
+    dispatch({ type: 'RESET', threadId });
+  }, []);
+
+  return { ...state, send, reset, approve, setThreadId };
 }

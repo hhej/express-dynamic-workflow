@@ -144,6 +144,12 @@ export function ChatApp() {
           return { role: 'user', content: m.content };
         });
         setMessages(replayed);
+        // Phase 7 Rule 2 / D-11: propagate the resumed thread_id into
+        // chat state so the MessageList feedback-button gate (threadId
+        // truthy) fires on replayed messages. Before Phase 7 chat.threadId
+        // stayed null after a resume click and feedback was silently
+        // broken on every resumed conversation.
+        chat.setThreadId(threadId);
         // Reset the appended-payload guard so the NEXT real `done` payload
         // (from a follow-up send) is correctly appended even if the resume
         // happened to leave the previous finalPayload in chat state.
@@ -152,7 +158,7 @@ export function ChatApp() {
         console.error('[resume]', err);
       }
     },
-    [conversations],
+    [conversations, chat],
   );
 
   const handleNewConversation = useCallback(() => {
