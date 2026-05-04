@@ -26,13 +26,13 @@ The agent must transparently reason through fuel price, route, and shipping data
 - [x] Chat-based UI for querying surcharges with SSE streaming — Validated in Phase 4: Frontend & Reasoning Trace
 - [x] Dashboard showing surcharge trends across routes, shipping types, and time periods (Recharts) — Validated in Phase 4: Frontend & Reasoning Trace
 - [x] Next.js 15 + React 19 + Tailwind CSS frontend — Validated in Phase 4: Frontend & Reasoning Trace
+- [x] Human-in-the-loop approval gate for high-value shipment surcharge recommendations — Validated in Phase 6: HITL Approval UI Wiring + Compile Fix
 
 ### Active
 
 - [ ] Fuel Agent fetches live diesel prices from EPPO/PTT API with multi-level fallback chain (API → scrape → cached CSV → last-known)
 - [ ] Route Agent calculates distance and traffic via Google Maps API with 15-min caching
 - [ ] Fuel and Route agents execute in parallel (LangGraph Send API) since they are independent
-- [ ] Human-in-the-loop approval gate for high-value shipment surcharge recommendations
 - [ ] User feedback (thumbs up/down) forwarded to Langfuse for evaluation scoring
 - [ ] Tavily web search tool for fuel news context and trend reasoning
 - [ ] FastAPI backend with endpoints: POST /api/chat (SSE), GET /api/conversations, GET /api/fuel-prices, POST /api/feedback
@@ -110,4 +110,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-04-26 after Phase 4 completion (Frontend & Reasoning Trace)*
+*Last updated: 2026-05-04 after Phase 6 completion (HITL Approval UI Wiring + Compile Fix)*
