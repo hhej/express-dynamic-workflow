@@ -56,6 +56,12 @@ function renderAssistant(
       return <ClarifyCard payload={payload} />;
     case 'partial':
       return <PartialCard payload={payload} />;
+    case 'search_only':
+      // Phase 8 D-11: explicit dispatch to MarkdownAnswer, which renders
+      // SearchContextLine above the prose when payload.search_context.summary
+      // is present. Explicit case > default fallthrough so a future status
+      // (e.g. 'partial_news') gets a named extension point.
+      return <MarkdownAnswer payload={payload} />;
     case 'ok':
     default:
       return <MarkdownAnswer payload={payload} />;

@@ -36,7 +36,7 @@ export interface SurchargeResult {
   capped: boolean;
 }
 
-export type FinalStatus = 'ok' | 'partial' | 'clarify';
+export type FinalStatus = 'ok' | 'partial' | 'clarify' | 'search_only';
 
 /** One source row inside a SearchContext (Plan 05-04). */
 export interface SearchContextSource {

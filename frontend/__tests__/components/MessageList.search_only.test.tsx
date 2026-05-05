@@ -22,7 +22,6 @@ describe("MessageList — status='search_only' (Phase 8 D-15)", () => {
           surcharge_result: null,
           capped: false,
           status: 'search_only',
-          message_id: 'thread-news-0',
           search_context: {
             query: 'diesel news',
             summary: 'Diesel up 3% on supply concerns',
