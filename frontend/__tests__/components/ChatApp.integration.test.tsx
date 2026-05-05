@@ -9,6 +9,7 @@ import {
   HAPPY_TRACE,
   PARTIAL_PAYLOAD,
   makeSseStream,
+  happyTurnEvents,
 } from '../fixtures/sse';
 import type { ApprovalPayload, SSEEvent } from '@/types/agent.types';
 
@@ -216,5 +217,95 @@ describe('ChatApp HITL integration (D-15.3)', () => {
         screen.getByRole('button', { name: 'Send message' }),
       ).not.toBeDisabled(),
     );
+  });
+});
+
+/**
+ * Phase 8 D-14 — sidebar refresh propagation integration test.
+ *
+ * Closes audit Issue 4 (`v1.0-MILESTONE-AUDIT.md` §2.3): exercises the
+ * production prop chain end-to-end to prove that when ChatApp fires
+ * `void conversations.refresh()` on `done`, the new thread appears in
+ * ConversationSidebar without a page reload — only possible because
+ * useConversations is now a single provider-backed instance shared by
+ * all three consumers (ChatApp, ConversationSidebar, SurchargeHistoryChart).
+ *
+ * If a future regression drops the <ConversationsProvider> wrap or
+ * reintroduces per-call-site useState, the sidebar would stay on the
+ * empty-state copy and this test would fail.
+ */
+describe('ChatApp sidebar refresh integration (Phase 8 D-14)', () => {
+  it('completed turn appends new thread to ConversationSidebar without page reload (audit Issue 4)', async () => {
+    const user = userEvent.setup();
+
+    // Two-call MSW handler: empty list first, then [thread-happy] after refresh.
+    let convCallCount = 0;
+    server.use(
+      http.get('http://localhost:8000/api/conversations', () => {
+        convCallCount += 1;
+        if (convCallCount === 1) {
+          return HttpResponse.json([]);
+        }
+        return HttpResponse.json([
+          {
+            thread_id: 'thread-happy',
+            last_updated: '2026-05-04T10:00:00Z',
+            first_message_preview:
+              'Surcharge for 15kg Bounce, Bangkok → Nonthaburi',
+          },
+        ]);
+      }),
+      // Fresh-turn happy SSE: meta → 5 traces → answer → done.
+      http.post('http://localhost:8000/api/chat', () => {
+        const stream = makeSseStream(happyTurnEvents('thread-happy'));
+        return new HttpResponse(stream, {
+          headers: { 'Content-Type': 'text/event-stream' },
+        });
+      }),
+    );
+
+    render(<ChatApp />);
+
+    // Wait for the first GET /api/conversations to settle (empty list →
+    // sidebar's empty-state copy is in the document).
+    await waitFor(() =>
+      expect(screen.getByText(/No conversations yet/)).toBeInTheDocument(),
+    );
+
+    // Send a query — fires SSE turn that completes with `done`.
+    await user.type(
+      screen.getByPlaceholderText(/Ask about a surcharge/),
+      'Surcharge for 15kg Bounce, Bangkok → Nonthaburi',
+    );
+    await user.click(screen.getByRole('button', { name: 'Send message' }));
+
+    // Wait for the answer's table to render — proves `done` fired and
+    // void conversations.refresh() ran in the post-`done` useEffect.
+    await waitFor(
+      () => expect(screen.getByRole('table')).toBeInTheDocument(),
+      { timeout: 4000 },
+    );
+
+    // The sidebar now shows the thread WITHOUT a page reload — this only
+    // works if useConversations is a single shared provider instance
+    // (audit Issue 4 closure). If the sidebar were running its own
+    // useState/useEffect, it would still show "No conversations yet".
+    // Scope to the sidebar's resume button (aria-label = "Resume <preview>
+    // — last updated …") because the answer markdown also contains the
+    // preview text — the button-name match disambiguates.
+    await waitFor(
+      () =>
+        expect(
+          screen.getByRole('button', {
+            name: /Resume Surcharge for 15kg Bounce/,
+          }),
+        ).toBeInTheDocument(),
+      { timeout: 4000 },
+    );
+
+    // Exactly two GET /api/conversations calls: provider mount + post-`done` refresh.
+    // (Pitfall 3 — useMemo on context value AND deps narrowing on conversations.refresh
+    // together prevent unbounded refetches.)
+    expect(convCallCount).toBe(2);
   });
 });
