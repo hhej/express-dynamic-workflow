@@ -152,3 +152,105 @@ Metro is the single supported region (`central-1` / `central-2` /
 All constants are overridable via environment variables of the same
 name. Defaults live in `backend/config.py`; see `.env.example` for
 the full list of supported overrides.
+
+## Live Verification (Langfuse Feedback)
+
+Manual smoke test for the user-feedback wire. Run once during W5 code
+freeze (or whenever the feedback contract changes) to confirm a real
+thumbs-up click against the production frontend lands a `user_feedback`
+Score row in Langfuse Cloud on the correct trace.
+
+The frontend → backend → Langfuse path is fully exercised by the
+automated tests (Phase 7 Plan 07-01 + 07-02), but only a live click
+against a backend running with real `LANGFUSE_*` keys can prove the
+Score row actually appears in the Langfuse dashboard. This is the
+final defense against the audit's recurring bug class (cross-phase
+contract drift that automated tests miss in isolation).
+
+### Prerequisites
+
+- Backend `.env` populated with valid `LANGFUSE_PUBLIC_KEY`,
+  `LANGFUSE_SECRET_KEY`, and `LANGFUSE_HOST` (e.g.
+  `https://cloud.langfuse.com`). Without these, the backend
+  gracefully no-ops the Score POST (Phase 5 D-13) and the smoke
+  cannot succeed.
+- Browser access to https://cloud.langfuse.com (Langfuse Cloud
+  dashboard) signed in to the same project the keys above belong to.
+
+### Steps
+
+1. Ensure backend `.env` has `LANGFUSE_*` keys, then **restart
+   uvicorn** (a running server holds the old `_make_config` and
+   `_drain_events` closures in memory; the new contract from Phase 7
+   only takes effect on a fresh import — this is documented in
+   quick task `260503-rs8`).
+   ```bash
+   # Kill any running uvicorn process, then:
+   cd backend && uvicorn api.main:app --reload --port 8000
+   ```
+
+2. Start the frontend dev server.
+   ```bash
+   cd frontend && npm run dev
+   ```
+
+3. Open http://localhost:3000 in the browser. Send one surcharge
+   query, e.g. `Surcharge for 15kg Bounce Bangkok to Nonthaburi`.
+   Wait for the agent's full response (markdown answer + breakdown
+   table).
+
+4. Click the thumbs-up button (`👍`) below the assistant response.
+   The button is `aria-label="Helpful"`. The frontend POSTs
+   `{thread_id, message_id, score: 'up'}` to `/api/feedback`; the
+   backend calls `client.create_score(name="user_feedback", ...)`
+   on the same Langfuse trace the chat handler attached its
+   CallbackHandler to (Phase 5 D-14).
+
+5. Open https://cloud.langfuse.com → **Observations**. Filter by
+   trace name `express-surcharge-agent` (the constant set by
+   quick task `260503-rs8` / `260503-s2h` so all agent traces share
+   one identity for dashboard filtering). The most recent trace
+   corresponds to the query you just sent.
+
+6. Confirm a `user_feedback` Score row exists on the matching
+   `chat_turn_{thread_id}_{turn_idx}` trace with `value=1`. The
+   trace_id is deterministic — derived from
+   `md5("chat_turn_{thread_id}_{turn_idx}")` (Phase 5 D-14) — so
+   the Score row attaches to the EXACT trace the agent run
+   produced, not a name-lookup. Capture a screenshot showing the
+   Score row and save it to `docs/screenshots/langfuse-feedback-score.png`
+   (filename reserved in `docs/screenshots/.gitkeep`).
+
+### Resume-path verification (optional)
+
+Phase 7 also fixed the resume-path feedback wire (broken pre-Phase-7
+via `replay-${i}` ids). To verify:
+
+1. Reload http://localhost:3000 (the previous thread is in the sidebar).
+2. Click the prior conversation entry to resume it.
+3. Click thumbs-up on a replayed assistant message.
+4. Confirm a SECOND `user_feedback` Score row appears in Langfuse
+   on the same trace as step 6 above (the resume-path POST uses the
+   BE-supplied `message_id` from `GET /api/conversations/:id`,
+   which encodes the same `(thread_id, turn_idx)` pair).
+
+### Troubleshooting
+
+- **Click returns HTTP 400**: Backend regex `^(.+)-(\d+)$` rejected
+  the `message_id`. Inspect the request body in the browser
+  DevTools Network tab; the `message_id` should be
+  `{thread_id}-{turn_idx}` shape (e.g. UUIDv4 + dash + integer).
+  Pre-Phase-7 ids of the form `a-1714706402381` would 400 here —
+  that is the audit's bug class. If you see this in production,
+  Phase 7 frontend changes did not deploy.
+- **Click returns HTTP 200 but no Score in Langfuse**: Backend
+  gracefully no-opped (LANGFUSE_* keys missing or
+  `langchain==0.3.28` not pinned — the silent import failure was
+  the root cause of the original `260503-rs8` quick fix). Check
+  the backend log for `feedback: langfuse disabled, skipping
+  score`. Re-pin `langchain` and restart uvicorn.
+- **Score appears on the wrong trace**: The `seed_trace_id` helper
+  is deterministic; trace mismatch means the `(thread_id,
+  turn_idx)` pair in the feedback POST does not match the pair the
+  chat handler used. Verify the Phase 7 D-01 stamping at
+  `backend/api/routes/chat.py::_drain_events`.

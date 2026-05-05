@@ -5,9 +5,15 @@ import clsx from 'clsx';
 interface Props {
   onSend: (message: string) => void;
   disabled?: boolean;
+  /** Plan 06-02 D-08 — overrides the default placeholder when provided. */
+  placeholder?: string;
 }
 
-export function ChatInput({ onSend, disabled = false }: Props) {
+export function ChatInput({
+  onSend,
+  disabled = false,
+  placeholder = 'Ask about a surcharge, e.g., 15kg Bounce from Bangkok to Nonthaburi',
+}: Props) {
   const [text, setText] = useState('');
 
   function submit(e?: FormEvent) {
@@ -36,7 +42,7 @@ export function ChatInput({ onSend, disabled = false }: Props) {
         onKeyDown={onKey}
         disabled={disabled}
         rows={2}
-        placeholder="Ask about a surcharge, e.g., 15kg Bounce from Bangkok to Nonthaburi"
+        placeholder={placeholder}
         className="flex-1 resize-none rounded border border-gray-200 bg-white p-2 text-sm font-normal text-gray-700 focus:border-blue-600 focus:outline-none disabled:bg-gray-50"
       />
       <button

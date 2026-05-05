@@ -1,0 +1,13 @@
+# Screenshot artifacts — captured during W5 demo recording.
+# Filenames are pre-planned so README.md / architecture.md can reference them
+# before the human capture lands.
+#
+# Phase 5 D-20 — Plan 05-07 Task 4:
+chat-happy-path.png
+chat-hitl-approval.png
+dashboard-charts.png
+trace-panel.png
+langfuse-trace.png
+#
+# Phase 7 D-15 — Plan 07-03 Task 1 / Task 3 (Live Verification, Langfuse Feedback Score):
+langfuse-feedback-score.png

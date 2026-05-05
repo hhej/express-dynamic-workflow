@@ -36,7 +36,7 @@ export interface SurchargeResult {
   capped: boolean;
 }
 
-export type FinalStatus = 'ok' | 'partial' | 'clarify';
+export type FinalStatus = 'ok' | 'partial' | 'clarify' | 'search_only';
 
 /** One source row inside a SearchContext (Plan 05-04). */
 export interface SearchContextSource {
@@ -57,6 +57,14 @@ export interface SearchContext {
 /** Mirrors backend AgentState.final_payload built by response_node. */
 export interface FinalPayload {
   markdown: string;
+  /**
+   * Phase 7 D-01/D-04 — REQUIRED. Backend stamps `'{thread_id}-{turn_idx}'`
+   * on every answer payload at backend/api/routes/chat.py::_drain_events.
+   * The frontend reads this verbatim into ChatMessage.id and forwards it to
+   * POST /api/feedback. NEVER reconstruct this string on the FE side
+   * (audit Issue 3 root cause).
+   */
+  message_id: string;
   surcharge_result: SurchargeResult | null;
   capped: boolean;
   status: FinalStatus;

@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-stopped_at: "Completed quick-task 260503-s2h (OBS fix: top-level RunnableConfig.run_name='express-surcharge-agent' so Langfuse 'Name' column matches 'Trace Name'; 186/186 backend tests green)"
-last_updated: "2026-05-03T13:07:00Z"
-last_activity: 2026-05-03
+stopped_at: Completed 08-02-conversations-provider-PLAN.md
+last_updated: "2026-05-05T07:57:53.742Z"
+last_activity: 2026-05-05
 progress:
-  total_phases: 5
-  completed_phases: 5
-  total_plans: 28
-  completed_plans: 28
+  total_phases: 8
+  completed_phases: 8
+  total_plans: 36
+  completed_plans: 36
   percent: 71
 ---
 
@@ -21,14 +21,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-04-04)
 
 **Core value:** The agent must transparently reason through fuel price, route, and shipping data to produce an accurate, explainable surcharge recommendation.
-**Current focus:** Phase 05 — polish-observability-docs
+**Current focus:** Phase 08 — search-context-sidebar-polish
 
 ## Current Position
 
-Phase: 05 (polish-observability-docs) — EXECUTING
-Plan: 4 of 10
+Phase: 08
+Plan: Not started
 Status: Ready to execute
-Last activity: 2026-05-03
+Last activity: 2026-05-05
 
 Progress: [███░░░░░░░] 71%
 
@@ -79,6 +79,13 @@ Progress: [███░░░░░░░] 71%
 | Phase 05 P08 | 25min | 2 tasks | 4 files |
 | Phase 05 P09 | 6min | 2 tasks | 6 files |
 | Phase 05 P10 | 15min | 2 tasks | 6 files |
+| Phase 06 P01 | 3 min | 1 tasks | 2 files |
+| Phase 06 P02 | 7min | 2 tasks | 7 files |
+| Phase 06 P03 | 2min | 1 tasks | 1 files |
+| Phase 07 P01 | 7min | 3 tasks | 6 files |
+| Phase 07 P02 | 7min | 3 tasks | 7 files |
+| Phase 07 P03 | 2 min | 3 tasks | 2 files |
+| Phase 08 P02 | 6min | 3 tasks | 6 files |
 
 ## Accumulated Context
 
@@ -207,6 +214,31 @@ Recent decisions affecting current work:
 - [Quick 260503-rs8]: uvicorn must be restarted after deploying this fix — running server holds the OLD `_make_config` in memory; pytest exercises a fresh import each run so the test suite covers the new key without a server restart, but live `/api/chat` traffic does not pick up the trace_name until uvicorn is recycled.
 - [Quick 260503-s2h]: Top-level RunnableConfig.run_name='express-surcharge-agent' (sibling to configurable/callbacks/metadata, NOT inside metadata) — populates the Langfuse Observations 'Name' column via the langfuse-langchain CallbackHandler reading the LangChain root span name. Pairs with 260503-rs8's metadata.langfuse_trace_name (which populates the 'Trace Name' column) so both columns now match under one constant agent identity for dashboard filtering.
 - [Quick 260503-s2h]: Single in-place test extension in test_chat_attaches_callback_when_enabled (no new test function) — preserves the 186-test baseline established post-260503-rs8; success criteria explicitly required no test count delta.
+- [Phase 06]: Plan 06-01 D-01 + D-15.1: extended TraceStep.AGENT_LABEL with hitl_gate -> 'Approval gate' and search_agent -> 'Search agent'; added Vitest exhaustive-loop test (AGENT_NAMES) so any future AgentName addition that forgets AGENT_LABEL fails BOTH at tsc (Record<AgentName,string> TS2739) AND at runtime (loop assertion). Defense-in-depth drift prevention.
+- [Phase 06]: Plan 06-01 PROCESS DEVIATION: parallel 06-02 executor agent's git stage swept Plan 06-01's already-staged TraceStep.tsx + TraceStep.test.tsx files into commit ff68f26 'feat(06-02): add ApprovalCard errorMessage prop'. Code is correct AND committed (git show ff68f26 confirms exact spec match), only commit-message slug attribution drifted from (06-01) to (06-02). SUMMARY.md commit will land under (06-01) for grep-by-plan traceability. No functional impact.
+- [Phase 06]: ChatColumn isStreaming -> inputDisabled rename per D-07: name boolean for what it gates (input), not state that happens to be true (streaming)
+- [Phase 06]: Pending-assistant-slot strip-and-replace on done: placeholder id pending-${ts} never persists into history per D-06
+- [Phase 06]: ApprovalCard waiting state resets via useEffect when errorMessage flips truthy: parent-supplied error means prior attempt failed, so buttons must re-enable per D-11
+- [Phase 06]: Two-render pattern in D-15.2 ChatColumn props-forwarding test: ApprovalCard internal waiting would otherwise disable second click without errorMessage to reset
+- [Phase 06]: ChatInput placeholder default preserved as ORIGINAL literal so all pre-existing tests pass without modification — optional prop is purely additive
+- [Phase 06]: Plan 06-03 D-15.3: end-to-end MSW SSE integration test in ChatApp.integration.test.tsx exercises both approve and deny flows through the production prop chain — drift-prevention layer that catches any future regression dropping chat.approve/chat.approvalPayload from ChatApp
+- [Phase 06]: Plan 06-03 call-counter MSW handler installPauseThenResumeHandler — single server.use registration switches behaviour on call number; first call returns paused fresh-turn SSE, second call returns resume SSE with defensive thread_id/approve assertions inside the handler closure
+- [Phase 06]: Plan 06-03 deviation: ChatInput Send-button disabled predicate is 'disabled || empty-textarea' — re-enable assertion needs a follow-up keystroke first to disambiguate the inputDisabled-driven lock from the empty-text lock; mirrors pre-existing ChatApp.test.tsx line-79 pattern
+- [Phase 07]: Plan 07-01: BE stamps message_id at _drain_events answer-yield site (D-01/D-02) — single source of truth eliminates audit Issue 3 drift class; FE never reconstructs from parts
+- [Phase 07]: Plan 07-01: _resume_stream passes cfg_turn (clamped) NOT turn_idx into _drain_events so message_id matches the SAME Langfuse trace the CallbackHandler attached to during the original paused turn — preserves Phase 5 D-14 trace continuity
+- [Phase 07]: Plan 07-01 [Rule 2 deviation]: response_node now appends rendered assistant markdown to state.messages on BOTH happy and deny paths — without this the FE resume path renders zero assistants (degenerate) and the plan's _attach_message_ids contract has no rows to stamp; deeper symptom of audit Issue 3 surfaced during RED phase
+- [Phase 07]: Plan 07-01: _attach_message_ids uses three-pass derivation (turn_for / last_assistant_per_turn / stamping) mirroring chat.py:_next_turn_idx semantics verbatim — 1 user message = 1 turn; ONLY last assistant per turn carries message_id (D-07); user + non-last assistants get silent absence (D-06)
+- [Phase 07]: Plan 07-02: FinalPayload.message_id REQUIRED at type-system boundary (D-04) — TypeScript compiler is the drift-prevention chokepoint, not runtime guards; cascade impact zero because all four shared fixtures propagated the field cleanly
+- [Phase 07]: Plan 07-02: handleResume map fallback id is synthetic literal (replay-noncanonical-i) NOT empty string — keeps React reconciliation keys stable while payload.message_id='' tells the MessageList gate (D-08) to suppress FeedbackButtons; two distinct values for two distinct concerns
+- [Phase 07]: Plan 07-02 [Rule 2 deviation]: useChatStream.setThreadId added — without it chat.threadId stayed null after every resume click and FeedbackButtons gate's threadId-truthy check silently suppressed feedback on EVERY resumed conversation; deeper bug than audit Issue 3 captured but exactly the class Plan 07-01 Rule 2 deviation hinted at
+- [Phase 07]: Plan 07-02: MessageList messageId prop reads m.payload.message_id NOT m.id (D-08) — both equal for canonical rows post-Task 2 but reading from payload makes feedback identity-of-truth visible at the call site; explicit data flow over reuse-the-React-key shortcut
+- [Phase 07]: Plan 07-03: Live verification PERFORMED end-to-end (Score row confirmed visible in Langfuse Cloud) but PNG artifact at docs/screenshots/langfuse-feedback-score.png DEFERRED — user chose to capture screenshot later. OBS-02 stays partial until PNG lands.
+- [Phase 07]: Plan 07-03: docs/data-sources.md ends with  6-step checklist (D-14); docs/screenshots/.gitkeep reserves langfuse-feedback-score.png filename (D-15); audit Issue 3 closed end-to-end across Plans 07-01 + 07-02 + 07-03 live click — only the lasting PNG evidence remains outstanding.
+- [Phase 08]: Plan 08-02: ConversationsProvider colocated with useConversations in single .tsx file (D-06); sentinel-null Context with wrapper hook that throws on null — clear error when called outside provider
+- [Phase 08]: Plan 08-02: ChatApp split into outer ChatApp (mounts <ConversationsProvider>) + inner ChatAppInner (consumes via useConversations) — Pitfall 1 mitigation; consumer must sit below provider in React tree
+- [Phase 08]: Plan 08-02: useMemo on context value AND narrowed useEffect deps from [conversations] to [conversations.refresh] — defense-in-depth against unbounded refetch loop where every items update would re-create the value object and refire the post-done effect (Pitfall 3)
+- [Phase 08]: Plan 08-02: D-14 integration test scopes sidebar assertion to Resume button aria-label (/Resume Surcharge for 15kg Bounce/) — chat-answer markdown also contains preview text so getByText collides; aria-label scoping disambiguates (Rule 1 fix discovered during test execution)
+- [Phase 08]: Plan 08-02: ConversationSidebar.test.tsx and SurchargeHistoryChart.test.tsx gained renderWithProvider helpers — Rule 1 fix because provider migration broke standalone component renders; in-scope because direct consumers of useConversations broken by THIS task's changes
 
 ### Pending Todos
 
@@ -231,6 +263,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-05-03T13:07:00Z
-Stopped at: Completed quick-task 260503-s2h (OBS fix: top-level RunnableConfig.run_name='express-surcharge-agent' so Langfuse 'Name' column matches 'Trace Name'; 186/186 backend tests green)
+Last session: 2026-05-05T06:01:29.264Z
+Stopped at: Completed 08-02-conversations-provider-PLAN.md
 Resume file: None

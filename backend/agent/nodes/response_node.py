@@ -220,14 +220,25 @@ def response_node(state: dict) -> dict:
             .replace("+00:00", "Z"),
             "status": "ok",
         }
+        # Phase 7 (Rule 2 critical functionality): persist the assistant
+        # response into state.messages so GET /api/conversations/:id can
+        # replay it on resume and so _attach_message_ids has assistant
+        # rows to stamp message_id onto. Without this, the resume path
+        # renders only user messages and the feedback button never shows
+        # on past conversations. Append-style: read prior messages, then
+        # return the full list (state.messages has no operator.add reducer).
+        prior_messages = list(state.get("messages") or [])
+        prior_messages.append({"role": "assistant", "content": markdown})
         return {
             "final_payload": {
                 "markdown": markdown,
                 "surcharge_result": None,  # D-07: no breakdown on deny
                 "capped": False,
                 "status": "partial",
+                "search_context": state.get("search_context"),  # Phase 8 D-07 — preserve provenance on deny
             },
             "reasoning_trace": [deny_trace],
+            "messages": prior_messages,
         }
 
     # gap-3 fix (2026-05-03): when search_agent populated state.search_context
@@ -270,10 +281,15 @@ def response_node(state: dict) -> dict:
         # gap-3 fix: deterministic news prose; the Market context blockquote
         # is prepended below (D-11) so the user sees provenance + summary +
         # this prose. Sources are surfaced in the trace panel separately.
-        markdown = (
-            "Here's the latest market context.\n\n"
-            f"{_FOOTER}"
-        )
+        #
+        # Debug-fix 2026-05-05 (08-dangling-trace-footer-search-only): the
+        # _FOOTER pointer "*Reasoning trace available below.*" is omitted
+        # on this path because (a) SearchContextLine + Sources details
+        # already surface the trace-relevant content inline, and (b)
+        # without a breakdown table to anchor it, the footer rendered as
+        # a dangling sentence with empty space beneath it (TracePanel
+        # lives in a sibling column, not literally "below" the markdown).
+        markdown = "Here's the latest market context."
     elif status == "clarify":
         markdown = _render_prose_clarify(state)
     else:  # partial
@@ -299,6 +315,7 @@ def response_node(state: dict) -> dict:
         "surcharge_result": surcharge_result,
         "capped": capped,
         "status": status,
+        "search_context": state.get("search_context"),  # Phase 8 D-07 — always present, None when state lacks it
     }
 
     prior_steps = len(state.get("reasoning_trace") or [])
@@ -315,7 +332,18 @@ def response_node(state: dict) -> dict:
         "status": "ok",
     }
 
+    # Phase 7 (Rule 2 critical functionality): persist the assistant
+    # response into state.messages so GET /api/conversations/:id can
+    # replay it on resume and so _attach_message_ids has assistant rows
+    # to stamp message_id onto. Without this, the resume path renders
+    # only user messages and the feedback button never shows on past
+    # conversations. Append-style: read prior messages, then return the
+    # full list (state.messages has no operator.add reducer).
+    prior_messages = list(state.get("messages") or [])
+    prior_messages.append({"role": "assistant", "content": markdown})
+
     return {
         "final_payload": final_payload,
         "reasoning_trace": [trace_entry],
+        "messages": prior_messages,
     }

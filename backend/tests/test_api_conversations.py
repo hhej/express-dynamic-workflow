@@ -215,3 +215,60 @@ def test_404_unknown_thread(app_with_seeded_thread):
     with TestClient(app_with_seeded_thread) as client:
         resp = client.get("/api/conversations/no-such-thread")
         assert resp.status_code == 404
+
+
+# ---------------------------------------------------------------------------
+# Phase 7 D-05 / D-06 / D-07 — message_id attached on LAST assistant per turn
+# ---------------------------------------------------------------------------
+
+
+def test_get_conversation_attaches_message_id_to_last_assistant(
+    app_with_seeded_thread,
+):
+    """Phase 7 D-05/D-07: GET /api/conversations/:id stamps message_id
+    on the LAST assistant message of each turn. Format: '{thread_id}-{turn_idx}'.
+    """
+    with TestClient(app_with_seeded_thread) as client:
+        _seed_thread(client, "thread-msgid")
+
+        resp = client.get("/api/conversations/thread-msgid")
+        assert resp.status_code == 200
+        data = resp.json()
+
+    # Every turn = 1 user message; this seed produces 1 turn.
+    assistants = [m for m in data["messages"] if m.get("role") == "assistant"]
+    assert len(assistants) >= 1, (
+        f"expected at least one assistant message; got messages={data['messages']!r}"
+    )
+    # The LAST assistant of each turn must carry message_id.
+    last_assistant = assistants[-1]
+    assert "message_id" in last_assistant, (
+        "LAST assistant of turn must carry message_id (Phase 7 D-05/D-07); "
+        f"got keys: {list(last_assistant.keys())}"
+    )
+    assert last_assistant["message_id"] == "thread-msgid-0"
+
+
+def test_get_conversation_message_id_user_messages_have_no_field(
+    app_with_seeded_thread,
+):
+    """Phase 7 D-06: user messages have NO message_id field (silent absence).
+
+    Per D-06 the field absence is the natural signal — user rows have no
+    feedback affordance. A parallel array OR an explicit null would force
+    the FE to special-case; field-absence is the cleanest contract.
+    """
+    with TestClient(app_with_seeded_thread) as client:
+        _seed_thread(client, "thread-userrows")
+
+        resp = client.get("/api/conversations/thread-userrows")
+        assert resp.status_code == 200
+        data = resp.json()
+
+    users = [m for m in data["messages"] if m.get("role") == "user"]
+    assert len(users) >= 1, "seed must have produced at least one user message"
+    for u in users:
+        assert "message_id" not in u, (
+            "user messages must not carry message_id (Phase 7 D-06); "
+            f"got user message: {u!r}"
+        )

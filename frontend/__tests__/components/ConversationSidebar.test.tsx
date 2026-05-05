@@ -2,12 +2,20 @@ import { describe, expect, it, vi } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { http, HttpResponse } from 'msw';
+import type { ReactNode } from 'react';
 import { ConversationSidebar } from '@/components/sidebar/ConversationSidebar';
+import { ConversationsProvider } from '@/hooks/useConversations';
 import { server } from '../mocks/server';
+
+// Phase 8 D-02: ConversationSidebar reads useConversations() which now requires
+// the provider in its tree. Wrap every standalone render so the hook resolves.
+function renderWithProvider(ui: ReactNode) {
+  return render(<ConversationsProvider>{ui}</ConversationsProvider>);
+}
 
 describe('ConversationSidebar (UI-06 / D-02 / D-14)', () => {
   it('renders the LOCKED heading and "+ New conversation" button', async () => {
-    render(
+    renderWithProvider(
       <ConversationSidebar
         activeThreadId={null}
         onResume={() => {}}
@@ -23,7 +31,7 @@ describe('ConversationSidebar (UI-06 / D-02 / D-14)', () => {
   });
 
   it('lists threads from useConversations (MSW SAMPLE_CONVERSATIONS)', async () => {
-    render(
+    renderWithProvider(
       <ConversationSidebar
         activeThreadId={null}
         onResume={() => {}}
@@ -44,7 +52,7 @@ describe('ConversationSidebar (UI-06 / D-02 / D-14)', () => {
         HttpResponse.json([]),
       ),
     );
-    render(
+    renderWithProvider(
       <ConversationSidebar
         activeThreadId={null}
         onResume={() => {}}
@@ -61,7 +69,7 @@ describe('ConversationSidebar (UI-06 / D-02 / D-14)', () => {
   it('clicking a thread calls onResume(threadId)', async () => {
     const user = userEvent.setup();
     const onResume = vi.fn();
-    render(
+    renderWithProvider(
       <ConversationSidebar
         activeThreadId={null}
         onResume={onResume}
@@ -74,7 +82,7 @@ describe('ConversationSidebar (UI-06 / D-02 / D-14)', () => {
   });
 
   it('the active thread has the bg-blue-600 / text-white accent classes', async () => {
-    render(
+    renderWithProvider(
       <ConversationSidebar
         activeThreadId="thread-1"
         onResume={() => {}}
@@ -92,7 +100,7 @@ describe('ConversationSidebar (UI-06 / D-02 / D-14)', () => {
   it('"+ New conversation" click calls onNewConversation', async () => {
     const user = userEvent.setup();
     const onNew = vi.fn();
-    render(
+    renderWithProvider(
       <ConversationSidebar
         activeThreadId={null}
         onResume={() => {}}
