@@ -3,8 +3,9 @@ import { render, screen, waitFor } from '@testing-library/react';
 import { http, HttpResponse } from 'msw';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
-import type { ReactElement } from 'react';
+import type { ReactElement, ReactNode } from 'react';
 import { SurchargeHistoryChart } from '@/components/dashboard/SurchargeHistoryChart';
+import { ConversationsProvider } from '@/hooks/useConversations';
 import { server } from '../mocks/server';
 
 // jsdom has no ResizeObserver; clone-element shim gives the inner BarChart real
@@ -22,16 +23,22 @@ vi.mock('recharts', async () => {
   };
 });
 
+// Phase 8 D-02: SurchargeHistoryChart reads useConversations() which now requires
+// the provider in its tree. Wrap every standalone render so the hook resolves.
+function renderWithProvider(ui: ReactNode) {
+  return render(<ConversationsProvider>{ui}</ConversationsProvider>);
+}
+
 describe('SurchargeHistoryChart (UI-04 surcharge history)', () => {
   it('renders the LOCKED chart title', () => {
-    render(<SurchargeHistoryChart />);
+    renderWithProvider(<SurchargeHistoryChart />);
     expect(
       screen.getByRole('heading', { name: 'Recent surcharges' }),
     ).toBeInTheDocument();
   });
 
   it('renders SVG with at least one bar rect when threads have surcharge_result', async () => {
-    const { container } = render(<SurchargeHistoryChart />);
+    const { container } = renderWithProvider(<SurchargeHistoryChart />);
     await waitFor(
       () => {
         const svg = container.querySelector('svg');
@@ -58,7 +65,7 @@ describe('SurchargeHistoryChart (UI-04 surcharge history)', () => {
         }),
       ),
     );
-    render(<SurchargeHistoryChart />);
+    renderWithProvider(<SurchargeHistoryChart />);
     await waitFor(() => {
       expect(
         screen.getByText(
@@ -74,7 +81,7 @@ describe('SurchargeHistoryChart (UI-04 surcharge history)', () => {
         HttpResponse.json({ error: 'boom' }, { status: 500 }),
       ),
     );
-    render(<SurchargeHistoryChart />);
+    renderWithProvider(<SurchargeHistoryChart />);
     await waitFor(() => {
       expect(
         screen.getByText(

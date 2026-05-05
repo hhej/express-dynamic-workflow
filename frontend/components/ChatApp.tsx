@@ -4,7 +4,7 @@ import { ChatColumn } from '@/components/chat/ChatColumn';
 import { ConversationSidebar } from '@/components/sidebar/ConversationSidebar';
 import { TracePanel } from '@/components/trace/TracePanel';
 import { useChatStream } from '@/hooks/useChatStream';
-import { useConversations } from '@/hooks/useConversations';
+import { ConversationsProvider, useConversations } from '@/hooks/useConversations';
 import type { ChatMessage } from '@/components/chat/MessageList';
 import type { FinalPayload } from '@/types/agent.types';
 
@@ -19,7 +19,7 @@ import type { FinalPayload } from '@/types/agent.types';
  * collapse (sidebar + trace panel are `hidden md:flex`), D-14 + D-20
  * resume → next-turn thread continuity, D-08 single-turn liveTrace.
  */
-export function ChatApp() {
+function ChatAppInner() {
   const chat = useChatStream();
   const conversations = useConversations();
   const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -68,7 +68,7 @@ export function ChatApp() {
       ];
     });
     void conversations.refresh();
-  }, [chat.finalPayload, chat.status, conversations]);
+  }, [chat.finalPayload, chat.status, conversations.refresh]);
 
   // Plan 06-02 D-06: when SSE emits approval_required, append a placeholder
   // assistant message whose null payload is the slot ApprovalCard hangs off
@@ -213,5 +213,20 @@ export function ChatApp() {
         />
       </div>
     </main>
+  );
+}
+
+/**
+ * Phase 8 D-02 — top-level export wraps ChatAppInner with ConversationsProvider
+ * so all three consumers (ChatAppInner, ConversationSidebar, SurchargeHistoryChart)
+ * read from the same shared instance. Pitfall 1 mitigation: ChatAppInner
+ * sits BELOW the provider in the React tree, so its useConversations() call
+ * resolves cleanly.
+ */
+export function ChatApp() {
+  return (
+    <ConversationsProvider>
+      <ChatAppInner />
+    </ConversationsProvider>
   );
 }
