@@ -164,6 +164,11 @@ Plans:
   2. `agent.types.ts` FinalStatus union includes `'search_only'` and downstream switches handle it
   3. Conversation sidebar updates immediately after a completed turn without requiring a page reload (single useConversations instance shared via context)
 **UI hint**: yes
+**Plans:** 2 plans
+
+Plans:
+- [ ] 08-01-PLAN.md — Backend response_node forwards state.search_context into final_payload (happy + deny) + FE FinalStatus union extended with 'search_only' + MessageList explicit dispatch case + Vitest drift-prevention test (audit Issue 6)
+- [ ] 08-02-PLAN.md — Promote useConversations to ConversationsProvider Context (single shared instance) + ChatApp split into outer/inner + sidebar-refresh integration test (audit Issue 4, UI-06)
 
 ## Progress
 
@@ -179,7 +184,7 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5
 | 5. Polish, Observability & Docs | 6/7 | Wave 6 PARTIAL — Plan 05-07 Tasks 1-3 done (DOC-01/02/04 docs); Tasks 4-5 pending HUMAN action (demo + screenshots; v1.0 tag) | - |
 | 6. HITL Approval UI Wiring + Compile Fix | 0/3 | Planning complete | - |
 | 7. Feedback Contract Alignment | 3/3 | Complete   | 2026-05-04 |
-| 8. Search Context Wiring + Sidebar Polish | 0/0 | Gap closure — planning pending | - |
+| 8. Search Context Wiring + Sidebar Polish | 0/2 | Planning complete | - |
 
 ## Backlog
 
