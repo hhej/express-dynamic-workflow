@@ -110,4 +110,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-05-04 after Phase 7 completion (Feedback Contract Alignment — `user_feedback` Langfuse Score live-verified)*
+*Last updated: 2026-05-05 after Phase 8 completion (Search Context Wiring + Sidebar Polish — audit Issues 4 + 6 closed; TOOL-05/UI-02/UI-06 rendering completeness restored)*
