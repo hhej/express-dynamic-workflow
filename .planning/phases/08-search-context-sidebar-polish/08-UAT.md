@@ -14,10 +14,8 @@ updated: 2026-05-05T15:15:00Z
 
 ### 1. Tavily news query renders SearchContextLine with sources
 expected: SearchContextLine "Market context:" caption + collapsible "Sources: N" details with clickable target=_blank links + no surcharge breakdown table on a Tavily news-style query (status='search_only')
-result: issue
-reported: "it's show Market Context + Sources, but we got additional sentence 'Reasoning trace available below.' with nothing below"
-severity: minor
-note: SearchContextLine + Sources render correctly. The dangling 'Reasoning trace available below.' footer text appears with no trace component beneath it on the search_only path.
+result: pass
+note: SearchContextLine + Sources render correctly. Dangling 'Reasoning trace available below.' footer fixed in commit 470a04b — search_only branch in response_node.py no longer appends _FOOTER.
 
 ### 2. Sidebar updates immediately after completed turn (no page reload)
 expected: After sending a surcharge query and the answer renders, the new conversation entry appears in the left sidebar within ~1 second of the answer (the `done` SSE event), without needing a page reload or manual refresh
@@ -26,8 +24,8 @@ result: pass
 ## Summary
 
 total: 2
-passed: 1
-issues: 1
+passed: 2
+issues: 0
 pending: 0
 skipped: 0
 blocked: 0
@@ -35,10 +33,10 @@ blocked: 0
 ## Gaps
 
 - truth: "On status='search_only' payloads, no 'Reasoning trace available below.' footer appears unless an actual trace renders beneath it"
-  status: failed
-  reason: "User reported: it's show Market Context + Sources, but we got additional sentence 'Reasoning trace available below.' with nothing below"
-  severity: minor
+  status: resolved
+  debug_session: .planning/debug/resolved/08-dangling-trace-footer-search-only.md
+  root_cause: "search_only branch in response_node.py unconditionally appended trace-pointer footer; TracePanel lives in a sibling column, not below the bubble"
+  fix: "Dropped _FOOTER append from search_only branch in response_node.py (commit 470a04b); FE fixture updated to match"
   test: 1
   artifacts: []
   missing: []
-  context: "Main rendering path works (SearchContextLine + Sources visible). Dangling footer text appears with no trace component beneath it. Likely BE markdown emits the 'Reasoning trace available below.' line on search-only paths even when there's no trace to render, OR FE strips the blockquote but leaves the trace-pointer footer."
