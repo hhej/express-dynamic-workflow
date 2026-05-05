@@ -19,7 +19,7 @@ describe("MessageList — status='search_only' (Phase 8 D-15)", () => {
         payload: {
           message_id: 'thread-news-0',
           markdown:
-            "> **Market context:** Diesel up 3% on supply concerns\n\nHere's the latest market context.\n\n*Reasoning trace available below.*",
+            "> **Market context:** Diesel up 3% on supply concerns\n\nHere's the latest market context.",
           surcharge_result: null,
           capped: false,
           status: 'search_only',

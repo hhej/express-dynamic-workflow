@@ -281,10 +281,15 @@ def response_node(state: dict) -> dict:
         # gap-3 fix: deterministic news prose; the Market context blockquote
         # is prepended below (D-11) so the user sees provenance + summary +
         # this prose. Sources are surfaced in the trace panel separately.
-        markdown = (
-            "Here's the latest market context.\n\n"
-            f"{_FOOTER}"
-        )
+        #
+        # Debug-fix 2026-05-05 (08-dangling-trace-footer-search-only): the
+        # _FOOTER pointer "*Reasoning trace available below.*" is omitted
+        # on this path because (a) SearchContextLine + Sources details
+        # already surface the trace-relevant content inline, and (b)
+        # without a breakdown table to anchor it, the footer rendered as
+        # a dangling sentence with empty space beneath it (TracePanel
+        # lives in a sibling column, not literally "below" the markdown).
+        markdown = "Here's the latest market context."
     elif status == "clarify":
         markdown = _render_prose_clarify(state)
     else:  # partial
