@@ -2,15 +2,15 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-status: verifying
-stopped_at: Phase 8 context gathered
-last_updated: "2026-05-05T04:27:51.696Z"
-last_activity: 2026-05-04
+status: executing
+stopped_at: Completed 08-02-conversations-provider-PLAN.md
+last_updated: "2026-05-05T06:01:29.268Z"
+last_activity: 2026-05-05
 progress:
   total_phases: 8
   completed_phases: 7
-  total_plans: 34
-  completed_plans: 34
+  total_plans: 36
+  completed_plans: 35
   percent: 71
 ---
 
@@ -21,14 +21,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-04-04)
 
 **Core value:** The agent must transparently reason through fuel price, route, and shipping data to produce an accurate, explainable surcharge recommendation.
-**Current focus:** Phase 07 — feedback-contract-alignment
+**Current focus:** Phase 08 — search-context-sidebar-polish
 
 ## Current Position
 
-Phase: 08
-Plan: Not started
-Status: Phase complete — ready for verification
-Last activity: 2026-05-04
+Phase: 08 (search-context-sidebar-polish) — EXECUTING
+Plan: 2 of 2
+Status: Ready to execute
+Last activity: 2026-05-05
 
 Progress: [███░░░░░░░] 71%
 
@@ -85,6 +85,7 @@ Progress: [███░░░░░░░] 71%
 | Phase 07 P01 | 7min | 3 tasks | 6 files |
 | Phase 07 P02 | 7min | 3 tasks | 7 files |
 | Phase 07 P03 | 2 min | 3 tasks | 2 files |
+| Phase 08 P02 | 6min | 3 tasks | 6 files |
 
 ## Accumulated Context
 
@@ -233,6 +234,11 @@ Recent decisions affecting current work:
 - [Phase 07]: Plan 07-02: MessageList messageId prop reads m.payload.message_id NOT m.id (D-08) — both equal for canonical rows post-Task 2 but reading from payload makes feedback identity-of-truth visible at the call site; explicit data flow over reuse-the-React-key shortcut
 - [Phase 07]: Plan 07-03: Live verification PERFORMED end-to-end (Score row confirmed visible in Langfuse Cloud) but PNG artifact at docs/screenshots/langfuse-feedback-score.png DEFERRED — user chose to capture screenshot later. OBS-02 stays partial until PNG lands.
 - [Phase 07]: Plan 07-03: docs/data-sources.md ends with  6-step checklist (D-14); docs/screenshots/.gitkeep reserves langfuse-feedback-score.png filename (D-15); audit Issue 3 closed end-to-end across Plans 07-01 + 07-02 + 07-03 live click — only the lasting PNG evidence remains outstanding.
+- [Phase 08]: Plan 08-02: ConversationsProvider colocated with useConversations in single .tsx file (D-06); sentinel-null Context with wrapper hook that throws on null — clear error when called outside provider
+- [Phase 08]: Plan 08-02: ChatApp split into outer ChatApp (mounts <ConversationsProvider>) + inner ChatAppInner (consumes via useConversations) — Pitfall 1 mitigation; consumer must sit below provider in React tree
+- [Phase 08]: Plan 08-02: useMemo on context value AND narrowed useEffect deps from [conversations] to [conversations.refresh] — defense-in-depth against unbounded refetch loop where every items update would re-create the value object and refire the post-done effect (Pitfall 3)
+- [Phase 08]: Plan 08-02: D-14 integration test scopes sidebar assertion to Resume button aria-label (/Resume Surcharge for 15kg Bounce/) — chat-answer markdown also contains preview text so getByText collides; aria-label scoping disambiguates (Rule 1 fix discovered during test execution)
+- [Phase 08]: Plan 08-02: ConversationSidebar.test.tsx and SurchargeHistoryChart.test.tsx gained renderWithProvider helpers — Rule 1 fix because provider migration broke standalone component renders; in-scope because direct consumers of useConversations broken by THIS task's changes
 
 ### Pending Todos
 
@@ -257,6 +263,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-05-05T04:27:51.686Z
-Stopped at: Phase 8 context gathered
-Resume file: .planning/phases/08-search-context-sidebar-polish/08-CONTEXT.md
+Last session: 2026-05-05T06:01:29.264Z
+Stopped at: Completed 08-02-conversations-provider-PLAN.md
+Resume file: None
