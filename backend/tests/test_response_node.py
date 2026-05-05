@@ -362,3 +362,48 @@ def test_response_renders_news_prose_even_when_loop_budget_exhausted():
     assert "I need a bit more information to calculate your surcharge" not in md
     # Market context blockquote is still prepended.
     assert md.startswith("> **Market context:** Refinery shutdown nudges prices.")
+
+
+# ---------------------------------------------------------------------------
+# Phase 8 D-07 / D-13: search_context always present in final_payload
+# (audit Issue 6 backend half — closes drift class where FE could not tell
+# `undefined` from `null`).
+# ---------------------------------------------------------------------------
+
+
+def test_response_forwards_search_context_in_final_payload_when_present():
+    """D-07: state.search_context flows verbatim into final_payload['search_context']."""
+    state = _ok_state()
+    state["search_context"] = {
+        "query": "q",
+        "summary": "s",
+        "sources": [],
+        "fetched_at": "z",
+    }
+    out = response_node(state)
+    assert out["final_payload"]["search_context"] == state["search_context"]
+
+
+def test_response_search_context_is_none_in_final_payload_when_absent():
+    """D-07: KEY is always present (Pitfall 5 — guards against `state.get(..., {})`
+    style regressions); VALUE is None when state lacks the field."""
+    state = _ok_state()
+    state.pop("search_context", None)
+    out = response_node(state)
+    assert "search_context" in out["final_payload"]
+    assert out["final_payload"]["search_context"] is None
+
+
+def test_response_deny_path_forwards_search_context_in_final_payload():
+    """D-07 symmetry: the deny-path final_payload also forwards search_context
+    so provenance survives decline (Plan 05-05 D-11 contract)."""
+    state = _ok_state()
+    state["approval_decision"] = "deny"
+    state["search_context"] = {
+        "query": "q",
+        "summary": "Diesel held steady.",
+        "sources": [],
+        "fetched_at": "z",
+    }
+    out = response_node(state)
+    assert out["final_payload"]["search_context"] == state["search_context"]
