@@ -235,6 +235,7 @@ def response_node(state: dict) -> dict:
                 "surcharge_result": None,  # D-07: no breakdown on deny
                 "capped": False,
                 "status": "partial",
+                "search_context": state.get("search_context"),  # Phase 8 D-07 — preserve provenance on deny
             },
             "reasoning_trace": [deny_trace],
             "messages": prior_messages,
@@ -309,6 +310,7 @@ def response_node(state: dict) -> dict:
         "surcharge_result": surcharge_result,
         "capped": capped,
         "status": status,
+        "search_context": state.get("search_context"),  # Phase 8 D-07 — always present, None when state lacks it
     }
 
     prior_steps = len(state.get("reasoning_trace") or [])
