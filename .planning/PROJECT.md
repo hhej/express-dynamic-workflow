@@ -29,13 +29,16 @@ The agent must transparently reason through fuel price, route, and shipping data
 - [x] Human-in-the-loop approval gate for high-value shipment surcharge recommendations — Validated in Phase 6: HITL Approval UI Wiring + Compile Fix
 - [x] User feedback (thumbs up/down) forwarded to Langfuse for evaluation scoring — Validated in Phase 7: Feedback Contract Alignment
 
+- [x] Fuel Agent fetches diesel prices via 3-level fallback chain (live scrape stub → cached CSV → hardcoded baseline) — Validated in Phase 2: Tools & Agent Nodes (TOOL-01)
+- [x] Route Agent calculates distance, duration, and traffic severity via Google Maps Directions + 15-min TTL cache — Validated in Phase 2: Tools & Agent Nodes (TOOL-02)
+- [x] Fuel and Route agents execute in parallel via LangGraph list-returning conditional edge (~165µs trace delta) — Validated in Phase 5: Polish, Observability & Docs (ORCH-07)
+- [x] Tavily web search tool for fuel news context with TTL cache and graceful-warn node — Validated in Phase 5/8 (TOOL-05)
+- [x] FastAPI backend with POST /api/chat (SSE), GET /api/conversations, GET /api/fuel-prices, POST /api/feedback — Validated in Phase 3/5/7 (API-01..05)
+- [x] Langfuse observability — per-turn callback handler, formula_accuracy auto-eval, user_feedback Score forwarding — Validated in Phase 5/7 (OBS-01/02/03)
+
 ### Active
 
-- [ ] Fuel Agent fetches live diesel prices from EPPO/PTT API with multi-level fallback chain (API → scrape → cached CSV → last-known)
-- [ ] Route Agent calculates distance and traffic via Google Maps API with 15-min caching
-- [ ] Fuel and Route agents execute in parallel (LangGraph Send API) since they are independent
-- [ ] Tavily web search tool for fuel news context and trend reasoning
-- [ ] FastAPI backend with endpoints: POST /api/chat (SSE), GET /api/conversations, GET /api/fuel-prices, POST /api/feedback
+(None — v1.0 shipped; next milestone TBD)
 
 ### Out of Scope
 
@@ -49,12 +52,24 @@ The agent must transparently reason through fuel price, route, and shipping data
 ## Context
 
 **Course:** MADT7204 Vibe Coding Project — "Bangkok Oil Price Crisis: Build an Agentic AI Solution"
-**Timeline:** 6 weeks total. Repo created, architecture drafted. Now entering build phase (W2-W4).
-**Team:** 1 IT Lead (you) + 5 Management Members. IT Lead owns agent architecture, codebase, tools, data pipeline, Git, and technical docs.
+**Timeline:** Shipped v1.0 in 32 days (2026-04-04 → 2026-05-05). Code freeze for final submission.
+**Team:** 1 IT Lead + 5 Management Members. IT Lead owns agent architecture, codebase, tools, data pipeline, Git, and technical docs.
 **Grading (IT Lead):** Agent Architecture & Technical Execution (35%), Data Integration (20%), Technical Documentation & Git Practice (20%), AI/Vibe-Coding Tool Leverage (15%), Team Technical Leadership (10%).
-**Key grading insight:** "The agent is the product — not a feature bolted onto a CRUD app." Optional enhancements that earn extra marks: multi-agent pattern, RAG, memory, agentic loop. This architecture targets all four.
+**Key grading insight:** "The agent is the product — not a feature bolted onto a CRUD app." All four optional enhancements were targeted and shipped: multi-agent pattern (planner + 4 specialists), RAG-style tool augmentation (Tavily), conversation memory (AsyncSqliteSaver), and agentic retry loop (D-22 RetryPolicy + D-24 error sink).
 
-**Existing scaffold:** Directory structure follows brief requirements. Architecture doc (`docs/architecture.md`) is the detailed technical reference with agent state schema, tool specs, surcharge formula, zone definitions, API endpoints, and error handling.
+**Current State (v1.0 shipped 2026-05-05):**
+- 8 phases, 36 plans, 87 tasks, 60+ feat commits
+- ~16,000 LOC across Python (backend) + TypeScript (frontend)
+- 194/194 backend pytest pass, 122/122 frontend vitest pass
+- 43/43 v1 requirements satisfied (3-source cross-reference verified)
+- All 4 E2E flows fully wired: surcharge happy path, follow-up cache reuse, HITL high-value approval, Tavily news_query
+- Live observability proven: Langfuse Cloud trace `express-surcharge-agent` carrying `formula_accuracy` + `user_feedback` Scores
+- 5 of 6 submission screenshots landed (`langfuse-feedback-score.png`, `chat-breakdown.png`, `trace-parallel.png`, `dashboard.png`, `hitl-approval.png`, `langfuse-trace.png`); demo.mp4 deferred
+- v1.0.0 git tag pending on main merge commit
+
+**Tech debt accepted into v1.0:**
+- `_scrape_eppo_live()` remains intentional NotImplementedError stub — CSV fallback returns real data (DATA-02 satisfied)
+- Nyquist VALIDATION.md drafts exist for phases 1, 4, 5, 8 (not load-bearing; tests pass)
 
 **Tech stack (locked):**
 - LLM: Google Gemini 2.0 Flash (free tier)
@@ -83,14 +98,18 @@ The agent must transparently reason through fuel price, route, and shipping data
 
 | Decision | Rationale | Outcome |
 |----------|-----------|---------|
-| LangGraph over CrewAI/AutoGen | Stateful graph with conditional routing best demonstrates agent orchestration patterns | -- Pending |
-| Gemini 2.0 Flash | Free tier, sufficient for reasoning; matches budget constraint | -- Pending |
-| SQLite over Postgres | Zero-config, file-based; simplifies local reproducibility (grading requirement) | -- Pending |
-| Parallel Fuel+Route agents | Independent data fetches; demonstrates LangGraph Send API sophistication | -- Pending |
-| Structured Pydantic outputs | Deterministic agent responses; testable; shows engineering rigor | -- Pending |
-| Human-in-the-loop gate | Demonstrates agent safety patterns; differentiator for grading | -- Pending |
-| Multi-level fuel fallback | EPPO API → PTT → cached CSV → hardcoded; shows resilience design | -- Pending |
-| SSE streaming for chat | Real-time token streaming; better UX for reasoning trace visibility | -- Pending |
+| LangGraph over CrewAI/AutoGen | Stateful graph with conditional routing best demonstrates agent orchestration patterns | ✓ Good — D-12 cache override + D-22 RetryPolicy + AsyncSqliteSaver + interrupt() all leveraged framework features cleanly |
+| Gemini 2.0 Flash | Free tier, sufficient for reasoning; matches budget constraint | ✓ Good — 15 RPM was never the bottleneck; D-11 deterministic fallback handles parse failures |
+| SQLite over Postgres | Zero-config, file-based; simplifies local reproducibility (grading requirement) | ✓ Good — express.db (rates) + checkpoints.db (LangGraph state) ship in repo; AsyncSqliteSaver wires cleanly via lifespan |
+| Parallel Fuel+Route agents | Independent data fetches; demonstrates LangGraph Send API sophistication | ✓ Good — list-returning conditional edge over Send API was the smaller/safer change; ~165µs trace delta visible |
+| Structured Pydantic outputs | Deterministic agent responses; testable; shows engineering rigor | ✓ Good — 5 tool I/O models + AgentState v3 TypedDict; D-11 deterministic narration fallback when LLM JSON parse fails |
+| Human-in-the-loop gate | Demonstrates agent safety patterns; differentiator for grading | ✓ Good — `interrupt()` + `Command(resume)` + 6th SSE `approval_required` event; integration test covers approve + deny |
+| Multi-level fuel fallback | EPPO API → PTT → cached CSV → hardcoded; shows resilience design | ✓ Good — 3-level chain with NotImplementedError for live scrape (intentional stub); CSV fallback serves real data |
+| SSE streaming for chat | Real-time token streaming; better UX for reasoning trace visibility | ✓ Good — manual `data: {json}\n\n` framing + Cache-Control + X-Accel-Buffering headers; per-turn `meta → trace+ → answer → done` envelope |
+| Bangkok Metro scope (vs Central Region) | Smaller blast radius than expanding zones; matches actual rate-table coverage | ✓ Good — 999.2 backlog resolved via doc rename; gap-2 selective ValueError catch handles out-of-Metro destinations gracefully |
+| Wholesale README rewrite (DOC-01) | Phase 4-era README missing Phase 5 differentiator narrative | ✓ Good — 9 sections + Mermaid topology + AI Tools + Limitations land the AI/Vibe-Coding 15% rubric |
+| `message_id = {thread_id}-{turn_idx}` BE-stamp | Single source of truth eliminates audit Issue 3 drift class | ✓ Good — TS type system enforces presence; round-trip Vitest+MSW tests prevent regression |
+| `useConversations` Context Provider | Single shared instance for sidebar refresh after `done` event | ✓ Good — closes audit Issue 4; D-14 integration test verifies second `GET /api/conversations` after answer |
 
 ## Evolution
 
@@ -110,4 +129,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-05-05 after Phase 8 completion (Search Context Wiring + Sidebar Polish — audit Issues 4 + 6 closed; TOOL-05/UI-02/UI-06 rendering completeness restored)*
+*Last updated: 2026-05-05 after v1.0 MVP milestone completion — 8 phases shipped, 43/43 v1 requirements validated, all 4 E2E flows wired, Langfuse user_feedback Score live-confirmed.*
