@@ -1,200 +1,276 @@
 # Express Dynamic Surcharge Orchestrator
 
-An Agentic AI system that dynamically calculates fuel surcharges for Express logistics operations in Thailand's Central Region, based on real-time oil prices, route data, and shipping type.
+> Agentic AI that calculates fuel surcharges for Express logistics in
+> Bangkok Metro by reasoning over live diesel prices, route data, and
+> internal rate tables — visibly and explainably.
 
-**Course**: MADT7204 — Vibe Coding Project  
-**Scope**: Bangkok + Central Region (Nonthaburi, Pathum Thani, Samut Prakan, Nakhon Pathom, Samut Sakhon, Ayutthaya)
+**Course:** MADT7204 — Generative AI for Business
+**Submission:** v1.0 (final)
 
----
+![Chat with surcharge breakdown](docs/screenshots/chat-breakdown.png)
 
-## Team Members
+## Project Overview
+
+The Express Dynamic Surcharge Orchestrator is a multi-agent AI product
+that helps Express logistics operators in Thailand's Bangkok Metro
+derive accurate, explainable fuel-driven surcharge recommendations.
+The agent reasons over EPPO diesel B7 prices, Google Maps route data,
+and a simulated Express rate table to compute surcharge percentage and
+final amount per shipment, with a fully visible reasoning trace —
+every LLM call, tool invocation, and routing decision is auditable.
+
+Three shipping types (Bounce, Retail Standard, Retail Fast), three
+Bangkok Metro zones (`central-1`, `central-2`, `central-3` — internal
+IDs), and a configurable diesel baseline drive a deterministic
+surcharge formula (`calculate_surcharge`). The LLM's role is intent
+classification, narration, and conditional routing — never numerical
+derivation. This split is what makes the system *agentic* (visible
+reasoning) without sacrificing accuracy.
+
+## Team
 
 | Role | Student ID | Name |
 |------|-----------|------|
-| **IT Lead** | <!-- TODO: Add student ID --> | <!-- TODO: Add name --> |
-| Mgmt Member | <!-- TODO --> | <!-- TODO --> |
-| Mgmt Member | <!-- TODO --> | <!-- TODO --> |
-| Mgmt Member | <!-- TODO --> | <!-- TODO --> |
-| Mgmt Member | <!-- TODO --> | <!-- TODO --> |
-| Mgmt Member | <!-- TODO --> | <!-- TODO --> |
+| **Tech Lead (IT Lead)** | 6810424009 | Panjapol Ampornratana |
+| Management Member | 6810424004 | Jirapa Panich |
+| Management Member | 6810424008 | Phanitphan Eiamnon |
+| Management Member | 6810424012 | Tanakrid Burutchat |
+| Management Member | 6810424020 | Phatthakan Phatthanuwat |
 
----
+The IT Lead owns agent architecture, tool design, integration, and
+technical grading deliverables.
 
 ## Problem Statement
 
-Oil prices in Thailand are at historic highs. Bangkok-based logistics companies face significant margin erosion because their shipping costs rely on **static pricing models** that cannot keep pace with daily fuel fluctuations.
+Diesel prices in Thailand fluctuate weekly. Express's surcharge tariffs
+must adjust to keep pace with fuel volatility without overcharging
+customers or eroding margin. Manual recompute by ops teams is slow,
+error-prone, and opaque to customers asking "why this number?".
 
-Express operates two customer segments with three shipping types:
-
-- **Bounce (B2B)**: Weight and distance-based pricing for bulk shipments. Directly exposed to fuel cost changes.
-- **Retail Standard (B2C)**: Flat-rate consumer parcels with 3-5 day delivery. Partially absorbs fuel cost increases.
-- **Retail Fast (B2C)**: Premium same/next-day delivery. High fuel exposure due to dedicated routes.
-
-Every spike in diesel prices represents a direct loss in profitability because surcharges cannot be adjusted in real-time. Manual pricing reviews happen too slowly to respond to daily fuel market movements.
-
-**This agent solves that problem** by automatically monitoring fuel prices, analyzing delivery routes, and recommending optimal surcharges — with full reasoning transparency for management oversight.
-
----
+The orchestrator solves this by deriving surcharge programmatically
+from live data and presenting the *reasoning* alongside the answer:
+base rate, fuel delta, traffic adjustment, cap/floor, and any
+high-value approval gating — every step explainable.
 
 ## Agent Design
 
-### What the Agent Does
+The system is a five-node LangGraph multi-agent graph plus optional
+parallel fan-out, an HITL approval gate, and a Tavily-backed Search
+Agent. The Planner classifies intent and routes; specialists fetch
+data and compute; the Response Node renders prose + breakdown.
 
-1. **Reasons over data** to compute surcharge recommendations — not just display prices
-2. **Calls external tools dynamically** (fuel price API, maps, rate database, search) based on user queries
-3. **Handles follow-up questions** and what-if scenarios without re-programming
-4. **Orchestrates sub-agents** — a planner delegates to specialized fuel, route, and pricing agents
-5. **Shows its reasoning** — every tool call and decision is visible in the UI trace panel
+```mermaid
+flowchart TD
+    START([START]) --> P[Planner]
+    P -->|next_step=fanout_fuel_route<br/>both stale| FAN{Parallel<br/>superstep}
+    FAN --> F[Fuel Agent]
+    FAN --> R[Route Agent]
+    P -->|fetch_fuel<br/>route cached| F
+    P -->|fetch_route<br/>fuel cached| R
+    P -->|search_context<br/>news intent| S[Search Agent]
+    P -->|calculate_price| PR[Pricing Agent]
+    P -->|clarify/respond| RESP[Response Node]
+    F --> P
+    R --> P
+    S --> P
+    PR --> H{HITL Gate<br/>total > threshold?}
+    H -->|low value| RESP
+    H -->|high value| INT([interrupt — await user])
+    INT -->|Command resume=approve/deny| RESP
+    RESP --> END([END])
+```
 
-### Architecture
+Key design decisions:
 
-The system uses a **LangGraph multi-agent graph** with four specialist nodes:
+- **Cache-aware planner**: follow-ups reuse fuel/route data without
+  re-calling tools (LangGraph SQLite checkpointer). On follow-ups the
+  planner short-circuits to `calculate_price` directly.
+- **Parallel fan-out (ORCH-07)**: when both fuel and route are stale
+  on a fresh thread, the planner emits a sentinel that the
+  conditional edge translates to a list of two destination nodes —
+  same-superstep parallel execution. Trace timestamps overlap by
+  &lt; 1s, visible evidence of concurrent execution.
+- **HITL approval gate (ORCH-09)**: between Pricing and Response,
+  a tiny gate node calls `langgraph.types.interrupt()` when total
+  &gt; `HITL_TOTAL_THB_THRESHOLD` (default 500 THB; override via env).
+  The chat handler emits a sixth SSE event `approval_required`,
+  and the frontend renders Approve/Deny buttons. Resume happens via
+  a follow-up `POST /api/chat` with `{thread_id, approve}`.
+- **Search Agent (TOOL-05)**: news/market/trend questions route
+  through a Tavily-backed node that populates `state.search_context`
+  with a 1–2 sentence summary + ranked sources. The Response Node
+  prepends a "Market context: …" line above the prose answer.
+  Search NEVER feeds the deterministic surcharge formula.
 
-| Agent | Role | Tools Used |
-|-------|------|-----------|
-| **Planner** | Understands user intent, routes to specialists, checks memory | None (pure reasoning) |
-| **Fuel Agent** | Retrieves current fuel prices and trends | `fetch_fuel_price`, `search_fuel_news` |
-| **Route Agent** | Calculates delivery distance, traffic, and zone | `calculate_route` |
-| **Pricing Agent** | Computes surcharge using rate tables and fuel data | `lookup_rate`, `calculate_surcharge` |
-
-The planner checks conversation memory before invoking agents — if fuel data was fetched recently, it skips the Fuel Agent and routes directly to pricing. This makes follow-up questions fast and efficient.
-
-See [docs/architecture.md](docs/architecture.md) for the full technical architecture including agent state, graph flow, and surcharge calculation logic.
-
----
+Full topology, conditional routing table, and SSE event vocabulary
+are documented in [docs/architecture.md](docs/architecture.md).
 
 ## Data Sources
 
-| Source | Type | What It Provides | Used By |
-|--------|------|-----------------|---------|
-| [EPPO](https://www.eppo.go.th/) (Dept. of Energy Business) | Public/Government | Daily diesel retail prices, Central Region | Fuel Agent |
-| PTT Price Board | Live API/Scrape | Current fuel prices by type | Fuel Agent |
-| Express Rate Table | Simulated | Base shipping rates for 3 types x 3 zones x weight tiers | Pricing Agent |
-| Google Maps Directions API | Live API | Route distance + travel time + traffic | Route Agent |
-| Tavily Search API | Live API | Fuel price news and market context | Fuel Agent |
+See [docs/data-sources.md](docs/data-sources.md) for full provenance,
+refresh cadence, and assumptions.
 
-### Data Storage
-
-- **Historical fuel prices**: `data/raw/eppo_diesel_prices.csv` — downloaded via `data/scripts/fetch_fuel_prices.py`
-- **Rate table**: `data/raw/express_rate_table.csv` — generated via `data/scripts/generate_rate_table.py` (assumptions documented in script)
-- **Rate database**: `data/express.db` — SQLite, seeded from CSVs via `data/scripts/seed_database.py`
-- **Conversation memory**: `data/checkpoints.db` — LangGraph SQLite checkpointer
-
----
+- **EPPO diesel B7 historical prices** (real, public): fetched daily
+  via `data/scripts/fetch_fuel_prices.py`; multi-level fallback chain
+  (live API → cached CSV → hardcoded baseline).
+- **Simulated Express rate table** (transparent assumptions): zone
+  multipliers 1.0/1.25/1.55, 3 ship types × 3 zones × multiple weight
+  tiers, base-rate range 50–698 THB. Generated by
+  `data/scripts/generate_rate_table.py`.
+- **Google Maps Directions API**: distance, duration, traffic for
+  Bangkok Metro provinces; 15-minute TTL cache.
+- **Tavily Search API** (news topic): 30-minute TTL cache; gated by
+  news/trend intent — standard surcharge queries do NOT trigger search.
 
 ## Setup Instructions
 
-### Prerequisites
-
+Requirements:
 - Python 3.11+
 - Node.js 18+
-- API keys for: Google AI Studio (Gemini), Google Maps, Tavily, Langfuse
+- API keys: Google AI Studio (Gemini), Google Maps, Tavily, Langfuse
+  Cloud (free tier)
 
-### 1. Clone the Repository
-
-```bash
-git clone <repo-url>
-cd express-dynamic-workflow
-```
-
-### 2. Backend Setup
+Install + run:
 
 ```bash
-cd backend
-python -m venv .venv
-source .venv/bin/activate  # On Windows: .venv\Scripts\activate
+# 1. Python venv + backend deps
+python3.11 -m venv .venv
+source .venv/bin/activate
 pip install -r requirements.txt
-```
 
-### 3. Frontend Setup
+# 2. Environment variables
+cp .env.example .env
+# Edit .env, fill in API keys (placeholders documented per key)
 
-```bash
+# 3. Seed the rate-table SQLite DB
+python data/scripts/seed_database.py
+
+# 4. (Optional) Refresh fuel price history
+python data/scripts/fetch_fuel_prices.py
+
+# 5. Run backend (uvicorn @ port 8000)
+uvicorn backend.api.main:app --port 8000 --reload
+
+# 6. In another shell — frontend
 cd frontend
 npm install
+npm run dev   # http://localhost:3000
+
+# 7. Run tests
+pytest backend/tests/                # backend
+cd frontend && npm test              # frontend unit
+cd frontend && npm run test:e2e      # frontend e2e (Playwright)
 ```
 
-### 4. Environment Variables
+### Demo prompts
 
-```bash
-cp .env.example .env
-# Edit .env with your API keys
+Try these in the chat to exercise the full agent topology:
+
+1. `Calculate surcharge for 15kg bounce shipment from Bangkok to Nonthaburi`
+   — fresh-thread query, exercises **parallel fan-out** (Fuel + Route in
+   same superstep).
+2. `What about Retail Fast?` (after #1) — exercises **cache-aware
+   skip** (no Fuel/Route re-fetch).
+3. `What's driving diesel prices this week?` — exercises **Search
+   Agent** + Tavily (Market context: line above the prose answer).
+4. `Calculate surcharge for 200kg retail_fast from Bangkok to a
+   central-3 destination` — exercises **HITL approval gate** (total
+   &gt; 500 THB threshold; ApprovalCard renders Approve/Deny).
+
+## AI Tools Used
+
+Per the AI/Vibe-Coding 15% rubric:
+
+- **Claude Code (Anthropic)** — primary development environment.
+  Used for architecture design, multi-file refactors, test scaffolding,
+  and documentation generation. The `/gsd:` workflow commands
+  (`research-phase`, `plan-phase`, `execute-phase`) drove the entire
+  Phase 1–5 cycle and are versioned alongside this repo at
+  `.claude/get-shit-done/`.
+- **Claude Agent SDK** — informs the in-product agent architecture
+  (multi-agent + tool routing patterns).
+- **Cursor** — light inline edits during code review.
+- **GitHub Copilot** — typing acceleration for repetitive Pydantic
+  models and test fixtures.
+
+Each tool's contribution is auditable via the commit log
+(descriptive messages per the Git Practice 20% rubric).
+
+## Observability
+
+Every LLM call, tool invocation, and routing decision is captured by
+Langfuse via a single CallbackHandler attached at the chat handler
+boundary. Each chat turn maps to one Langfuse trace named
+`chat_turn_{thread_id}_{turn_idx}` (deterministic seed) so user
+feedback (thumbs up/down) attaches to the same trace.
+
+A formula-accuracy auto-eval runs after every Pricing Agent invocation:
+re-runs the deterministic Phase 1 pure function with the same inputs
+and posts a `formula_accuracy` Score (1.0 match / 0.0 divergence).
+Visible in the Langfuse dashboard, fire-and-forget so eval failure
+never affects the user response.
+
+![Langfuse trace view](docs/screenshots/langfuse-trace.png)
+
+## Limitations
+
+- **Bangkok Metro only** — the route tool covers central-1 (Bangkok core),
+  central-2 (Greater Central including Ayutthaya, Saraburi, Nakhon Pathom),
+  and central-3 (Extended Central including Lop Buri, Kanchanaburi, Ratchaburi).
+  Out-of-scope destinations (e.g. Chiang Mai, Phuket) trigger a graceful status='partial' clarify response naming the supported zone set — see
+  [docs/data-sources.md](docs/data-sources.md) for the full province list.
+  Multi-region expansion is V2-02 (deferred). The original Central Region
+  scope was renamed to Bangkok Metro per backlog 999.2 (resolved 2026-04-25).
+- **Gemini Flash 15 RPM** — sufficient for demo; not production
+  throughput. Free tier limit.
+- **Tavily 1000 searches/month** — free tier; demo footprint ~10/run.
+- **Simulated rate table** — real Express tariffs are confidential.
+  Assumptions are transparent in
+  [docs/data-sources.md](docs/data-sources.md).
+- **Single demo user** — no auth/OAuth (out of scope; not
+  relevant to agent architecture grading).
+- **Local reproducibility only** — no production deployment infra
+  (Docker/K8s out of scope per CLAUDE.md constraints).
+
+## License
+
+MADT7204 course project. See [LICENSE](LICENSE) if present.
+
+## Demo
+
+A 1–2 minute end-to-end recording is available at
+[docs/demo.mp4](docs/demo.mp4). It shows a fresh-thread surcharge
+query end-to-end including the parallel trace timestamps and a HITL
+approval flow.
+
+Static screenshots:
+
+| View | File |
+|------|------|
+| Chat with surcharge breakdown for Bangkok Metro shipment | [docs/screenshots/chat-breakdown.png](docs/screenshots/chat-breakdown.png) |
+| Reasoning trace mid-stream — fuel and route agents in parallel | [docs/screenshots/trace-parallel.png](docs/screenshots/trace-parallel.png) |
+| Dashboard — diesel price (THB/L) and recent surcharges | [docs/screenshots/dashboard.png](docs/screenshots/dashboard.png) |
+| Approval required — high-value shipment paused for review | [docs/screenshots/hitl-approval.png](docs/screenshots/hitl-approval.png) |
+| Langfuse trace view — every LLM and tool call captured | [docs/screenshots/langfuse-trace.png](docs/screenshots/langfuse-trace.png) |
+
+## Repository Layout
+
 ```
-
-### 5. Seed the Database
-
-```bash
-cd data/scripts
-python fetch_fuel_prices.py
-python generate_rate_table.py
-python seed_database.py
+backend/         # FastAPI + LangGraph orchestrator
+  agent/         # graph.py, nodes/, tools/, prompts/, observability.py
+  api/           # main.py, routes/ (chat, conversations, fuel_prices, feedback), sse.py
+  tests/         # pytest suite — 280+ tests across all phases
+frontend/        # Next.js 15 + React 19 + Tailwind UI
+  app/           # Next.js app directory
+  components/    # chat/, trace/, dashboard/, sidebar/, shared/
+  hooks/         # useChatStream, useConversations, useFuelPrices
+  lib/           # api.ts, sse.ts, formatters.ts, constants.ts
+  types/         # api.types.ts, agent.types.ts (snake_case mirrored)
+data/            # CSVs, SQLite DBs, scripts/
+docs/            # architecture.md, data-sources.md, demo.mp4, screenshots/
+.planning/       # GSD phase plans, summaries, retrospectives (audit trail)
 ```
-
-### 6. Run the Application
-
-**Terminal 1 — Backend:**
-```bash
-cd backend
-uvicorn main:app --reload --port 8000
-```
-
-**Terminal 2 — Frontend:**
-```bash
-cd frontend
-npm run dev
-```
-
-Open [http://localhost:3000](http://localhost:3000) in your browser.
 
 ---
 
-## Example Queries
-
-Try these in the chat interface:
-
-- "What's the fuel surcharge for a Bounce shipment, 200kg, from Bangkok to Nonthaburi?"
-- "What about Retail Fast for the same route?"
-- "Compare surcharges for all three shipping types from Bangkok to Pathum Thani"
-- "What if diesel goes up by 2 baht?"
-- "What's the current diesel price trend?"
-
----
-
-## Observability (Langfuse)
-
-All agent traces are logged to [Langfuse](https://cloud.langfuse.com/) for monitoring and evaluation:
-
-- **Trace view**: Full agent workflow per query (which agents ran, what tools were called)
-- **Latency**: Which tool/agent is the bottleneck
-- **Token usage**: Cost tracking per query
-- **Evaluation scores**: Formula accuracy (auto-eval) + user feedback (manual)
-- **User feedback**: Thumbs up/down from the UI, with categorized reasons for thumbs down
-
----
-
-## Vibe-Coding Tools Used
-
-| Tool | What It Was Used For |
-|------|---------------------|
-| Claude Code | Project architecture design, scaffolding, agent code generation, documentation |
-| <!-- TODO: Add others --> | <!-- TODO --> |
-
----
-
-## Known Limitations
-
-- **Fuel price data**: EPPO data may have a 1-day lag; live PTT scraping depends on website availability
-- **Route accuracy**: Google Maps traffic data is real-time but zone mapping is simplified to 3 zones
-- **Rate table**: Simulated based on assumptions — not actual Express pricing
-- **Surcharge caps**: Fixed at 15% max / -5% min — a production system would need configurable per-customer caps
-- **LLM rate limits**: Gemini free tier allows 15 RPM — sufficient for demo but not production traffic
-- **Central Region only**: Does not cover northern, southern, or northeastern Thailand
-
-## Future Improvements
-
-- Expand to all Thailand regions with region-specific fuel pricing
-- Add per-customer surcharge cap configuration
-- Integrate with actual Express pricing systems via API
-- Add historical surcharge tracking and trend analysis
-- Support for additional fuel types (LPG, NGV) for different vehicle fleets
-- Automated daily surcharge report generation and email distribution
-- RAG integration with fuel policy documents and government subsidy announcements
+*Built for MADT7204 by Panjapol Ampornratana (IT Lead) + team.*

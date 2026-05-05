@@ -1,0 +1,12 @@
+[
+  {
+    "address_components": [
+      {"long_name": "Bangkok", "short_name": "Bangkok", "types": ["locality", "political"]},
+      {"long_name": "Bangkok", "short_name": "Bangkok", "types": ["administrative_area_level_1", "political"]},
+      {"long_name": "Thailand", "short_name": "TH", "types": ["country", "political"]}
+    ],
+    "formatted_address": "Bangkok, Thailand",
+    "place_id": "ChIJ82ENKDJgHTERIEjiXbIAAQE",
+    "types": ["locality", "political"]
+  }
+]

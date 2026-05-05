@@ -1,0 +1,14 @@
+[
+  {
+    "legs": [
+      {
+        "distance": {"text": "15.2 km", "value": 15200},
+        "duration": {"text": "30 mins", "value": 1800},
+        "duration_in_traffic": {"text": "40 mins", "value": 2400},
+        "start_address": "Bangkok, Thailand",
+        "end_address": "Nonthaburi, Thailand"
+      }
+    ],
+    "summary": "Borommaratchachonnani Rd"
+  }
+]
