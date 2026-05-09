@@ -4,8 +4,8 @@ milestone: v1.0
 milestone_name: MVP
 status: shipped
 stopped_at: v1.0 MVP milestone complete (8 phases, 36 plans, 87 tasks)
-last_updated: "2026-05-05T22:00:00.000Z"
-last_activity: 2026-05-05
+last_updated: "2026-05-09T03:55:00.000Z"
+last_activity: 2026-05-09
 progress:
   total_phases: 8
   completed_phases: 8
@@ -258,11 +258,12 @@ None yet.
 | 260503-qzx | Guard pricing_agent against missing route_data/fuel_data (resolves gap-4 from 20-question UAT — KeyError on hallucinated planner routing) | 2026-05-03 | 79d8ee0 | Verified (186/186 backend tests green) | [260503-qzx-guard-pricing-agent-against-missing-rout](./quick/260503-qzx-guard-pricing-agent-against-missing-rout/) |
 | 260503-rs8 | Pin langchain==0.3.28 (fixes silent CallbackHandler import failure) + add constant langfuse_trace_name='express-surcharge-agent' to /api/chat trace metadata (OBS-FIX-LANGCHAIN-PIN, OBS-FIX-TRACE-NAME) | 2026-05-03 | 529075f | Verified (186/186 backend tests green; uvicorn restart required for live metadata pickup) | [260503-rs8-pin-langchain-dep-set-langfuse-trace-nam](./quick/260503-rs8-pin-langchain-dep-set-langfuse-trace-nam/) |
 | 260503-s2h | Set top-level RunnableConfig.run_name='express-surcharge-agent' so Langfuse Observations 'Name' column matches 'Trace Name' column from 260503-rs8 (OBS-FIX-RUN-NAME) | 2026-05-03 | 0606e43 | Verified (186/186 backend tests green; uvicorn restart required for live root-span-name pickup) | [260503-s2h-set-runnableconfig-run-name-so-langfuse-](./quick/260503-s2h-set-runnableconfig-run-name-so-langfuse-/) |
-| 260509-e0p | Restyle frontend with dark cosmic glass morphism theme (Tailwind v4 @theme tokens + glass-surface/glass-panel/brand-gradient @utility classes + static gradient mesh body background; 23 view components reskinned) | 2026-05-09 | b4e6fa2, 3e56e2a | Awaiting human visual verification (Task 3 checkpoint:human-verify; automated 122/122 vitest + type-check + lint clean with zero test count delta) | [260509-e0p-i-want-to-change-our-application-theme-i](./quick/260509-e0p-i-want-to-change-our-application-theme-i/) |
+| 260509-e0p | Restyle frontend with dark cosmic glass morphism theme (Tailwind v4 @theme tokens + glass-surface/glass-panel/brand-gradient @utility classes + static gradient mesh body background; 23 view components reskinned) | 2026-05-09 | b4e6fa2, 3e56e2a | Verified visually + readability follow-ups (PR #11 merged) | [260509-e0p-i-want-to-change-our-application-theme-i](./quick/260509-e0p-i-want-to-change-our-application-theme-i/) |
+| 260509-eum | Backend cold-start fuel-price refresh: lifespan schedules background asyncio task; reuses fetch_fuel_prices.refresh_csv with timezone-aware (Asia/Bangkok) staleness predicate; D-03 log-and-continue on any failure (QUICK-260509-EUM-01..03) | 2026-05-09 | 9bf5471 | Verified (248/248 backend tests green; smoke 1+2+3 pass; CLI exits 0; EXPRESS_SKIP_COLDSTART_REFRESH=1 confirmed effective end-to-end) | [260509-eum-backend-cold-start-fuel-price-refresh-au](./quick/260509-eum-backend-cold-start-fuel-price-refresh-au/) |
 
 ## Session Continuity
 
-Last session: 2026-05-09T03:22:29Z
-Stopped at: Quick task 260509-e0p (dark cosmic glass theme) — Tasks 1+2 complete and committed; Task 3 checkpoint:human-verify awaiting user walkthrough
+Last session: 2026-05-09T03:55:00.000Z
+Stopped at: Quick task 260509-eum complete — backend cold-start fuel CSV refresh shipped (PR #12 merging into develop)
 Resume file: None
-Next: User walks the 10-step visual checklist in the plan's Task 3 action block; types "approved" or describes specific issues
+Next: After PR #12 merges, restart uvicorn and confirm cold-start refresh fires

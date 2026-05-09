@@ -92,3 +92,13 @@ LANGFUSE_HOST: str = os.environ.get(
 )
 LANGFUSE_PUBLIC_KEY: str = os.environ.get("LANGFUSE_PUBLIC_KEY", "")
 LANGFUSE_SECRET_KEY: str = os.environ.get("LANGFUSE_SECRET_KEY", "")
+
+# Quick 260509-eum: Cold-start fuel CSV refresh opt-out.
+# When set to a truthy value ("1","true","yes","on", case-insensitive),
+# the FastAPI lifespan skips the auto-refresh of
+# data/raw/eppo_diesel_prices.csv. Default behavior in production:
+# enabled (refresh runs in background on startup if CSV is stale).
+# Tests set this to "1" to avoid network attempts.
+EXPRESS_SKIP_COLDSTART_REFRESH: bool = os.environ.get(
+    "EXPRESS_SKIP_COLDSTART_REFRESH", ""
+).strip().lower() in {"1", "true", "yes", "on"}
