@@ -62,4 +62,14 @@ Captured 2026-05-09 during scoping discussion. Expand from Bangkok Central to No
 Plans:
 - [ ] TBD (promote with /gsd:review-backlog when ready)
 
+### Phase 999.9: HQ/Branch Origin Model (BACKLOG)
+
+**Goal:** [Captured for future planning]
+**Requirements:** TBD
+**Plans:** 0 plans
+
+Captured 2026-05-09 during scoping discussion. Currently the agent treats origin as implicit (zone is destination-only). Upgrade to model real Thai logistics: sender picks HQ or branch as origin, agent calculates route + surcharge from actual hub-to-destination — matches how Kerry/Flash/Thailand Post quote shipments. Touches: RouteData schema (origin_hub field), rate_table (origin_zone × destination_zone matrix), Route Agent prompt + tool signature, Pricing Agent rate-lookup, frontend chat UI to capture sender hub, seed data for hub locations. Belongs in v1.1 milestone — promote via /gsd:new-milestone when ready.
+
+Plans:
+- [ ] TBD (promote with /gsd:review-backlog when ready)
 
