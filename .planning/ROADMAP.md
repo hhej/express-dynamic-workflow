@@ -51,5 +51,15 @@ Full details in [milestones/v1.0-ROADMAP.md](milestones/v1.0-ROADMAP.md).
 
 ### Open backlog
 
+### Phase 999.8: Scale agent coverage beyond Bangkok Central (BACKLOG)
+
+**Goal:** [Captured for future planning]
+**Requirements:** TBD
+**Plans:** 0 plans
+
+Captured 2026-05-09 during scoping discussion. Expand from Bangkok Central to Northeast/North/South regions. Requires regional EPPO fuel baselines (EPPO publishes by region), expanded rate table (zones × ship types × weight tiers grows ~Nx), regional traffic pattern calibration. Deferred — too risky for current milestone given W5 code freeze. Revisit after pricing upgrade and HQ/branch origin model land.
+
+Plans:
+- [ ] TBD (promote with /gsd:review-backlog when ready)
 
 
