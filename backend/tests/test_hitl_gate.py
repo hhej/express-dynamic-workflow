@@ -99,12 +99,22 @@ def test_resume_deny_writes_approval_decision(
 
 
 def test_graph_topology_pricing_to_hitl_to_response(in_memory_checkpointer):
-    """Pitfall 6: verify pricing -> hitl_gate -> response replaces
-    pricing -> planner."""
+    """Pitfall 6 (Phase 5) + Quick task 260509-utd: verify
+    pricing -> guard_output -> hitl_gate -> response replaces
+    the original Phase 3 pricing -> planner edge AND the Phase 5
+    pricing -> hitl_gate direct edge.
+    """
     from backend.agent.graph import build_graph
     graph = build_graph(in_memory_checkpointer)
     gobj = graph.get_graph()
     edges = [(e.source, e.target) for e in gobj.edges]
-    assert ("pricing_agent", "hitl_gate") in edges
+    # Quick task 260509-utd UTD-03: guard_output sits between pricing
+    # and hitl_gate so the cap/floor/schema invariants are re-validated
+    # before the optional human-in-the-loop pause.
+    assert ("pricing_agent", "guard_output") in edges
+    assert ("guard_output", "hitl_gate") in edges
     assert ("hitl_gate", "response") in edges
+    # The Phase 5 direct pricing -> hitl_gate edge must be REPLACED
+    # (not augmented) so guard_output cannot be bypassed.
+    assert ("pricing_agent", "hitl_gate") not in edges
     assert ("pricing_agent", "planner") not in edges
