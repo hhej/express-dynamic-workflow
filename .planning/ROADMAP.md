@@ -44,6 +44,7 @@ Out-of-band items surfaced during execution (not part of the planned milestone).
 - **999.3** — Planner trace tool_output narration mismatch (resolved 2026-04-25)
 - **999.4** — D-04 loop budget windowed per turn (resolved 2026-04-25)
 - **999.6** — Fix EPPO fuel-price scraper after URL restructure (resolved 2026-05-09) — see [debug/resolved/fix-eppo-scraper-url-restructure.md](debug/resolved/fix-eppo-scraper-url-restructure.md)
+- **999.7** — Backfill daily fuel-price history via Bangchak so 90d dashboard window stays populated (resolved 2026-05-09) — see [debug/resolved/backfill-daily-fuel-price-history-90d-window.md](debug/resolved/backfill-daily-fuel-price-history-90d-window.md)
 
 Full details in [milestones/v1.0-ROADMAP.md](milestones/v1.0-ROADMAP.md).
 
@@ -71,37 +72,4 @@ Full details in [milestones/v1.0-ROADMAP.md](milestones/v1.0-ROADMAP.md).
 Plans:
 - [ ] TBD (promote with `/gsd:review-backlog` when ready)
 
-### Phase 999.7: Backfill daily fuel-price history so 90d dashboard window stays populated (BACKLOG)
-
-**Goal:** [Captured for future planning]
-**Requirements:** TBD
-**Plans:** 0 plans
-**Captured:** 2026-05-09 (follow-up to 999.6 EPPO scraper fix)
-
-**Symptom:** After 999.6 fix landed, `/api/fuel-prices?days=7` and `?days=30` return only 1 row each (today's snapshot). The dashboard window contract is "rolling 90 days of daily prices", but right now:
-- 2025-10 → 2026-04-03 has daily seed data (load-bearing history)
-- 2026-04-04 → 2026-05-08 is a 35-day gap (no daily data — EPPO restructure happened during this window)
-- 2026-05-09 onward will accumulate one daily row per cold-start (forward-only)
-
-As the rolling 90d window advances, seed data falls out the back AND the gap stays unfilled, so the 90d view degrades over time. By ~2026-08-07 the entire seed will be out of window and only forward-collected days will show.
-
-**Investigation needed:**
-- (a) Does any public EPPO surface expose ≥90 days of daily diesel B7 retail prices? P09.xls is monthly-aggregated (WT.AVG by month); oil-share PHP page is today-only. Check for archived daily snapshots, JSON API endpoints, or downloadable per-day datasets.
-- (b) PTT Price Board — does it expose historical daily prices via API or scrape-able archive? Documented in CLAUDE.md as backup source.
-- (c) Wayback Machine snapshots of the old EPPO oil-share URL between 2026-04-04 and 2026-05-08 (one-shot gap fill via archive.org Memento API).
-- (d) BangchakOilPrice / other Thai retailer APIs as parallel daily sources.
-- (e) Scope decision: is "90d rolling daily" the actual UX requirement, or is "monthly aggregates + today's snapshot" acceptable for the demo? If the latter, this becomes a frontend chart change, not a data-pipeline change.
-
-**Out of scope:**
-- Fabricating synthetic data to fill the gap (CLAUDE.md: at least one real dataset must be queried).
-- Changing the cold-start hook contract or staleness predicate (works as designed).
-- Touching the 999.6 URL-restructure fix (separate concern, already shipped).
-
-**Verify after fix:**
-- `/api/fuel-prices?days=7` returns ≥5 rows (allowing weekend gaps in market data).
-- `/api/fuel-prices?days=30` returns ≥20 rows.
-- `/api/fuel-prices?days=90` returns ≥60 rows AND continues to do so as the rolling window advances past the seed CSV cutoff.
-
-Plans:
-- [ ] TBD (start with `/gsd:debug` to investigate data-source options before committing to an approach)
 
