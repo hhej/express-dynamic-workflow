@@ -148,6 +148,11 @@ def search_agent_node(state: dict) -> dict:
                     "status": "warn",
                 }
             ],
+            # Quick task 260509-utd UTD-04: per-turn cost-bombing counter.
+            # Count failed attempts too — a misbehaving Tavily key shouldn't
+            # let an attacker bypass the cap by triggering RuntimeError loops.
+            # Emit +1 DELTA (operator.add reducer in AgentState).
+            "tool_call_count": 1,
         }
 
     narration = _narrate_with_llm(result)
@@ -170,4 +175,7 @@ def search_agent_node(state: dict) -> dict:
                 "status": "ok",
             }
         ],
+        # Quick task 260509-utd UTD-04: per-turn cost-bombing counter.
+        # Emit +1 DELTA (operator.add reducer in AgentState).
+        "tool_call_count": 1,
     }

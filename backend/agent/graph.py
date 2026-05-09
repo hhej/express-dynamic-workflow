@@ -38,6 +38,15 @@ from backend.agent.nodes.pricing_agent import pricing_agent_node
 from backend.agent.nodes.response_node import response_node
 from backend.agent.nodes.search_agent import search_agent_node
 from backend.agent.nodes.hitl_gate import hitl_gate_node
+# Quick task 260509-utd: Layer-2 guard nodes (UTD-02 / UTD-03).
+from backend.agent.nodes.guard_input import (
+    _route_from_guard_input,
+    guard_input_node,
+)
+from backend.agent.nodes.guard_output import (
+    _route_from_guard_output,
+    guard_output_node,
+)
 
 __all__ = ["build_graph", "phase3_retry_on"]
 
@@ -201,7 +210,36 @@ def build_graph(checkpointer=None):
     g.add_node("hitl_gate", hitl_gate_node)
     g.add_node("response", _wrap_error_sink("response", response_node), retry_policy=retry)
 
-    g.add_edge(START, "planner")
+    # Quick task 260509-utd: Layer-2 guards. BOTH wrapped in
+    # _wrap_error_sink for symmetry with the other stateful nodes
+    # (defensive against unexpected exceptions). Retry policy applied
+    # for consistency, though the guards don't make network calls so
+    # retries are essentially never used.
+    g.add_node(
+        "guard_input",
+        _wrap_error_sink("guard_input", guard_input_node),
+        retry_policy=retry,
+    )
+    g.add_node(
+        "guard_output",
+        _wrap_error_sink("guard_output", guard_output_node),
+        retry_policy=retry,
+    )
+
+    # Quick task 260509-utd: replace START -> planner with
+    # START -> guard_input -> {planner | response}. The guard short-circuits
+    # to response on adversarial input or cost-bombing trip BEFORE any
+    # expensive node runs (RESEARCH §Anti-Patterns: guards must sit
+    # BEFORE the expensive nodes).
+    g.add_edge(START, "guard_input")
+    g.add_conditional_edges(
+        "guard_input",
+        _route_from_guard_input,
+        {
+            "planner": "planner",
+            "response": "response",
+        },
+    )
     g.add_conditional_edges(
         "planner",
         _route_from_planner,
@@ -217,12 +255,20 @@ def build_graph(checkpointer=None):
     g.add_edge("fuel_agent", "planner")
     g.add_edge("route_agent", "planner")
     g.add_edge("search_agent", "planner")  # Phase 5 D-03 loop closure
-    # Phase 5 ORCH-09: pricing -> hitl_gate -> response (was: pricing -> planner
-    # per Phase 3 D-03). Per RESEARCH Pitfall 6, this bypass is intentional —
-    # pricing is the final compute step within a turn, so the next-turn
-    # planner loop is entered via fresh chat invocations, not via the
-    # in-turn loop edge.
-    g.add_edge("pricing_agent", "hitl_gate")
+    # Phase 5 ORCH-09 + Quick task 260509-utd: pricing -> guard_output ->
+    # {hitl_gate | response}. Replaces the Phase 5 direct pricing -> hitl_gate
+    # edge (Pitfall 6: guard_output sits AFTER pricing only — the clarify
+    # path bypasses both pricing and guard_output via the planner ->
+    # response short-circuit). hitl_gate -> response edge unchanged.
+    g.add_edge("pricing_agent", "guard_output")
+    g.add_conditional_edges(
+        "guard_output",
+        _route_from_guard_output,
+        {
+            "hitl_gate": "hitl_gate",
+            "response": "response",
+        },
+    )
     g.add_edge("hitl_gate", "response")
     g.add_edge("response", END)
 

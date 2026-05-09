@@ -4,6 +4,16 @@ Renders the final user-facing payload (D-10) under the ``final_payload`` key
 so the chat SSE handler (Plan 03-04) can detect it via ``astream_events``
 (see RESEARCH Pattern 4).
 
+Quick task 260509-utd: when ``state.guard_decision`` records a refusal
+(layer='input' for guard_input, layer='output' for guard_output) the
+node renders the canonical ``REFUSAL_COPY`` immediately, BEFORE any
+existing branch (including the Phase 5 deny short-circuit). The new
+statuses ``'refused'`` and ``'guard_failed'`` are emitted on the
+backend wire; the FE FinalStatus Literal extension is intentionally
+out of scope for this quick task and will fall through the FE's
+unknown-status text rendering until a follow-up plan extends the
+Literal (260509-utd-RESEARCH §Pitfall 5 + Task 2 action note).
+
 D-11 markdown contract:
     - Prose paragraph
     - 4-row markdown table with EXACT row labels:
@@ -35,6 +45,8 @@ from __future__ import annotations
 import logging
 from datetime import datetime, timezone
 from typing import Optional
+
+from backend.agent.prompts.guard import REFUSAL_COPY
 
 __all__ = ["response_node"]
 
@@ -180,6 +192,48 @@ def response_node(state: dict) -> dict:
                 "reasoning_trace": [one_trace_entry],
             }
     """
+    # Quick task 260509-utd: guard refusal short-circuit. Sits ABOVE every
+    # other branch (including the Phase 5 deny short-circuit) so that a
+    # tripped guard always renders the canonical REFUSAL_COPY regardless
+    # of what other state was assembled before the refusal.
+    gd = state.get("guard_decision") or {}
+    if gd.get("refused"):
+        layer = gd.get("layer", "input")
+        status = "refused" if layer == "input" else "guard_failed"
+        prior_messages = list(state.get("messages") or [])
+        prior_messages.append({"role": "assistant", "content": REFUSAL_COPY})
+        prior_steps = len(state.get("reasoning_trace") or [])
+        guard_trace = {
+            "step": prior_steps + 1,
+            "agent": "response",
+            "tool": None,
+            "tool_input": {"status": status},
+            "tool_output": {
+                "guard_category": gd.get("category"),
+                "guard_layer": layer,
+                "violations": gd.get("violations") or [],
+            },
+            "reasoning": (
+                f"Rendered {status} payload (guard tripped, "
+                f"category={gd.get('category')!r})."
+            ),
+            "timestamp": datetime.now(timezone.utc)
+            .isoformat()
+            .replace("+00:00", "Z"),
+            "status": "ok",
+        }
+        return {
+            "final_payload": {
+                "markdown": REFUSAL_COPY,
+                "surcharge_result": None,
+                "capped": False,
+                "status": status,
+                "search_context": state.get("search_context"),
+            },
+            "reasoning_trace": [guard_trace],
+            "messages": prior_messages,
+        }
+
     errors = state.get("errors") or []
     clarification_reason = state.get("clarification_reason")
     surcharge_result: Optional[dict] = state.get("surcharge_result")

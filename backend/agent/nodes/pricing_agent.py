@@ -443,6 +443,11 @@ def pricing_agent_node(
             }],
             "next_step": "respond",
             "reasoning_trace": [warn_trace],
+            # Quick task 260509-utd UTD-04: count this as a tool call
+            # attempt — a misbehaving planner cannot bypass the per-turn
+            # cap by spamming pricing without inputs. Emit +1 DELTA
+            # (operator.add reducer in AgentState).
+            "tool_call_count": 1,
         }
 
     shipping_type = state["shipping_type"]
@@ -525,4 +530,7 @@ def pricing_agent_node(
     return {
         "surcharge_result": surcharge.model_dump(),
         "reasoning_trace": [trace_entry],
+        # Quick task 260509-utd UTD-04: per-turn cost-bombing counter.
+        # Emit +1 DELTA (operator.add reducer in AgentState).
+        "tool_call_count": 1,
     }

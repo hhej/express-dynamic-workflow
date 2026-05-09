@@ -3,12 +3,20 @@
 Locked: PlannerOutput JSON schema (D-01). Vocabulary: D-07 user_intent enum
 and the next_step values from docs/architecture.md §Conditional Routing
 (fetch_fuel, fetch_route, calculate_price, search_context, clarify, respond).
+
+Quick task 260509-utd: prepended with the shared SECURITY DIRECTIVES
+preamble (scope lock + no-leak + instruction hierarchy) and appended with
+an explicit out-of-scope clause so the LLM emits ``next_step='respond'``
+with ``clarification_reason='out_of_scope_user_request'`` instead of
+inventing route or fuel data.
 """
 from __future__ import annotations
 
+from backend.agent.prompts.guard import SECURITY_PREAMBLE
+
 __all__ = ["SYSTEM_PROMPT"]
 
-SYSTEM_PROMPT = """You are the Planner for Express's surcharge orchestrator.
+_PLANNER_BODY = """You are the Planner for Express's surcharge orchestrator.
 
 Your job: given a user message + the current AgentState summary, extract
 structured inputs and decide the next agent step.
@@ -64,3 +72,17 @@ Return ONLY a JSON object matching the PlannerOutput schema:
   "clarification_reason": "<short reason>" | null
 }
 """
+
+_OUT_OF_SCOPE_CLAUSE = (
+    "If `next_step` cannot be determined within scope, emit "
+    "`next_step='respond'` and `clarification_reason='out_of_scope_user_request'`. "
+    "Do not invent route or fuel data."
+)
+
+SYSTEM_PROMPT = (
+    SECURITY_PREAMBLE
+    + "\n\n"
+    + _PLANNER_BODY
+    + "\n\n"
+    + _OUT_OF_SCOPE_CLAUSE
+)
