@@ -234,12 +234,20 @@ def app_with_stub_refresh(monkeypatch, tmp_path):
     Yields ``(app, calls)`` where ``calls`` is a list the stub appends to
     on every invocation. Tests can install their own stub by re-patching
     ``backend.api.main.refresh_fuel_csv`` AFTER reload.
+
+    Defensively delenvs EXPRESS_SKIP_COLDSTART_REFRESH so this fixture
+    always reloads the "default-on" branch, regardless of whether the
+    pytest process was launched with the flag set (e.g. CI runs the
+    full suite with EXPRESS_SKIP_COLDSTART_REFRESH=1 to keep other
+    tests offline).
     """
     # Isolate checkpoint DB so concurrent tests don't collide.
     monkeypatch.setenv("CHECKPOINT_PATH", str(tmp_path / "checkpoints.db"))
+    monkeypatch.delenv("EXPRESS_SKIP_COLDSTART_REFRESH", raising=False)
 
     import backend.config as _cfg
     importlib.reload(_cfg)
+    assert _cfg.EXPRESS_SKIP_COLDSTART_REFRESH is False
     import backend.api.main as _main
     importlib.reload(_main)
 
@@ -250,7 +258,17 @@ def app_with_stub_refresh(monkeypatch, tmp_path):
         return True
 
     monkeypatch.setattr(_main, "refresh_fuel_csv", stub)
-    return _main, calls
+    yield _main, calls
+
+    # Cleanup: pytest's monkeypatch restores env vars AFTER yield-cleanup
+    # runs, so we must explicitly delete CHECKPOINT_PATH before reloading
+    # config -- otherwise the cached config module carries the tmp-path
+    # string and later tests (e.g. test_checkpoint_path_default in
+    # test_models.py) read the polluted constant.
+    monkeypatch.delenv("CHECKPOINT_PATH", raising=False)
+    monkeypatch.delenv("EXPRESS_SKIP_COLDSTART_REFRESH", raising=False)
+    importlib.reload(_cfg)
+    importlib.reload(_main)
 
 
 def test_lifespan_schedules_refresh_as_background_task_by_default(
@@ -327,13 +345,21 @@ def test_lifespan_skips_refresh_when_env_flag_set(
 
     monkeypatch.setattr(_main, "refresh_fuel_csv", stub)
 
-    with TestClient(_main.app) as client:
-        resp = client.get("/health")
-        assert resp.status_code == 200
-        # No task scheduled when flag is set.
-        assert getattr(_main.app.state, "coldstart_refresh_task", None) is None
+    try:
+        with TestClient(_main.app) as client:
+            resp = client.get("/health")
+            assert resp.status_code == 200
+            # No task scheduled when flag is set.
+            assert getattr(_main.app.state, "coldstart_refresh_task", None) is None
 
-    assert calls == []
+        assert calls == []
+    finally:
+        # Mirror app_with_stub_refresh teardown so CHECKPOINT_PATH and
+        # the skip flag don't leak into later tests.
+        monkeypatch.delenv("CHECKPOINT_PATH", raising=False)
+        monkeypatch.delenv("EXPRESS_SKIP_COLDSTART_REFRESH", raising=False)
+        importlib.reload(_cfg)
+        importlib.reload(_main)
 
 
 def test_lifespan_swallows_refresh_exception(
