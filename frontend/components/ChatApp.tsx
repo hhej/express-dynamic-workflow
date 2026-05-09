@@ -33,6 +33,18 @@ function ChatAppInner() {
 
   // When a finalPayload arrives, append it as an assistant message and
   // refresh the sidebar so the new (or updated) thread shows up.
+  //
+  // Debug 999.5 (2026-05-09): dep array narrowed from
+  // `[chat.finalPayload, chat.status, conversations.refresh]` to
+  // `[chat.finalPayload, chat.status]`. `conversations.refresh` is
+  // stable today (useCallback with [] deps), but listing it as a dep
+  // gives the effect an extra re-fire vector if a future refactor
+  // destabilises the reference. The effect doesn't read .refresh's
+  // identity for control flow — it just CALLS it as a side effect —
+  // so dropping it from deps is correctness-preserving and removes a
+  // future-foot-gun. Pair this with the handleResume guard-seed below
+  // (belt-and-braces against the `done` effect re-appending the prior
+  // turn's finalPayload onto a freshly replayed history).
   useEffect(() => {
     if (!chat.finalPayload) return;
     if (chat.status !== 'done') return;
@@ -68,7 +80,10 @@ function ChatAppInner() {
       ];
     });
     void conversations.refresh();
-  }, [chat.finalPayload, chat.status, conversations.refresh]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- conversations.refresh
+    // is intentionally omitted (see comment above): it is stable today and
+    // the effect only invokes it as a side effect.
+  }, [chat.finalPayload, chat.status]);
 
   // Plan 06-02 D-06: when SSE emits approval_required, append a placeholder
   // assistant message whose null payload is the slot ApprovalCard hangs off
@@ -149,11 +164,26 @@ function ChatAppInner() {
         // truthy) fires on replayed messages. Before Phase 7 chat.threadId
         // stayed null after a resume click and feedback was silently
         // broken on every resumed conversation.
+        // Debug 999.5 (2026-05-09): seed the appended-payload guard with
+        // the CURRENT finalPayload (the last turn's already-appended payload)
+        // BEFORE chat.setThreadId() runs the RESET reducer that clears it.
+        // RESET clears chat.finalPayload to null, so the `done` effect's
+        // `if (!chat.finalPayload) return;` check normally short-circuits
+        // post-resume. The guard seed is belt-and-braces: if a future change
+        // ever lets the effect re-evaluate with the OLD finalPayload still
+        // visible (e.g., a render scheduled before RESET took effect), the
+        // ref-equality guard `lastAppendedPayloadRef.current === finalPayload`
+        // short-circuits BEFORE the duplicate append fires. setting null
+        // (the previous behaviour) ARMED the guard for re-fire — the guard
+        // failed when it mattered. Seeding the live identity disarms it.
+        //
+        // For a follow-up `send()` after this resume, useChatStream.send()
+        // dispatches START which recreates state with finalPayload=null;
+        // the next ANSWER produces a brand-new payload object identity, so
+        // the seed (which references the prior turn's payload, possibly null)
+        // does not block that legitimate append.
+        lastAppendedPayloadRef.current = chat.finalPayload;
         chat.setThreadId(threadId);
-        // Reset the appended-payload guard so the NEXT real `done` payload
-        // (from a follow-up send) is correctly appended even if the resume
-        // happened to leave the previous finalPayload in chat state.
-        lastAppendedPayloadRef.current = null;
       } catch (err) {
         console.error('[resume]', err);
       }
