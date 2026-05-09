@@ -143,7 +143,7 @@ No architectural deviations. No Rule 4 escalations.
 | 2 | Task 1 GREEN | `9accbd4` | feat(260509-eum): add is_csv_stale + refresh_csv to fetch_fuel_prices |
 | 3 | Task 2 GREEN | `5f2ae94` | feat(260509-eum): wire cold-start fuel CSV refresh into FastAPI lifespan |
 | 4 | Task 3 fix | `5220292` | fix(260509-eum): prevent test fixture env-var leak into later tests |
-| 5 | Task 3 docs | (this commit) | docs(260509-eum): summary + STATE.md |
+| 5 | Task 3 docs | `9bf5471` | docs(260509-eum): complete backend cold-start fuel-refresh quick task |
 
 ## Self-Check: PASSED
 
