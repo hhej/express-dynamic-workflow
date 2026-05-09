@@ -121,13 +121,18 @@ class TestSeedDatabaseFuelPrices:
         assert set(cols) == {"date", "diesel_b7_price", "source"}
 
     def test_fuel_prices_diesel_values_are_realistic(self, seeded_db):
-        """Diesel B7 prices should be within the realistic 25-40 THB/L band."""
+        """Diesel B7 prices should be within a realistic THB/L band.
+
+        Bounds widened to 10-60 in 999.7: P09 monthly aggregates back to
+        2003 carry low values (~12.84 in 2003-06) and the April 2026
+        post-subsidy spike reached 50.54 baht.
+        """
         with sqlite3.connect(seeded_db) as conn:
             (lo, hi) = conn.execute(
                 "SELECT MIN(diesel_b7_price), MAX(diesel_b7_price) FROM fuel_prices"
             ).fetchone()
-        assert 25.0 <= lo <= 40.0
-        assert 25.0 <= hi <= 40.0
+        assert 10.0 <= lo <= 60.0
+        assert 10.0 <= hi <= 60.0
 
 
 class TestSeedDatabaseZones:

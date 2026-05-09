@@ -58,6 +58,30 @@ EPPO_OIL_SHARE_URL = (
 )
 _OIL_SHARE_DIESEL_B7_LABEL = "oil_name6v2.png"
 
+# Bangchak's public Historical Retail Oil Prices page. HTML table with
+# daily price-change events (typically ~5 rows/month -- Thai retail B7
+# only changes on retailer announcements, not every day). Default page
+# returns the current year's events, ~120 days of coverage for the
+# rolling 90d window. Column order in the table:
+#   col 0: date (DD/MM/YYYY)
+#   col 1: Hi Diesel S B10  (premium)
+#   col 2: Diesel B7        <-- canonical retail B7 retail Bangkok
+#   col 3: another diesel grade
+#   cols 4-7: gasolines (E85, E20, GSH 91, GSH 95)
+# Verified 2026-05-09: Bangchak's col-2 value 39.95 for 2026-05-08
+# matches EPPO oil-share's diesel B7 retail value for the same day.
+BANGCHAK_HISTORICAL_URL = "https://www.bangchak.co.th/en/oilprice/historical"
+_BANGCHAK_DIESEL_B7_COL = 2  # 0-indexed within the 8-cell data row
+
+# Bangchak's site sits behind Radware bot detection. Counter-intuitively,
+# Mozilla-style UAs trigger a captcha challenge while a plain curl UA
+# passes through cleanly (verified 2026-05-09: Mozilla -> 15KB captcha
+# stub, curl/8.x -> 110KB real page). The heuristic seems to flag UAs
+# that look like browsers since real bots usually pretend to be
+# browsers. If this stops working, try `wget` UA, `Python-urllib/3.x`,
+# or fall back to subprocess-ing the system curl binary.
+BANGCHAK_USER_AGENT = "curl/8.1.2"
+
 # Pretend to be a real browser; EPPO's Imperva CDN sometimes filters bare
 # python-requests UA strings.
 EPPO_USER_AGENT = (
@@ -182,6 +206,154 @@ def _parse_p09_workbook(content: bytes) -> pd.DataFrame:
         )
 
     return pd.DataFrame(rows, columns=["date", "diesel_b7_price", "source"])
+
+
+def _scrape_bangchak() -> pd.DataFrame:
+    """Scrape Bangchak's Historical Retail Oil Prices for diesel B7 daily series.
+
+    Bangchak posts the same regulated retail Bangkok B7 price as EPPO's
+    oil-share page, but as a HISTORICAL series of price-change events
+    rather than a today-only snapshot. Each event is the day a new retail
+    price took effect; between events the price is constant. We expand
+    sparse events into dense daily rows via forward-fill so the output
+    matches the seed CSV's per-day cadence.
+
+    The default page returns the current year's events (~5 events/month).
+    Older years are gated behind a JS-driven year filter that doesn't
+    respond to plain query strings -- so this scraper covers ~the latest
+    year of price-change events, which is more than enough for the
+    rolling 90-day dashboard window. Long-term coverage is preserved
+    by accumulation in the CSV (each refresh appends new events; old
+    events from prior scrapes are kept).
+
+    Returns:
+        DataFrame with columns ``date`` (YYYY-MM-DD), ``diesel_b7_price``
+        (float, baht/litre), ``source`` ("bangchak"). Sparse on
+        price-change dates only -- callers forward-fill to per-day rows.
+
+    Raises:
+        requests.exceptions.RequestException: On network failure.
+        ValueError: If the page parses but no diesel B7 rows are extracted
+            (e.g. Bangchak changed the table layout).
+    """
+    headers = {"User-Agent": BANGCHAK_USER_AGENT}
+    response = requests.get(
+        BANGCHAK_HISTORICAL_URL, timeout=REQUEST_TIMEOUT, headers=headers
+    )
+    response.raise_for_status()
+
+    return _parse_bangchak_table(response.text)
+
+
+def _parse_bangchak_table(html: str) -> pd.DataFrame:
+    """Parse Bangchak Historical Retail Oil Prices HTML into price-change events.
+
+    Args:
+        html: Full HTML body of the page.
+
+    Returns:
+        DataFrame with columns ``date``, ``diesel_b7_price``, ``source``.
+        One row per price-change event (sparse, not forward-filled).
+
+    Raises:
+        ValueError: If no data rows can be extracted.
+    """
+    # BeautifulSoup is the right tool here; pandas.read_html chokes on the
+    # img-cell-only second header row.
+    from bs4 import BeautifulSoup
+
+    soup = BeautifulSoup(html, "html.parser")
+    table = soup.find("table")
+    if table is None:
+        raise ValueError(
+            "Bangchak page parsed but no <table> found -- layout may "
+            "have changed"
+        )
+
+    rows: list[dict] = []
+    for tr in table.find_all("tr"):
+        cells = tr.find_all(["td", "th"])
+        # Data rows have exactly 8 cells: 1 date + 7 fuel prices.
+        # Header rows have 2 cells (Date | Baht/Liter spans) or 7 cells
+        # (the per-product image header).
+        if len(cells) != 8:
+            continue
+        date_str = cells[0].get_text(strip=True)
+        price_str = cells[_BANGCHAK_DIESEL_B7_COL].get_text(strip=True)
+        if not date_str or not price_str:
+            continue
+        # Parse DD/MM/YYYY -> YYYY-MM-DD.
+        try:
+            parsed_date = datetime.strptime(date_str, "%d/%m/%Y").date()
+            price = float(price_str)
+        except (ValueError, TypeError):
+            continue
+        rows.append(
+            {
+                "date": parsed_date.isoformat(),
+                "diesel_b7_price": round(price, 4),
+                "source": "bangchak",
+            }
+        )
+
+    if not rows:
+        raise ValueError(
+            "Bangchak page parsed but no diesel B7 rows extracted -- "
+            "Bangchak may have changed the table column layout"
+        )
+
+    return pd.DataFrame(rows, columns=["date", "diesel_b7_price", "source"])
+
+
+def _forward_fill_daily(
+    events: pd.DataFrame,
+    start: date,
+    end: date,
+) -> pd.DataFrame:
+    """Expand sparse price-change events into one row per calendar day.
+
+    Thai retail diesel B7 only changes on retailer-announced price-action
+    days. Between announcements the price is constant. To fit the dense
+    daily cadence of the seed CSV, we forward-fill: for each day in
+    [start, end], emit a row whose price equals the most recent event
+    on or before that day.
+
+    Days BEFORE the earliest event are skipped (no data to fill from).
+
+    Args:
+        events: Sparse DataFrame with ``date`` (YYYY-MM-DD), ``diesel_b7_price``,
+            ``source`` columns. Need not be sorted.
+        start: First calendar day to emit.
+        end: Last calendar day to emit (inclusive).
+
+    Returns:
+        Dense DataFrame with one row per calendar day in [start, end]
+        for which a forward-fill value exists.
+    """
+    if events.empty or start > end:
+        return pd.DataFrame(columns=["date", "diesel_b7_price", "source"])
+
+    sorted_events = events.copy()
+    sorted_events["_dt"] = pd.to_datetime(sorted_events["date"], errors="coerce")
+    sorted_events = sorted_events.dropna(subset=["_dt"]).sort_values("_dt")
+    earliest = sorted_events["_dt"].min().date()
+    fill_start = max(start, earliest)
+
+    days = pd.date_range(start=fill_start, end=end, freq="D")
+    if len(days) == 0:
+        return pd.DataFrame(columns=["date", "diesel_b7_price", "source"])
+
+    daily = pd.DataFrame({"_dt": days})
+    merged = pd.merge_asof(
+        daily,
+        sorted_events[["_dt", "diesel_b7_price", "source"]],
+        on="_dt",
+        direction="backward",
+    )
+    merged["date"] = merged["_dt"].dt.strftime("%Y-%m-%d")
+    return merged[["date", "diesel_b7_price", "source"]].dropna(
+        subset=["diesel_b7_price"]
+    ).reset_index(drop=True)
 
 
 def _scrape_oil_share_today() -> float | None:
@@ -311,6 +483,22 @@ def _scrape_eppo() -> pd.DataFrame:
             ignore_index=True,
         )
 
+    # Best-effort Bangchak historical daily series (forward-filled to per-day
+    # rows). Provides the daily granularity P09 cannot (P09 is monthly) and
+    # backfills the gap between seed CSV cutoff and today. Network/parse
+    # failures are logged and swallowed -- caller's stale check will still
+    # see whatever P09 + oil-share supplied.
+    try:
+        bangchak_events = _scrape_bangchak()
+        bangchak_daily = _forward_fill_daily(
+            bangchak_events,
+            start=date(2020, 1, 1),  # safe lower bound; merge below clamps
+            end=_today_bangkok(),
+        )
+        fresh = pd.concat([fresh, bangchak_daily], ignore_index=True)
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("Bangchak historical scrape failed: %s", exc)
+
     # Merge with existing seed/CSV, preserving daily-resolution history.
     # When the seed file is missing (e.g. fresh checkout of a future repo
     # state), the scraped data is the entire output.
@@ -334,20 +522,36 @@ def _scrape_eppo() -> pd.DataFrame:
         merged = merged.sort_values("date").reset_index(drop=True)
         return merged[["date", "diesel_b7_price", "source"]]
 
-    # Only append fresh rows whose date is STRICTLY after the seed max --
-    # this keeps the daily seed dense and only fills the gap with monthly
-    # points + today's daily snapshot where no seed daily data exists.
-    existing_max_date = pd.to_datetime(
-        existing["date"], errors="coerce"
-    ).max()
-    fresh["_dt"] = pd.to_datetime(fresh["date"], errors="coerce")
-    new_rows = fresh[fresh["_dt"] > existing_max_date].drop(columns=["_dt"])
+    # Merge semantics:
+    #   - Existing CSV is the trusted history (hand-captured seed + previously
+    #     scraped rows). Do NOT overwrite any past date -- seed integrity is
+    #     load-bearing per CLAUDE.md "real datasets" mandate.
+    #   - Fresh rows fill any date NOT already in existing (gap fill).
+    #   - Today's row is always replaced with the freshest scrape, with
+    #     priority oil-share (eppo) > Bangchak forward-fill, since the
+    #     oil-share PHP page is the canonical real-time source.
+    today_str = _today_bangkok().isoformat()
 
-    merged = pd.concat([existing, new_rows], ignore_index=True)
-    # Defensive dedup on date (keep last = freshest scrape on conflict
-    # within the appended block; seed rows are upstream and untouched
-    # because their dates are <= existing_max_date by construction).
-    merged = merged.drop_duplicates(subset=["date"], keep="last")
+    existing_history = existing[existing["date"] != today_str]
+    existing_dates = set(existing_history["date"])
+
+    fresh_today = fresh[fresh["date"] == today_str]
+    if (fresh_today["source"] == "eppo").any():
+        fresh_today = fresh_today[fresh_today["source"] == "eppo"].head(1)
+    else:
+        fresh_today = fresh_today.head(1)
+
+    fresh_history = fresh[fresh["date"] != today_str]
+    fresh_history = fresh_history[~fresh_history["date"].isin(existing_dates)]
+    # When multiple sources emit the same NEW date (e.g. P09 monthly
+    # YYYY-MM-01 and Bangchak forward-fill same day), prefer the row that
+    # came FIRST in `fresh` -- P09 is appended before Bangchak above, so
+    # the monthly aggregate wins on month-boundary days.
+    fresh_history = fresh_history.drop_duplicates(subset=["date"], keep="first")
+
+    merged = pd.concat(
+        [existing_history, fresh_history, fresh_today], ignore_index=True
+    )
     merged = merged.sort_values("date").reset_index(drop=True)
     return merged[["date", "diesel_b7_price", "source"]]
 

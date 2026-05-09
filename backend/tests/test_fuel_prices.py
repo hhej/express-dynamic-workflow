@@ -59,7 +59,10 @@ class TestSeedCsvContract:
 
     def test_seed_csv_diesel_prices_realistic(self):
         df = pd.read_csv(SEED_CSV)
-        assert df["diesel_b7_price"].between(25.0, 40.0).all()
+        # Bounds widened from 25-40 to 10-60: 999.7 backfill (Bangchak)
+        # added P09 monthly aggregates back to 2003 (low: 12.84 in 2003-06)
+        # and the April 2026 post-subsidy spike (high: 50.54 on 2026-04-05).
+        assert df["diesel_b7_price"].between(10.0, 60.0).all()
 
 
 # ---------------------------------------------------------------------------
@@ -303,6 +306,80 @@ class TestScrapeEppoInternals:
         )
         # No duplicate dates.
         assert result["date"].is_unique
+
+    def test_bangchak_parser_extracts_diesel_b7_events(self):
+        """``_parse_bangchak_table`` extracts (date, diesel_b7) from the
+        Historical Retail Oil Prices HTML table, decoding DD/MM/YYYY and
+        picking column index 2 (diesel B7)."""
+        module = _load_fetch_module()
+        sample_html = """
+        <html><body><table>
+          <tr><th>Date</th><th>Baht/Liter</th></tr>
+          <tr>
+            <td><img src="../HiDiesel.jpg"></td>
+            <td><img src="../Diesel.jpg"></td>
+            <td><img src="../Premium.jpg"></td>
+            <td><img src="../E85.jpg"></td>
+            <td><img src="../E20.jpg"></td>
+            <td><img src="../GSH91.jpg"></td>
+            <td><img src="../GSH95.jpg"></td>
+          </tr>
+          <tr>
+            <td>08/05/2026</td><td>61.25</td><td>39.95</td><td>55.09</td>
+            <td>31.39</td><td>35.45</td><td>42.08</td><td>42.45</td>
+          </tr>
+          <tr>
+            <td>05/04/2026</td><td>71.84</td><td>50.54</td><td>65.68</td>
+            <td>40.54</td><td>44.69</td><td>52.61</td><td>52.98</td>
+          </tr>
+        </table></body></html>
+        """
+        df = module._parse_bangchak_table(sample_html)
+        assert set(df.columns) == EXPECTED_COLUMNS
+        assert (df["source"] == "bangchak").all()
+        # Date conversion: DD/MM/YYYY -> YYYY-MM-DD
+        assert "2026-05-08" in df["date"].values
+        assert "2026-04-05" in df["date"].values
+        # Column 2 = Diesel B7
+        diesel_apr5 = df[df["date"] == "2026-04-05"]["diesel_b7_price"].iloc[0]
+        assert diesel_apr5 == 50.54
+
+    def test_bangchak_parser_raises_on_missing_table(self):
+        """``_parse_bangchak_table`` raises ValueError when the HTML has
+        no <table> -- this is what happens when Bangchak's Radware bot
+        gate returns a captcha challenge instead of the real page."""
+        module = _load_fetch_module()
+        with pytest.raises(ValueError, match="no <table> found"):
+            module._parse_bangchak_table(
+                "<html><body>Radware Captcha Page</body></html>"
+            )
+
+    def test_forward_fill_daily_expands_sparse_events(self):
+        """``_forward_fill_daily`` carries each price-change event forward
+        until the next event, emitting one row per calendar day."""
+        module = _load_fetch_module()
+        from datetime import date as _date
+
+        events = pd.DataFrame(
+            {
+                "date": ["2026-04-05", "2026-04-08", "2026-04-09"],
+                "diesel_b7_price": [50.54, 50.54, 48.40],
+                "source": ["bangchak"] * 3,
+            }
+        )
+        daily = module._forward_fill_daily(
+            events, start=_date(2026, 4, 4), end=_date(2026, 4, 11)
+        )
+        # 2026-04-04 is BEFORE the earliest event -> dropped (no fill source)
+        assert "2026-04-04" not in daily["date"].values
+        # 2026-04-05..07 carry 50.54 forward
+        assert daily[daily["date"] == "2026-04-06"][
+            "diesel_b7_price"
+        ].iloc[0] == 50.54
+        # 2026-04-09..11 carry 48.40 forward (the latest event)
+        assert daily[daily["date"] == "2026-04-11"][
+            "diesel_b7_price"
+        ].iloc[0] == 48.40
 
     def test_scrape_eppo_handles_oil_share_failure_gracefully(
         self, tmp_path, monkeypatch
