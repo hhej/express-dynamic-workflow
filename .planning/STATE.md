@@ -4,8 +4,8 @@ milestone: v1.0
 milestone_name: MVP
 status: shipped
 stopped_at: v1.0 MVP milestone complete (8 phases, 36 plans, 87 tasks)
-last_updated: "2026-05-05T22:00:00.000Z"
-last_activity: 2026-05-05
+last_updated: "2026-05-09T03:55:00.000Z"
+last_activity: 2026-05-09
 progress:
   total_phases: 8
   completed_phases: 8
@@ -258,10 +258,11 @@ None yet.
 | 260503-qzx | Guard pricing_agent against missing route_data/fuel_data (resolves gap-4 from 20-question UAT — KeyError on hallucinated planner routing) | 2026-05-03 | 79d8ee0 | Verified (186/186 backend tests green) | [260503-qzx-guard-pricing-agent-against-missing-rout](./quick/260503-qzx-guard-pricing-agent-against-missing-rout/) |
 | 260503-rs8 | Pin langchain==0.3.28 (fixes silent CallbackHandler import failure) + add constant langfuse_trace_name='express-surcharge-agent' to /api/chat trace metadata (OBS-FIX-LANGCHAIN-PIN, OBS-FIX-TRACE-NAME) | 2026-05-03 | 529075f | Verified (186/186 backend tests green; uvicorn restart required for live metadata pickup) | [260503-rs8-pin-langchain-dep-set-langfuse-trace-nam](./quick/260503-rs8-pin-langchain-dep-set-langfuse-trace-nam/) |
 | 260503-s2h | Set top-level RunnableConfig.run_name='express-surcharge-agent' so Langfuse Observations 'Name' column matches 'Trace Name' column from 260503-rs8 (OBS-FIX-RUN-NAME) | 2026-05-03 | 0606e43 | Verified (186/186 backend tests green; uvicorn restart required for live root-span-name pickup) | [260503-s2h-set-runnableconfig-run-name-so-langfuse-](./quick/260503-s2h-set-runnableconfig-run-name-so-langfuse-/) |
+| 260509-eum | Backend cold-start fuel-price refresh: lifespan schedules background asyncio task; reuses fetch_fuel_prices.refresh_csv with timezone-aware (Asia/Bangkok) staleness predicate; D-03 log-and-continue on any failure (QUICK-260509-EUM-01..03) | 2026-05-09 | <commit> | Verified (248/248 backend tests green; smoke 1+2+3 pass; CLI exits 0; EXPRESS_SKIP_COLDSTART_REFRESH=1 confirmed effective end-to-end) | [260509-eum-backend-cold-start-fuel-price-refresh-au](./quick/260509-eum-backend-cold-start-fuel-price-refresh-au/) |
 
 ## Session Continuity
 
-Last session: 2026-05-05T22:00:00.000Z
-Stopped at: v1.0 MVP milestone shipped — see .planning/MILESTONES.md
+Last session: 2026-05-09T03:55:00.000Z
+Stopped at: Quick task 260509-eum complete — backend cold-start fuel CSV refresh shipped
 Resume file: None
 Next: `/gsd:new-milestone` to start v1.1 (or maintain v1.0)
