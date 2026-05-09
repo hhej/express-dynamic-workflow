@@ -89,3 +89,34 @@ class AgentState(TypedDict):
         }
     Written by search_agent_node; read by response_node to prepend a
     market-context line above the prose answer."""
+
+    guard_decision: Optional[dict]
+    """Quick task 260509-utd: last verdict from guard_input or guard_output.
+
+    Shape::
+
+        {
+          "layer": "input" | "output",
+          "category": str,           # see GuardCategory in guard_input.py
+          "refused": bool,
+          "violations": List[str],   # populated by guard_output only
+        }
+
+    Read by ``response_node`` to render the polite-refusal copy when
+    ``refused=True`` (status='refused' for input layer, 'guard_failed'
+    for output). No reducer — last-write-wins is correct because each
+    node reads + writes its own decision and only one guard runs per
+    superstep.
+    """
+
+    tool_call_count: int
+    """Quick task 260509-utd: per-turn cumulative tool invocation count.
+
+    Bumped by fuel/route/search/pricing agents on every invocation;
+    reset to 0 by ``guard_input`` when a fresh user turn is detected
+    (user-message count > 'response' trace count). Checked against
+    ``MAX_TOOL_CALLS_PER_TURN`` to defend against cost-bombing inputs
+    that try to drive the planner into a tool-call loop. No reducer —
+    last-write-wins is correct because each node reads + writes its
+    own bumped value and only one tool-caller runs per superstep.
+    """

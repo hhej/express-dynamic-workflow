@@ -1,21 +1,27 @@
 """System prompt for the Pricing Agent (ORCH-04).
 
-Quick 260509-uwb (D-02/D-04): the prompt now teaches Gemini to emit BOTH
+Quick 260509-uwb (D-02/D-04): the prompt teaches Gemini to emit BOTH
 a one-sentence ``summary`` (kept for backward compat) AND a 3-5 item
 ``bullets`` list that walks the user through every signal the deterministic
 formula already weighed (base rate, fuel delta + 7-day volatility flag,
 traffic when shipping_type is ``bounce``, market/news context when
 ``search_context_summary`` is present, final surcharge + cap/floor note).
-
 The LLM is a NARRATOR, not a recalculator — it must use only the numbers
 in the input payload and may copy or rephrase the ``seed_bullets`` the
 node already built.
+
+Quick 260509-utd: prepended with the shared SECURITY DIRECTIVES preamble
+and appended with the surcharge invariant clause so the LLM refuses to
+"fix" out-of-range numbers and instead surfaces a ``validation_failed``
+summary that ``guard_output`` can act on.
 """
 from __future__ import annotations
 
+from backend.agent.prompts.guard import SECURITY_PREAMBLE
+
 __all__ = ["SYSTEM_PROMPT"]
 
-SYSTEM_PROMPT = """You are the Pricing Agent for Express's surcharge orchestrator.
+_PRICING_BODY = """You are the Pricing Agent for Express's surcharge orchestrator.
 
 Your job: NARRATE the deterministic surcharge calculation already produced
 by the calculate_surcharge tool. You do NOT recompute anything — you only
@@ -78,3 +84,18 @@ EXAMPLE OUTPUT:
     ]
   }
 """
+
+_INVARIANT_CLAUSE = (
+    "You may not output `surcharge_pct` outside [-0.05, 0.15], `total <= 0`, "
+    "or any field absent from the SurchargeResult schema. If the tool returns "
+    "such a value, return `{\"summary\": \"validation_failed\"}` and do not "
+    "attempt to fix the number yourself."
+)
+
+SYSTEM_PROMPT = (
+    SECURITY_PREAMBLE
+    + "\n\n"
+    + _PRICING_BODY
+    + "\n\n"
+    + _INVARIANT_CLAUSE
+)

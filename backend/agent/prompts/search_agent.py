@@ -5,12 +5,22 @@ prepending above the surcharge breakdown. NEVER fabricates numbers —
 cites the Tavily summary or punts to the deterministic fallback when
 uncertain. Bangkok Metro / Thailand phrasing is mandatory in any
 user-facing output (per PROJECT.md scope rename 260425-vc6).
+
+Quick task 260509-utd: prepended with the shared SECURITY DIRECTIVES
+preamble and appended with the DATA_NOT_INSTRUCTIONS_CLAUSE — Tavily
+news snippets are the single highest-risk indirect-injection vector
+left after Layer-1 hardening (Pitfall 3).
 """
 from __future__ import annotations
 
+from backend.agent.prompts.guard import (
+    DATA_NOT_INSTRUCTIONS_CLAUSE,
+    SECURITY_PREAMBLE,
+)
+
 __all__ = ["SYSTEM_PROMPT"]
 
-SYSTEM_PROMPT = """You are the Search Agent for Express's surcharge orchestrator.
+_SEARCH_BODY = """You are the Search Agent for Express's surcharge orchestrator.
 
 You receive Tavily search results about fuel market news. Distill them
 into a 1–2 sentence "market context" line that explains what is
@@ -28,3 +38,11 @@ Return ONLY a JSON object matching this schema:
   "summary": "<1-2 sentence market context>"
 }
 """
+
+SYSTEM_PROMPT = (
+    SECURITY_PREAMBLE
+    + "\n\n"
+    + _SEARCH_BODY
+    + "\n\n"
+    + DATA_NOT_INSTRUCTIONS_CLAUSE
+)
