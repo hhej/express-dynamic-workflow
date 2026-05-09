@@ -259,27 +259,46 @@ def test_lifespan_schedules_refresh_as_background_task_by_default(
     """Default behaviour: lifespan schedules refresh via asyncio.create_task.
 
     /health responds 200 (proves no await-block) and the recording stub
-    is invoked exactly once within a short bounded wait.
+    is invoked exactly once. We assert against the TestClient's own
+    event loop -- a fresh ``asyncio.run`` cannot await a task that
+    belongs to TestClient's loop (different-loop ValueError).
+
+    Inside the ``with TestClient(app)`` block the lifespan has yielded
+    (so the task is scheduled on TestClient's loop). Issuing a synchronous
+    HTTP request through TestClient drives that loop forward, which gives
+    the scheduled task an opportunity to run; the stub is fast (no real
+    work), so by the time the second /health returns the task is done.
     """
     monkeypatch.delenv("EXPRESS_SKIP_COLDSTART_REFRESH", raising=False)
     main_mod, calls = app_with_stub_refresh
 
     with TestClient(main_mod.app) as client:
-        # /health must succeed BEFORE we wait for the background task --
-        # that's the non-blocking gate (D-02).
+        # /health must succeed BEFORE the background task completes --
+        # that's the non-blocking gate (D-02). At this point the task
+        # is scheduled on TestClient's loop; whether it has finished is
+        # racy and irrelevant to the gate.
         resp = client.get("/health")
         assert resp.status_code == 200
         assert resp.json()["graph_ready"] is True
 
-        # The background task lives on app.state. Wait for it bounded.
         task = getattr(main_mod.app.state, "coldstart_refresh_task", None)
         assert task is not None, "lifespan must store task on app.state"
 
-        async def _wait():
-            await asyncio.wait_for(task, timeout=2.0)
+        # Drive TestClient's loop forward until the scheduled task is
+        # done (or we hit a bounded retry budget). Each subsequent
+        # request runs the loop; for a synchronous stub one extra
+        # round-trip is plenty.
+        for _ in range(20):
+            if task.done():
+                break
+            client.get("/health")
 
-        asyncio.run(_wait())
-
+    # By now TestClient has exited the lifespan and shut down its loop;
+    # the task either ran during the loop or was awaited at shutdown.
+    assert task.done(), "background task should have completed"
+    assert task.exception() is None, (
+        f"task raised unexpectedly: {task.exception()!r}"
+    )
     assert len(calls) == 1, f"refresh stub called {len(calls)} times, want 1"
 
 
@@ -341,15 +360,22 @@ def test_lifespan_swallows_refresh_exception(
             task = getattr(main_mod.app.state, "coldstart_refresh_task", None)
             assert task is not None
 
-            # Drain the task; outer net in _coldstart_fuel_refresh swallows.
-            async def _wait():
-                await asyncio.wait_for(task, timeout=2.0)
+            # Drive TestClient's loop forward until the task completes
+            # (raise + outer-net swallow); cannot use foreign asyncio.run
+            # here -- the task belongs to TestClient's loop.
+            for _ in range(20):
+                if task.done():
+                    break
+                client.get("/health")
 
-            asyncio.run(_wait())
-
-    # WARNING line emitted by either refresh_csv (inner) or
-    # _coldstart_fuel_refresh (outer net). The stub bypasses refresh_csv
-    # entirely, so the warning MUST come from the outer net.
+    # The outer net in _coldstart_fuel_refresh MUST swallow the exception
+    # so the task completes without an outstanding exception bubbling.
+    assert task.done(), "background task should have completed"
+    assert task.exception() is None, (
+        f"outer net failed to swallow: {task.exception()!r}"
+    )
+    # WARNING line emitted by the outer net (the stub bypasses
+    # refresh_csv entirely so the warning MUST come from main.py).
     assert any(
         "Cold-start fuel CSV refresh" in rec.message
         and rec.levelno >= logging.WARNING
