@@ -4,7 +4,7 @@ milestone: v1.0
 milestone_name: MVP
 status: shipped
 stopped_at: v1.0 MVP milestone complete (8 phases, 36 plans, 87 tasks)
-last_updated: "2026-05-09T03:55:00.000Z"
+last_updated: "2026-05-09T15:30:00.000Z"
 last_activity: 2026-05-09
 progress:
   total_phases: 8
@@ -214,6 +214,10 @@ Recent decisions affecting current work:
 - [Quick 260503-rs8]: uvicorn must be restarted after deploying this fix — running server holds the OLD `_make_config` in memory; pytest exercises a fresh import each run so the test suite covers the new key without a server restart, but live `/api/chat` traffic does not pick up the trace_name until uvicorn is recycled.
 - [Quick 260503-s2h]: Top-level RunnableConfig.run_name='express-surcharge-agent' (sibling to configurable/callbacks/metadata, NOT inside metadata) — populates the Langfuse Observations 'Name' column via the langfuse-langchain CallbackHandler reading the LangChain root span name. Pairs with 260503-rs8's metadata.langfuse_trace_name (which populates the 'Trace Name' column) so both columns now match under one constant agent identity for dashboard filtering.
 - [Quick 260503-s2h]: Single in-place test extension in test_chat_attaches_callback_when_enabled (no new test function) — preserves the 186-test baseline established post-260503-rs8; success criteria explicitly required no test count delta.
+- [Quick 260509-uwb]: PricingReasoning extended to {summary, bullets} (D-04 backward compat); LLM gets augmented JSON payload (rate/surcharge/fuel_data/route_data/shipping_type/volatility_flag/search_context_summary/seed_bullets); LLM-bullets-win predicate is strict (3-5 non-empty items only) — borderline emissions fall through to deterministic seed so trace is consistently rich.
+- [Quick 260509-uwb]: Volatility thresholds — recent_delta > 0.5 * mean_abs_delta AND mean > 0 → 'high'; < 0.2 * mean_abs_delta → 'low'; else 'normal'. Pure CSV reader (data/raw/eppo_diesel_prices.csv); never raises (returns 'normal' on any I/O or parse error). No new APIs added (D-03 honoured).
+- [Quick 260509-uwb]: D-11 deterministic-fallback contract enriched — Gemini failure now returns same bullet shape as LLM happy path (3+ newline-joined `- bullet` lines, not single sentence); trace status='ok' invariant preserved.
+- [Quick 260509-uwb]: Test deviation Rule 1 — plan's illustrative LLM payloads used 124.80 / 126.00 totals but calculate_surcharge formula given the test state actually produces 129.05 (bounce) / 122.12 (retail); test fixtures updated to use formula's actual values, honouring the LLM-as-narrator invariant.
 - [Phase 06]: Plan 06-01 D-01 + D-15.1: extended TraceStep.AGENT_LABEL with hitl_gate -> 'Approval gate' and search_agent -> 'Search agent'; added Vitest exhaustive-loop test (AGENT_NAMES) so any future AgentName addition that forgets AGENT_LABEL fails BOTH at tsc (Record<AgentName,string> TS2739) AND at runtime (loop assertion). Defense-in-depth drift prevention.
 - [Phase 06]: Plan 06-01 PROCESS DEVIATION: parallel 06-02 executor agent's git stage swept Plan 06-01's already-staged TraceStep.tsx + TraceStep.test.tsx files into commit ff68f26 'feat(06-02): add ApprovalCard errorMessage prop'. Code is correct AND committed (git show ff68f26 confirms exact spec match), only commit-message slug attribution drifted from (06-01) to (06-02). SUMMARY.md commit will land under (06-01) for grep-by-plan traceability. No functional impact.
 - [Phase 06]: ChatColumn isStreaming -> inputDisabled rename per D-07: name boolean for what it gates (input), not state that happens to be true (streaming)
@@ -260,10 +264,11 @@ None yet.
 | 260503-s2h | Set top-level RunnableConfig.run_name='express-surcharge-agent' so Langfuse Observations 'Name' column matches 'Trace Name' column from 260503-rs8 (OBS-FIX-RUN-NAME) | 2026-05-03 | 0606e43 | Verified (186/186 backend tests green; uvicorn restart required for live root-span-name pickup) | [260503-s2h-set-runnableconfig-run-name-so-langfuse-](./quick/260503-s2h-set-runnableconfig-run-name-so-langfuse-/) |
 | 260509-e0p | Restyle frontend with dark cosmic glass morphism theme (Tailwind v4 @theme tokens + glass-surface/glass-panel/brand-gradient @utility classes + static gradient mesh body background; 23 view components reskinned) | 2026-05-09 | b4e6fa2, 3e56e2a | Verified visually + readability follow-ups (PR #11 merged) | [260509-e0p-i-want-to-change-our-application-theme-i](./quick/260509-e0p-i-want-to-change-our-application-theme-i/) |
 | 260509-eum | Backend cold-start fuel-price refresh: lifespan schedules background asyncio task; reuses fetch_fuel_prices.refresh_csv with timezone-aware (Asia/Bangkok) staleness predicate; D-03 log-and-continue on any failure (QUICK-260509-EUM-01..03) | 2026-05-09 | 9bf5471 | Verified (248/248 backend tests green; smoke 1+2+3 pass; CLI exits 0; EXPRESS_SKIP_COLDSTART_REFRESH=1 confirmed effective end-to-end) | [260509-eum-backend-cold-start-fuel-price-refresh-au](./quick/260509-eum-backend-cold-start-fuel-price-refresh-au/) |
+| 260509-uwb | Pricing Agent visible reasoning upgrade: PricingReasoning gains bullets:list[str], _compute_volatility_flag reads 7d EPPO CSV window (low/normal/high), _build_bullets emits 3-5 bullets (base+fuel/volatility / traffic-only-bounce / news-only-when-search_context / final + cap/floor); D-11 fallback now bullet-shaped; formula calculate_surcharge.py byte-for-byte unchanged (QUICK-260509-UWB-01..03) | 2026-05-09 | bbaf95e, 119ac56, 0a6b878 | Verified (260/260 backend tests green; pricing 5→9; locked formula files unchanged; no new external-API imports) | [260509-uwb-upgrade-pricing-agent-to-visibly-reason-](./quick/260509-uwb-upgrade-pricing-agent-to-visibly-reason-/) |
 
 ## Session Continuity
 
-Last session: 2026-05-09T03:55:00.000Z
-Stopped at: Quick task 260509-eum complete — backend cold-start fuel CSV refresh shipped (PR #12 merging into develop)
+Last session: 2026-05-09T15:30:00.000Z
+Stopped at: Quick task 260509-uwb complete — Pricing Agent now emits 3-5 bulleted reasoning steps in trace; formula unchanged; 260/260 backend tests green
 Resume file: None
-Next: After PR #12 merges, restart uvicorn and confirm cold-start refresh fires
+Next: Restart uvicorn and inspect trace panel on a live chat turn — confirm bullet markdown renders cleanly in TraceStep expanded view (informational gate, not blocking)

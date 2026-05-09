@@ -8,13 +8,29 @@ and emits ONE D-12 trace entry whose ``tool`` field is the compound name
 D-09 contract: ``ValueError`` raised by ``lookup_rate`` (e.g. unknown
 shipping_type/zone, weight outside any tier) propagates uncaught — the
 Pricing Agent does NOT swallow lookup misses.
+
+Quick 260509-uwb (Pricing Agent reasoning upgrade):
+- ``PricingReasoning`` schema gains ``bullets: list[str]`` alongside the
+  existing ``summary: str`` (D-04 backward compat — schema default keeps
+  pre-260509 LLM emissions like ``{"summary": "..."}`` working).
+- ``_compute_volatility_flag`` reads the last 7 distinct calendar days from
+  ``data/raw/eppo_diesel_prices.csv`` and categorises movement as
+  ``low | normal | high`` for the fuel bullet (D-03 — no new APIs; CSV is
+  already the Phase 1+2 fuel data source).
+- ``_build_bullets`` produces 3-5 deterministic bullets (base rate, fuel +
+  volatility, traffic-only-for-bounce, news-only-when-search_context, final
+  surcharge + cap/floor note). The LLM may copy or rephrase these.
+- ``_deterministic_narration`` and the LLM-failure path of ``_narrate_with_llm``
+  now emit the SAME bullet shape (D-11 contract preserved AND enriched).
 """
 from __future__ import annotations
 
+import csv
 import json
 import logging
 from datetime import datetime, timezone
-from typing import Optional
+from pathlib import Path
+from typing import Literal, Optional
 
 from langchain_core.messages import HumanMessage, SystemMessage
 from langchain_core.runnables import RunnableConfig
@@ -37,24 +53,222 @@ __all__ = ["pricing_agent_node"]
 
 logger = logging.getLogger(__name__)
 
+# Default 7-day volatility window source. backend/agent/nodes/pricing_agent.py
+# → parents[3] resolves to the repo root, then data/raw/eppo_diesel_prices.csv.
+# Tests can override by passing a tmp_path CSV directly to
+# _compute_volatility_flag, or by monkeypatching the helper to a constant flag.
+DEFAULT_VOLATILITY_CSV: Path = (
+    Path(__file__).resolve().parents[3] / "data" / "raw" / "eppo_diesel_prices.csv"
+)
+
 
 class PricingReasoning(BaseModel):
-    """Structured narration schema for the Pricing Agent (D-11)."""
+    """Structured narration schema for the Pricing Agent (D-11).
+
+    Quick 260509-uwb (D-04): kept ``summary`` for backward compat; added
+    ``bullets`` for multi-step reasoning that surfaces in the trace UI.
+    Default-empty ``bullets`` means pre-260509 LLM emissions of just
+    ``{"summary": "..."}`` continue to parse cleanly.
+    """
 
     summary: str = Field(description="One-sentence pricing summary")
+    bullets: list[str] = Field(
+        default_factory=list,
+        description=(
+            "3-5 short reasoning steps walking the user through base rate, "
+            "fuel delta + volatility, traffic, news context, and final "
+            "surcharge."
+        ),
+    )
 
 
-def _deterministic_narration(
-    rate: RateResult, surcharge: SurchargeResult
-) -> str:
-    """D-11 fallback narration when Gemini parsing fails."""
-    cap_note = " (capped)" if surcharge.capped else ""
-    return (
-        f"Base rate {rate.base_rate:.2f} THB ({rate.rate_tier}); "
-        f"surcharge {surcharge.surcharge_pct:.2%} = "
+def _compute_volatility_flag(
+    history_csv_path: Path | str,
+    current_price: float,
+) -> Literal["low", "normal", "high"]:
+    """Categorise diesel volatility over the last 7 distinct calendar days.
+
+    Algorithm (per Quick 260509-uwb plan Task 1 behavior):
+    - Read all dated rows from the CSV; pick the most-recent 7 distinct calendar
+      days, skipping any row whose price equals ``current_price`` AND whose
+      date is "today" (avoids double-counting the current point).
+    - Compute ``mean_abs_delta = mean(|price[i] - price[i-1]|)`` over the window.
+    - Compute ``recent_delta = abs(current_price - first_window_price)``.
+    - Threshold:
+        * ``recent_delta > 0.5 * mean_abs_delta`` AND ``mean_abs_delta > 0`` → ``"high"``
+        * ``recent_delta < 0.2 * mean_abs_delta`` → ``"low"``
+        * otherwise → ``"normal"``
+    - Fewer than 2 rows OR ``mean_abs_delta == 0`` → ``"normal"`` (safe default).
+
+    The function is intentionally pure-ish (one CSV read, no exceptions
+    propagated) — file missing or malformed must NEVER crash the pricing
+    agent. Tests can pass a ``tmp_path / "fixture.csv"`` to inject a known
+    history; production calls use ``DEFAULT_VOLATILITY_CSV``.
+
+    Args:
+        history_csv_path: Path to a CSV with at least ``date,diesel_b7_price``
+            columns (extra columns ignored). Older rows first, newer rows last.
+        current_price: The current diesel price (THB/L) the agent is reasoning
+            over. Used as the "now" point against the 7-day window.
+
+    Returns:
+        One of ``"low"``, ``"normal"``, ``"high"``. Never raises.
+    """
+    try:
+        rows: list[tuple[str, float]] = []
+        with open(history_csv_path, "r", newline="") as fh:
+            reader = csv.DictReader(fh)
+            for row in reader:
+                date_str = (row.get("date") or "").strip()
+                price_str = (row.get("diesel_b7_price") or "").strip()
+                if not date_str or not price_str:
+                    continue
+                try:
+                    price = float(price_str)
+                except ValueError:
+                    continue
+                rows.append((date_str, price))
+    except (OSError, csv.Error) as exc:
+        logger.debug("volatility CSV read failed (%s); defaulting to 'normal'", exc)
+        return "normal"
+
+    if len(rows) < 2:
+        return "normal"
+
+    # Drop today's row only when its price coincides with current_price
+    # (avoids double-counting the live data point against itself).
+    today_iso = datetime.now(timezone.utc).date().isoformat()
+    if rows and rows[-1][0] == today_iso and rows[-1][1] == current_price:
+        rows = rows[:-1]
+
+    if len(rows) < 2:
+        return "normal"
+
+    # Most-recent 7 distinct calendar days.
+    seen_dates: set[str] = set()
+    window: list[tuple[str, float]] = []
+    for date_str, price in reversed(rows):
+        if date_str in seen_dates:
+            continue
+        seen_dates.add(date_str)
+        window.append((date_str, price))
+        if len(window) >= 7:
+            break
+    window.reverse()  # oldest-first within the window
+
+    if len(window) < 2:
+        return "normal"
+
+    deltas = [
+        abs(window[i][1] - window[i - 1][1]) for i in range(1, len(window))
+    ]
+    if not deltas:
+        return "normal"
+    mean_abs_delta = sum(deltas) / len(deltas)
+    if mean_abs_delta == 0:
+        return "normal"
+
+    first_window_price = window[0][1]
+    recent_delta = abs(current_price - first_window_price)
+
+    if recent_delta > 0.5 * mean_abs_delta:
+        return "high"
+    if recent_delta < 0.2 * mean_abs_delta:
+        return "low"
+    return "normal"
+
+
+def _build_bullets(
+    rate: RateResult,
+    surcharge: SurchargeResult,
+    fuel_data: dict,
+    route_data: dict,
+    shipping_type: str,
+    volatility_flag: str,
+    search_context: Optional[dict],
+) -> list[str]:
+    """Build the deterministic bullet list (3-5 items).
+
+    Rules per plan Task 1 action step 3:
+    - Bullet 1 (always): base rate + tier + zone + shipping_type.
+    - Bullet 2 (always): diesel price vs baseline + delta_pct + volatility flag.
+    - Bullet 3 (bounce only): traffic severity contribution.
+    - Bullet 4 (only when search_context has non-empty summary): market context.
+    - Bullet 5 (always, last): final surcharge_pct + total + cap/floor note.
+
+    The bullets are filtered (predicates) so the final list length is 3, 4,
+    or 5 — never less, never more.
+    """
+    bullets: list[str] = []
+
+    bullets.append(
+        f"Base rate {rate.base_rate:.2f} THB ({rate.rate_tier} tier, "
+        f"zone {route_data['zone']}, {shipping_type})."
+    )
+
+    bullets.append(
+        f"Diesel at {fuel_data['price']:.2f} THB/L vs baseline "
+        f"{fuel_data['baseline']:.2f} ({fuel_data['delta_pct']:+.2%} delta, "
+        f"volatility {volatility_flag} over last 7 days)."
+    )
+
+    if shipping_type == "bounce":
+        bullets.append(
+            f"Bangkok Metro traffic severity {route_data['traffic_severity']}/5 "
+            f"adds a per-step bump on top of the fuel delta."
+        )
+
+    if search_context:
+        summary = (search_context.get("summary") or "").strip()
+        if summary:
+            truncated = summary[:120] + ("..." if len(summary) > 120 else "")
+            bullets.append(f"Market context: {truncated}")
+
+    if surcharge.capped and surcharge.surcharge_pct >= 0:
+        cap_note = " (cap applied)"
+    elif surcharge.capped:
+        cap_note = " (floor applied)"
+    else:
+        cap_note = ""
+    bullets.append(
+        f"Final surcharge {surcharge.surcharge_pct:.2%} = "
         f"{surcharge.surcharge_amount:.2f} THB; "
         f"total {surcharge.total:.2f} THB{cap_note}."
     )
+
+    return bullets
+
+
+def _join_bullets(bullets: list[str]) -> str:
+    """Join bullets into a newline-separated ``- bullet`` markdown string."""
+    return "\n".join(f"- {b}" for b in bullets if b)
+
+
+def _deterministic_narration(
+    rate: RateResult,
+    surcharge: SurchargeResult,
+    fuel_data: dict,
+    route_data: dict,
+    shipping_type: str,
+    volatility_flag: str,
+    search_context: Optional[dict],
+) -> str:
+    """D-11 fallback narration when Gemini parsing fails.
+
+    Quick 260509-uwb (D-02): now emits the SAME bullet shape as the LLM
+    happy path (3-5 newline-joined ``- bullet`` lines), not a single
+    sentence. Trace status='ok' invariant preserved.
+    """
+    bullets = _build_bullets(
+        rate,
+        surcharge,
+        fuel_data,
+        route_data,
+        shipping_type,
+        volatility_flag,
+        search_context,
+    )
+    return _join_bullets(bullets)
 
 
 def _parse_structured(raw: str) -> PricingReasoning:
@@ -72,32 +286,76 @@ def _parse_structured(raw: str) -> PricingReasoning:
     return PricingReasoning.model_validate(json.loads(text))
 
 
-def _narrate_with_llm(rate: RateResult, surcharge: SurchargeResult) -> str:
-    """Call Gemini; fall back to deterministic narration on any failure (D-11)."""
+def _narrate_with_llm(
+    rate: RateResult,
+    surcharge: SurchargeResult,
+    fuel_data: dict,
+    route_data: dict,
+    shipping_type: str,
+    volatility_flag: str,
+    search_context: Optional[dict],
+) -> str:
+    """Call Gemini; fall back to deterministic bullet narration on any failure (D-11).
+
+    Quick 260509-uwb: build a deterministic bullet seed first, hand it to
+    the LLM as part of the user-message JSON payload, and prefer the LLM's
+    bullets when valid (3-5 items) — otherwise use the deterministic seed.
+    Always returns a newline-joined ``- bullet`` markdown string.
+    """
+    seed_bullets = _build_bullets(
+        rate,
+        surcharge,
+        fuel_data,
+        route_data,
+        shipping_type,
+        volatility_flag,
+        search_context,
+    )
+
     try:
         model = get_chat_model()
+
+        # Per plan Task 1 action step 5: pass an augmented JSON payload to
+        # the LLM (rate, surcharge, fuel, route, shipping_type, volatility,
+        # search_context summary, seed bullets the node already built).
+        payload = {
+            "rate": rate.model_dump(),
+            "surcharge": surcharge.model_dump(),
+            "fuel_data": fuel_data,
+            "route_data": route_data,
+            "shipping_type": shipping_type,
+            "volatility_flag": volatility_flag,
+            "search_context_summary": (
+                (search_context or {}).get("summary") if search_context else None
+            ),
+            "seed_bullets": seed_bullets,
+        }
+
         response = model.invoke(
             [
                 SystemMessage(content=SYSTEM_PROMPT),
-                HumanMessage(
-                    content=(
-                        f"Rate: {rate.model_dump_json()} | "
-                        f"Surcharge: {surcharge.model_dump_json()}"
-                    )
-                ),
+                HumanMessage(content=json.dumps(payload)),
             ]
         )
         content = getattr(response, "content", response)
         if not isinstance(content, str):
             content = str(content)
         out = _parse_structured(content)
-        return out.summary
+
+        # Prefer LLM bullets when they look reasonable (3-5 non-empty items).
+        llm_bullets = [b for b in (out.bullets or []) if b and b.strip()]
+        if 3 <= len(llm_bullets) <= 5:
+            return _join_bullets(llm_bullets)
+
+        # LLM emitted a backward-compat {"summary": ...} only (no bullets) —
+        # fall through to deterministic seed so the trace is rich, not flat.
+        return _join_bullets(seed_bullets)
     except (Exception, ValidationError) as exc:  # D-11 fallback
         logger.warning(
             "pricing_agent Gemini narration failed, using deterministic fallback: %s",
             exc,
         )
-        return _deterministic_narration(rate, surcharge)
+        return _join_bullets(seed_bullets)
 
 
 def pricing_agent_node(
@@ -112,10 +370,20 @@ def pricing_agent_node(
     are swallowed inside ``post_formula_accuracy_score`` AND are guarded
     here by a try/except — the user response is never affected.
 
+    Quick 260509-uwb: pricing trace ``reasoning`` becomes a multi-line
+    ``- bullet`` markdown string (3-5 bullets) that walks the user through
+    base rate, fuel delta + 7-day volatility flag, traffic (bounce only),
+    market context (only when ``state["search_context"]`` populated), and
+    the final surcharge + cap/floor note. Formula in
+    ``backend/agent/tools/calculate_surcharge.py`` is unchanged (D-01).
+
     Args:
         state: Full AgentState-shaped dict. Required state keys:
             ``shipping_type``, ``weight_kg``, ``fuel_data.price``,
             ``route_data.zone``, ``route_data.traffic_severity``.
+            Optional: ``search_context`` (Phase 5 D-11 shape) — when
+            present and ``summary`` is non-empty, a market-context bullet
+            is added to the trace narration.
         config: LangGraph RunnableConfig — second positional arg LangGraph
             passes when nodes declare it. Optional so the node remains
             invokable from unit tests without a config (auto-eval is
@@ -204,7 +472,22 @@ def pricing_agent_node(
             raw.model_dump() if hasattr(raw, "model_dump") else dict(raw)
         )
 
-    reasoning = _narrate_with_llm(rate, surcharge)
+    # Quick 260509-uwb: derive volatility flag from the EPPO CSV (D-03 — no
+    # new APIs) and pull search_context from existing state (Phase 5 D-11).
+    volatility_flag = _compute_volatility_flag(
+        DEFAULT_VOLATILITY_CSV, current_diesel_price
+    )
+    search_context = state.get("search_context")
+
+    reasoning = _narrate_with_llm(
+        rate,
+        surcharge,
+        state["fuel_data"],
+        state["route_data"],
+        shipping_type,
+        volatility_flag,
+        search_context,
+    )
 
     prior_steps = len(state.get("reasoning_trace") or [])
     trace_entry = {
