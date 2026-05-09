@@ -86,7 +86,7 @@ export function MessageList({
           return (
             <li
               key={`u-${i}`}
-              className="max-w-[75%] self-end rounded-lg bg-blue-600 px-4 py-2 text-sm text-white"
+              className="max-w-[75%] self-end rounded-lg bg-blue-600 brand-gradient px-4 py-2 text-sm text-white shadow-md shadow-brand-from/30"
             >
               {m.content}
             </li>
@@ -98,7 +98,7 @@ export function MessageList({
         return (
           <li
             key={`a-${m.id}`}
-            className="max-w-[85%] space-y-2 self-start rounded-lg bg-white px-4 py-2 text-sm text-gray-900"
+            className="max-w-[85%] space-y-2 self-start glass-surface px-4 py-2 text-sm text-text-primary"
           >
             {renderAssistant(m, slotApproval, onApprove, onDeny, approvalErrorMessage)}
             {threadId && m.payload && m.payload.message_id && !slotApproval && (

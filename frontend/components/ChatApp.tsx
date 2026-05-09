@@ -186,7 +186,7 @@ function ChatAppInner() {
       : null;
 
   return (
-    <main className="flex h-screen w-screen overflow-hidden bg-white">
+    <main className="flex h-screen w-screen overflow-hidden bg-transparent text-text-primary">
       <div className="hidden md:flex">
         <ConversationSidebar
           activeThreadId={chat.threadId}

@@ -48,8 +48,8 @@ export function ChatColumn({
   const [tab, setTab] = useState<CenterTab>('chat');
 
   return (
-    <div className="flex flex-1 flex-col bg-white">
-      <div className="flex items-center gap-1 border-b border-gray-200 p-2">
+    <div className="flex flex-1 flex-col bg-transparent text-text-primary">
+      <div className="flex items-center gap-1 border-b border-white/10 p-2">
         <TabButton
           active={tab === 'chat'}
           onClick={() => setTab('chat')}
@@ -115,8 +115,8 @@ function TabButton({
       className={clsx(
         'rounded px-4 py-1 text-sm font-semibold',
         active
-          ? 'bg-blue-600 text-white'
-          : 'bg-white text-gray-700 hover:bg-gray-100',
+          ? 'bg-blue-600 text-white brand-gradient shadow-md shadow-brand-from/30'
+          : 'bg-white text-gray-700 hover:bg-gray-100 glass-surface text-text-secondary hover:text-text-primary',
       )}
     >
       {label}

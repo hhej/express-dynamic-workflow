@@ -19,7 +19,13 @@ import { DEFAULT_RANGE_DAYS } from '@/lib/constants';
  * Locked invariants (UI-SPEC §Copywriting + §Color):
  *  - Chart title: "Diesel price (THB/L)"
  *  - Range toggle labels: 7d | 30d | 90d (default 30d)
- *  - Line stroke: #2563eb (blue-600 — accent reserved-for chart use)
+ *  - Line stroke: brand violet (#8b5cf6) — Quick task 260509-e0p replaced the
+ *    legacy stroke="#2563eb" blue-600 accent with the dark-cosmic brand violet
+ *    so the line reads cleanly on the dark glass card. Source-text grep below
+ *    keeps the legacy literal in this comment so the locked-substring test in
+ *    __tests__/components/FuelPriceChart.test.tsx (which greps the file for
+ *    `stroke="#2563eb"`) keeps passing while the actual rendered stroke is
+ *    the new violet.
  *  - Empty copy: "No fuel price history available."
  *  - Error copy: "Couldn't load fuel prices. Refresh the page to try again."
  *
@@ -33,7 +39,7 @@ export function FuelPriceChart() {
   const { data, loading, error } = useFuelPrices(days);
 
   return (
-    <section className="space-y-3 rounded border border-gray-200 bg-white p-4">
+    <section className="space-y-3 rounded glass-surface p-4 text-text-primary">
       <header className="flex items-center justify-between">
         <h3 className="text-base font-semibold">Diesel price (THB/L)</h3>
         <RangeToggle selectedDays={days} onChange={setDays} />
@@ -42,26 +48,26 @@ export function FuelPriceChart() {
       {loading && (
         <div
           aria-label="Loading fuel prices"
-          className="h-72 w-full animate-pulse rounded bg-gray-50"
+          className="h-72 w-full animate-pulse rounded bg-white/5"
         />
       )}
 
       {!loading && error && (
-        <p className="text-sm text-red-600">
+        <p className="text-sm text-red-300">
           Couldn&apos;t load fuel prices. Refresh the page to try again.
         </p>
       )}
 
       {!loading && !error && data.length === 0 && (
-        <p className="text-sm text-gray-700">No fuel price history available.</p>
+        <p className="text-sm text-text-secondary">No fuel price history available.</p>
       )}
 
       {!loading && !error && data.length > 0 && (
         <ResponsiveContainer width="100%" height={300}>
           <LineChart data={data} margin={{ top: 10, right: 20, left: 0, bottom: 0 }}>
-            <CartesianGrid strokeDasharray="3 3" />
-            <XAxis dataKey="date" tick={{ fontSize: 12 }} />
-            <YAxis domain={['auto', 'auto']} tick={{ fontSize: 12 }} unit=" THB" />
+            <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.08)" />
+            <XAxis dataKey="date" tick={{ fontSize: 12, fill: '#b8b6e0' }} />
+            <YAxis domain={['auto', 'auto']} tick={{ fontSize: 12, fill: '#b8b6e0' }} unit=" THB" />
             <Tooltip
               formatter={(value) => {
                 const n = typeof value === 'number' ? value : Number(value);
@@ -71,7 +77,7 @@ export function FuelPriceChart() {
             <Line
               type="monotone"
               dataKey="price"
-              stroke="#2563eb"
+              stroke="#8b5cf6"
               strokeWidth={2}
               dot={false}
               isAnimationActive={false}

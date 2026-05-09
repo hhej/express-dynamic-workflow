@@ -29,8 +29,8 @@ export function RangeToggle({ selectedDays, onChange }: Props) {
             className={clsx(
               'rounded border px-3 py-1 text-sm font-normal',
               active
-                ? 'border-blue-600 bg-blue-600 text-white'
-                : 'border-gray-200 bg-white text-gray-700 hover:bg-gray-50',
+                ? 'border-blue-600 bg-blue-600 text-white brand-gradient shadow-sm shadow-brand-from/30'
+                : 'border-white/15 bg-white text-gray-700 hover:bg-gray-50 glass-surface text-text-secondary hover:bg-white/10',
             )}
           >
             {opt.label}
