@@ -69,6 +69,17 @@ export function FuelPriceChart() {
             <XAxis dataKey="date" tick={{ fontSize: 12, fill: '#b8b6e0' }} />
             <YAxis domain={['auto', 'auto']} tick={{ fontSize: 12, fill: '#b8b6e0' }} unit=" THB" />
             <Tooltip
+              cursor={{ stroke: 'rgba(139,92,246,0.35)', strokeWidth: 1 }}
+              contentStyle={{
+                background: 'rgba(15, 15, 35, 0.92)',
+                border: '1px solid rgba(139, 92, 246, 0.35)',
+                borderRadius: 8,
+                color: '#e5e7ff',
+                boxShadow: '0 12px 40px -12px rgba(8, 8, 30, 0.6)',
+                backdropFilter: 'blur(8px)',
+              }}
+              labelStyle={{ color: '#b8b6e0', fontWeight: 500 }}
+              itemStyle={{ color: '#e5e7ff' }}
               formatter={(value) => {
                 const n = typeof value === 'number' ? value : Number(value);
                 return Number.isFinite(n) ? `${n.toFixed(2)} THB/L` : String(value);

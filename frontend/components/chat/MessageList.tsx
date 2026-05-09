@@ -97,7 +97,7 @@ export function MessageList({
         const slotApproval = isLast ? awaitingApproval : null;
         return (
           <li
-            key={`a-${m.id}`}
+            key={`a-${m.id}-${i}`}
             className="max-w-[85%] space-y-2 self-start glass-surface px-4 py-2 text-sm text-text-primary"
           >
             {renderAssistant(m, slotApproval, onApprove, onDeny, approvalErrorMessage)}

@@ -80,6 +80,17 @@ export function SurchargeHistoryChart() {
             />
             <YAxis tick={{ fontSize: 12, fill: '#b8b6e0' }} unit=" THB" />
             <Tooltip
+              cursor={{ fill: 'rgba(139,92,246,0.12)' }}
+              contentStyle={{
+                background: 'rgba(15, 15, 35, 0.92)',
+                border: '1px solid rgba(139, 92, 246, 0.35)',
+                borderRadius: 8,
+                color: '#e5e7ff',
+                boxShadow: '0 12px 40px -12px rgba(8, 8, 30, 0.6)',
+                backdropFilter: 'blur(8px)',
+              }}
+              labelStyle={{ color: '#b8b6e0', fontWeight: 500 }}
+              itemStyle={{ color: '#e5e7ff' }}
               formatter={(value, name) => {
                 const n = typeof value === 'number' ? value : Number(value);
                 if (name === 'total' && Number.isFinite(n)) {

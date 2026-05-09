@@ -113,10 +113,10 @@ function TabButton({
       onClick={onClick}
       aria-pressed={active}
       className={clsx(
-        'rounded px-4 py-1 text-sm font-semibold',
+        'rounded-md px-4 py-1 text-sm font-semibold transition-colors',
         active
-          ? 'bg-blue-600 text-white brand-gradient shadow-md shadow-brand-from/30'
-          : 'bg-white text-gray-700 hover:bg-gray-100 glass-surface text-text-secondary hover:text-text-primary',
+          ? 'brand-gradient text-white shadow-md shadow-brand-from/30'
+          : 'glass-surface text-text-primary hover:bg-white/15 hover:text-white',
       )}
     >
       {label}
