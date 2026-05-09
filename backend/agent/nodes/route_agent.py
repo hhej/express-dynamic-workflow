@@ -155,6 +155,11 @@ def route_agent_node(state: dict) -> dict:
                 }],
                 "next_step": "respond",
                 "reasoning_trace": [warn_trace],
+                # Quick task 260509-utd UTD-04: count this as a tool call
+                # attempt — keeps the per-turn cap from being bypassed by
+                # invalid-destination loops. Emit +1 DELTA (operator.add
+                # reducer aggregates safely under parallel fan-out).
+                "tool_call_count": 1,
             }
         raise  # any other ValueError bubbles per D-10 / D-23
     reasoning = _narrate_with_llm(route_data)
@@ -184,4 +189,8 @@ def route_agent_node(state: dict) -> dict:
     return {
         "route_data": route_dump,
         "reasoning_trace": [trace_entry],
+        # Quick task 260509-utd UTD-04: per-turn cost-bombing counter.
+        # Emit +1 DELTA (operator.add reducer aggregates safely under
+        # the Phase 5 D-01 fuel/route parallel fan-out).
+        "tool_call_count": 1,
     }

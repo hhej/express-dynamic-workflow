@@ -135,4 +135,9 @@ def fuel_agent_node(state: dict) -> dict:
     return {
         "fuel_data": fuel_dump,
         "reasoning_trace": [trace_entry],
+        # Quick task 260509-utd UTD-04: per-turn cost-bombing counter.
+        # Emit a +1 DELTA (state schema uses operator.add reducer so the
+        # running total survives the Phase 5 D-01 parallel fan-out where
+        # fuel and route both write in the same superstep).
+        "tool_call_count": 1,
     }
