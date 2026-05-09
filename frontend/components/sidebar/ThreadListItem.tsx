@@ -22,15 +22,15 @@ export function ThreadListItem({ item, active, onClick }: Props) {
         className={clsx(
           'flex w-full flex-col items-start gap-1 rounded px-3 py-2 text-left text-sm',
           active
-            ? 'bg-blue-600 text-white'
-            : 'bg-white text-gray-900 hover:bg-gray-100',
+            ? 'bg-blue-600 text-white brand-gradient shadow-sm shadow-brand-from/30'
+            : 'glass-surface text-text-primary hover:bg-white/10',
         )}
       >
         <span className="line-clamp-2 font-normal">{preview}</span>
         <span
           className={clsx(
             'text-xs',
-            active ? 'text-blue-100' : 'text-gray-500',
+            active ? 'text-blue-100' : 'text-text-muted',
           )}
         >
           {relative}

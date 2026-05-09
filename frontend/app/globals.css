@@ -1,1 +1,124 @@
 @import "tailwindcss";
+
+/* ---------------------------------------------------------------
+ * Tailwind v4 design tokens — Dark cosmic glass morphism palette.
+ * Source of truth: .planning/quick/260509-e0p-.../260509-e0p-CONTEXT.md (D-01 through D-04).
+ * Tokens are exposed both as CSS custom properties (for use in inline styles
+ * like Recharts strokes) AND as Tailwind v4 theme tokens (for class utilities).
+ * ------------------------------------------------------------- */
+@theme {
+  /* Cosmic base (dark, layered) */
+  --color-cosmos-950: #07071a;   /* deepest, behind everything */
+  --color-cosmos-900: #0a0a1a;   /* CONTEXT D-01 base */
+  --color-cosmos-800: #0f0f23;   /* CONTEXT D-01 alt base */
+  --color-cosmos-700: #15163a;   /* slightly lifted for elevated surfaces if needed */
+
+  /* Brand gradient (D-01: blue 3b82f6 family -> purple 8b5cf6 family) */
+  --color-brand-from: #3b82f6;       /* blue-500 */
+  --color-brand-via:  #6366f1;       /* indigo-500 — midpoint */
+  --color-brand-to:   #8b5cf6;       /* violet-500 */
+
+  /* Accents (D-01 cyan/violet for focus + links + active) */
+  --color-accent-cyan:   #22d3ee;    /* cyan-400 */
+  --color-accent-violet: #a78bfa;    /* violet-400 */
+
+  /* Text (D-01: high-contrast off-white body, muted lavender secondary) */
+  --color-text-primary:   #e5e7ff;
+  --color-text-secondary: #b8b6e0;   /* muted lavender */
+  --color-text-muted:     #8b8aae;
+  --color-text-inverse:   #0a0a1a;   /* on bright brand fills */
+
+  /* Glass surface tokens (D-02 medium frost) */
+  --glass-fill:           rgba(255, 255, 255, 0.08);
+  --glass-fill-strong:    rgba(255, 255, 255, 0.10);
+  --glass-border:         rgba(139, 92, 246, 0.28);  /* low-opacity violet */
+  --glass-highlight:      rgba(255, 255, 255, 0.14); /* inner top edge */
+  --glass-shadow:         0 12px 40px -12px rgba(8, 8, 30, 0.6);
+  --glass-blur:           12px;
+
+  /* Mesh gradient blob colors (D-03) */
+  --mesh-blob-1: rgba(59, 130, 246, 0.35);   /* blue, top-left */
+  --mesh-blob-2: rgba(139, 92, 246, 0.32);   /* purple, bottom-right */
+  --mesh-blob-3: rgba(34, 211, 238, 0.18);   /* cyan touch, center-right */
+}
+
+/* ---------------------------------------------------------------
+ * Body background (D-03 static gradient mesh).
+ * Fixed-attachment so it never scrolls or repaints per route.
+ * ------------------------------------------------------------- */
+html, body {
+  background-color: var(--color-cosmos-900);
+  color: var(--color-text-primary);
+  min-height: 100vh;
+}
+
+body {
+  background-image:
+    radial-gradient(60vw 60vw at 8% 12%,  var(--mesh-blob-1) 0%, transparent 60%),
+    radial-gradient(55vw 55vw at 92% 88%, var(--mesh-blob-2) 0%, transparent 60%),
+    radial-gradient(40vw 40vw at 70% 30%, var(--mesh-blob-3) 0%, transparent 65%);
+  background-attachment: fixed;
+  background-repeat: no-repeat;
+}
+
+/* ---------------------------------------------------------------
+ * Reusable glass utilities. Tailwind v4 supports `@utility` for
+ * single-class definitions that compose like normal utilities.
+ * ------------------------------------------------------------- */
+@utility glass-surface {
+  background-color: var(--glass-fill);
+  backdrop-filter: blur(var(--glass-blur)) saturate(140%);
+  -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(140%);
+  border: 1px solid var(--glass-border);
+  box-shadow:
+    inset 0 1px 0 0 var(--glass-highlight),
+    var(--glass-shadow);
+  border-radius: 0.75rem;
+}
+
+@utility glass-panel {
+  /* Larger surface (sidebar, trace panel, dashboard wrapper) — same look,
+     no rounded corners on the side that meets the viewport edge. */
+  background-color: var(--glass-fill);
+  backdrop-filter: blur(var(--glass-blur)) saturate(140%);
+  -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(140%);
+  border: 1px solid var(--glass-border);
+  box-shadow:
+    inset 0 1px 0 0 var(--glass-highlight),
+    var(--glass-shadow);
+}
+
+@utility brand-gradient {
+  /* Solid fill version — for buttons / active states / user message bubbles. */
+  background-image: linear-gradient(
+    135deg,
+    var(--color-brand-from) 0%,
+    var(--color-brand-via) 50%,
+    var(--color-brand-to) 100%
+  );
+  color: var(--color-text-primary);
+}
+
+@utility brand-gradient-border {
+  /* Hairline brand-gradient border using mask trick. Use on glass cards
+     when the locked --glass-border violet feels too soft. */
+  position: relative;
+}
+
+/* ---------------------------------------------------------------
+ * Scrollbar + selection (D-04 nice-to-have; matches palette).
+ * ------------------------------------------------------------- */
+::selection {
+  background-color: rgba(139, 92, 246, 0.45);
+  color: var(--color-text-primary);
+}
+
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb {
+  background: var(--glass-border);
+  border-radius: 999px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--color-accent-violet);
+}

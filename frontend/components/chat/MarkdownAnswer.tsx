@@ -28,10 +28,10 @@ export function MarkdownAnswer({ payload }: { payload: FinalPayload }) {
     : cleanCapped;
 
   return (
-    <div className="space-y-3">
+    <div className="space-y-3 text-text-primary">
       {payload.capped && <CapCallout />}
       {hasMarketContext && sc && <SearchContextLine context={sc} />}
-      <div className="prose prose-sm max-w-none">
+      <div className="prose prose-sm prose-invert max-w-none">
         <ReactMarkdown
           remarkPlugins={[remarkGfm]}
           components={{
@@ -39,9 +39,9 @@ export function MarkdownAnswer({ payload }: { payload: FinalPayload }) {
               <table className="border-collapse" {...props} />
             ),
             th: (props) => (
-              <th className="border bg-gray-50 px-2 py-1 text-left" {...props} />
+              <th className="border border-white/15 bg-white/5 px-2 py-1 text-left" {...props} />
             ),
-            td: (props) => <td className="border px-2 py-1" {...props} />,
+            td: (props) => <td className="border border-white/15 px-2 py-1" {...props} />,
           }}
         >
           {stripped}

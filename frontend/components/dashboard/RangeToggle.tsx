@@ -7,11 +7,6 @@ interface Props {
   onChange: (days: number) => void;
 }
 
-/**
- * D-15.1 segmented control: 7d | 30d | 90d.
- * Active state uses the LOCKED accent (bg-blue-600 text-white per UI-SPEC §Color).
- * No-op on already-active click — onChange only fires for an actual selection change.
- */
 export function RangeToggle({ selectedDays, onChange }: Props) {
   return (
     <div role="radiogroup" aria-label="Time range" className="flex gap-1">
@@ -27,10 +22,10 @@ export function RangeToggle({ selectedDays, onChange }: Props) {
               if (!active) onChange(opt.days);
             }}
             className={clsx(
-              'rounded border px-3 py-1 text-sm font-normal',
+              'rounded-md px-3 py-1 text-sm font-medium transition-colors',
               active
-                ? 'border-blue-600 bg-blue-600 text-white'
-                : 'border-gray-200 bg-white text-gray-700 hover:bg-gray-50',
+                ? 'brand-gradient text-white shadow-sm shadow-brand-from/30'
+                : 'glass-surface text-text-primary hover:bg-white/15 hover:text-white',
             )}
           >
             {opt.label}
