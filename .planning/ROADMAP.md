@@ -22,6 +22,39 @@
 
 </details>
 
+## Active phases
+
+### Phase 9: Fix EPPO fuel-price scraper after URL restructure
+
+**Goal:** Restore the EPPO scraper so the cold-start refresh hook (shipped in quick task 260509-eum) actually produces fresh rows, unblocking the dashboard's 7d/30d windows.
+**Requirements:** TBD (set during /gsd:plan-phase)
+**Plans:** 0 plans
+**Promoted:** 2026-05-09 (from 999.6 backlog via /gsd:review-backlog)
+**Depends on:** v1.0 cold-start refresh hook (PR #12, quick task 260509-eum)
+
+**Symptom:** `requests.exceptions.HTTPError: 404 Client Error: Component not found.` thrown from [data/scripts/fetch_fuel_prices.py](data/scripts/fetch_fuel_prices.py) `_scrape_eppo()` when targeting `https://www.eppo.go.th/index.php/en/en-energystatistics/en-petroleum-statistic`. EPPO restructured their site since the seed CSV was captured.
+
+**Downstream impact:** Seed CSV ends 2026-04-03; the cold-start refresh hook from quick task 260509-eum (PR #12) is wired correctly and fails gracefully (D-03 log-and-continue), but the scraper itself never produces fresh rows. Dashboard's 7d/30d windows render empty until this is fixed; only 90d shows data because it reaches back to where the seed has rows.
+
+**Investigation needed:**
+- (a) Discover EPPO's new petroleum-statistics URL/structure — Thai Department of Energy Business reference data is still public somewhere on `eppo.go.th`, the page just moved.
+- (b) Update `_scrape_eppo()` to target the new URL and parse whatever new format is served (HTML table, downloadable Excel, JSON API — all possible).
+- (c) Consider PTT Price Board as a parallel/alternative source per CLAUDE.md backup mention.
+- (d) Add a smoke test that asserts the scraper fetches ≥1 fresh row when the network is reachable (gated behind a marker so CI doesn't hit the live site by default).
+
+**Out of scope:**
+- Changing the cold-start hook contract (it works as designed).
+- Changing the staleness predicate (`max(date) < today` Asia/Bangkok).
+- Fabricating synthetic data to fill the gap.
+
+**Verify after fix:**
+- `python data/scripts/fetch_fuel_prices.py` writes new rows past 2026-04-03 to `data/raw/eppo_diesel_prices.csv`.
+- Restart `uvicorn backend.api.main:app --reload` and confirm cold-start log shows `Fetched N rows from EPPO` instead of the current 404 + fallback warning.
+- Dashboard 7d/30d windows render the fresh rows.
+
+Plans:
+- [ ] TBD (run `/gsd:plan-phase 9` to break down)
+
 ## Progress
 
 | Phase | Milestone | Plans Complete | Status | Completed |
@@ -34,6 +67,7 @@
 | 6. HITL Approval UI Wiring | v1.0 | 3/3 | Complete | 2026-05-04 |
 | 7. Feedback Contract Alignment | v1.0 | 3/3 | Complete | 2026-05-04 |
 | 8. Search Context + Sidebar Polish | v1.0 | 2/2 | Complete | 2026-05-05 |
+| 9. Fix EPPO Fuel-Price Scraper | v1.0 | 0/0 | Planned | — |
 
 ## Backlog
 
@@ -70,31 +104,3 @@ Full details in [milestones/v1.0-ROADMAP.md](milestones/v1.0-ROADMAP.md).
 Plans:
 - [ ] TBD (promote with `/gsd:review-backlog` when ready)
 
-### Phase 999.6: Fix EPPO fuel-price scraper after URL restructure (BACKLOG)
-
-**Goal:** [Captured for future planning]
-**Requirements:** TBD
-**Plans:** 0 plans
-
-**Symptom:** `requests.exceptions.HTTPError: 404 Client Error: Component not found.` thrown from [data/scripts/fetch_fuel_prices.py](data/scripts/fetch_fuel_prices.py) `_scrape_eppo()` when targeting `https://www.eppo.go.th/index.php/en/en-energystatistics/en-petroleum-statistic`. EPPO restructured their site since the seed CSV was captured.
-
-**Downstream impact:** Seed CSV ends 2026-04-03; the cold-start refresh hook from quick task 260509-eum (PR #12) is wired correctly and fails gracefully (D-03 log-and-continue), but the scraper itself never produces fresh rows. Dashboard's 7d/30d windows render empty until this is fixed; only 90d shows data because it reaches back to where the seed has rows.
-
-**Investigation needed:**
-- (a) Discover EPPO's new petroleum-statistics URL/structure — Thai Department of Energy Business reference data is still public somewhere on `eppo.go.th`, the page just moved.
-- (b) Update `_scrape_eppo()` to target the new URL and parse whatever new format is served (HTML table, downloadable Excel, JSON API — all possible).
-- (c) Consider PTT Price Board as a parallel/alternative source per CLAUDE.md backup mention.
-- (d) Add a smoke test that asserts the scraper fetches ≥1 fresh row when the network is reachable (gated behind a marker so CI doesn't hit the live site by default).
-
-**Out of scope:**
-- Changing the cold-start hook contract (it works as designed).
-- Changing the staleness predicate (`max(date) < today` Asia/Bangkok).
-- Fabricating synthetic data to fill the gap.
-
-**Verify after fix:**
-- `python data/scripts/fetch_fuel_prices.py` writes new rows past 2026-04-03 to `data/raw/eppo_diesel_prices.csv`.
-- Restart `uvicorn backend.api.main:app --reload` and confirm cold-start log shows `Fetched N rows from EPPO` instead of the current 404 + fallback warning.
-- Dashboard 7d/30d windows render the fresh rows.
-
-Plans:
-- [ ] TBD (promote with `/gsd:review-backlog` when ready)
