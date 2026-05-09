@@ -84,3 +84,14 @@ Captured 2026-05-09 from quick-260509-utd live end-to-end probe. Off-topic input
 Plans:
 - [ ] TBD (promote with /gsd:review-backlog when ready)
 
+### Phase 999.11: Investigate live SSE hang on legit baseline diesel-price query (BACKLOG)
+
+**Goal:** [Captured for future planning]
+**Requirements:** TBD
+**Plans:** 0 plans
+
+Captured 2026-05-09 from quick-260509-utd live end-to-end probe. The legit baseline `"What's the current diesel price in Bangkok?"` returned `status=None` with a 0-byte body via `POST /api/chat`. Trace stream showed `planner -> fuel_agent -> planner` (3 steps) but no `data: {"type":"answer", ...}` SSE event arrived before the urlopen 60s timeout closed the client. Three possible root causes, each with a different fix path: **(a) SSE termination bug** — backend completed the run but did not emit the answer event before the connection idle-timed-out; would affect any cold-start query and is demo-fatal; **(b) planner re-loop** — step 3 was the planner again, suggesting it cycled without producing a response; possible D-04 loop-budget interaction with the new `tool_call_count` counter from quick-260509-utd Task 2 (worth checking that the `Annotated[int, operator.add]` reducer on parallel fan-out doesn't push count above `MAX_TOOL_CALLS_PER_TURN=6` and trip a silent cost-bombing refusal that fails to render the answer event); **(c) cold-start latency** — first Gemini handshake + Google Maps + EPPO CSV read on a freshly-started uvicorn exceeded 60s. Reproduce with: start uvicorn fresh, increase client timeout to 180s, capture full SSE stream + uvicorn stderr, and inspect Langfuse trace for the run. Affected files (depending on root cause): `backend/api/routes/chat.py` (SSE drain loop, `_drain_events`), `backend/api/sse.py` (event framing), `backend/agent/nodes/planner.py` (loop termination), `backend/agent/nodes/guard_input.py` (counter reset edge cases). Discovery context: 4/5 cases in the live probe completed cleanly (3 refusals + 1 false-refusal-via-clarify); only the legit baseline hung. Gating for confidence in the live demo path despite 299/299 unit tests green (deterministic logic only — SSE termination is not unit-tested). Reference: `.planning/quick/260509-utd-upgrade-guardrails-to-harden-agent-again/`.
+
+Plans:
+- [ ] TBD (promote with /gsd:review-backlog when ready)
+
