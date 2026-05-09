@@ -34,7 +34,7 @@ export function ChatInput({
   return (
     <form
       onSubmit={submit}
-      className="flex items-end gap-2 border-t border-gray-200 bg-white p-4"
+      className="flex items-end gap-2 border-t border-white/10 bg-transparent p-4"
     >
       <textarea
         value={text}
@@ -43,7 +43,7 @@ export function ChatInput({
         disabled={disabled}
         rows={2}
         placeholder={placeholder}
-        className="flex-1 resize-none rounded border border-gray-200 bg-white p-2 text-sm font-normal text-gray-700 focus:border-blue-600 focus:outline-none disabled:bg-gray-50"
+        className="flex-1 resize-none rounded border border-white/15 bg-white/5 backdrop-blur-md p-2 text-sm font-normal text-text-primary placeholder:text-text-muted focus:border-brand-via focus:outline-none focus:ring-2 focus:ring-brand-via/40 disabled:bg-white/5 disabled:opacity-60"
       />
       <button
         type="submit"
@@ -52,7 +52,8 @@ export function ChatInput({
         className={clsx(
           'rounded px-4 py-2 text-sm font-semibold text-white',
           'bg-blue-600 hover:bg-blue-700',
-          'disabled:bg-gray-300 disabled:cursor-not-allowed',
+          'brand-gradient shadow-md shadow-brand-from/30 hover:brightness-110',
+          'disabled:bg-gray-300 disabled:cursor-not-allowed disabled:bg-white/10 disabled:opacity-50',
         )}
       >
         Send

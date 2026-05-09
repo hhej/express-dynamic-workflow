@@ -16,21 +16,21 @@ export function ConversationSidebar({
   const { items, loading } = useConversations();
 
   return (
-    <aside className="flex w-64 flex-col gap-3 border-r border-gray-200 bg-gray-50 p-4">
+    <aside className="flex w-64 flex-col gap-3 border-r border-white/10 glass-panel p-4 text-text-primary">
       <div className="flex items-center justify-between">
         <h2 className="text-base font-semibold">Conversations</h2>
       </div>
       <button
         type="button"
         onClick={onNewConversation}
-        className="rounded bg-blue-600 px-3 py-2 text-sm font-semibold text-white hover:bg-blue-700"
+        className="rounded bg-blue-600 brand-gradient px-3 py-2 text-sm font-semibold text-white shadow-md shadow-brand-from/30 hover:brightness-110"
       >
         + New conversation
       </button>
       {loading ? (
-        <p className="text-xs text-gray-500">Loading…</p>
+        <p className="text-xs text-text-muted">Loading…</p>
       ) : items.length === 0 ? (
-        <p className="text-sm font-normal text-gray-700">
+        <p className="text-sm font-normal text-text-secondary">
           No conversations yet. Send a message to start.
         </p>
       ) : (

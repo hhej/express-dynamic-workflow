@@ -50,7 +50,7 @@ export function ApprovalCard({ payload, onApprove, onDeny, errorMessage }: Props
   const buttonsDisabled = waiting && !errorMessage;
 
   return (
-    <div className="rounded border border-yellow-300 bg-yellow-50 p-4 text-yellow-900">
+    <div className="rounded glass-surface border-yellow-300/40 bg-yellow-100/10 p-4 text-yellow-100">
       <h3 className="text-base font-semibold leading-tight">
         Approval required
       </h3>
@@ -64,20 +64,20 @@ export function ApprovalCard({ payload, onApprove, onDeny, errorMessage }: Props
         <table className="mt-1 w-full border-collapse text-sm">
           <tbody>
             <tr>
-              <td className="border px-2 py-1">Surcharge %</td>
-              <td className="border px-2 py-1">
+              <td className="border border-white/15 px-2 py-1">Surcharge %</td>
+              <td className="border border-white/15 px-2 py-1">
                 {(payload.surcharge_result.surcharge_pct * 100).toFixed(2)}%
               </td>
             </tr>
             <tr>
-              <td className="border px-2 py-1">Surcharge amount</td>
-              <td className="border px-2 py-1">
+              <td className="border border-white/15 px-2 py-1">Surcharge amount</td>
+              <td className="border border-white/15 px-2 py-1">
                 {formatTHB(payload.surcharge_result.surcharge_amount)} THB
               </td>
             </tr>
             <tr>
-              <td className="border px-2 py-1">Total</td>
-              <td className="border px-2 py-1">{total} THB</td>
+              <td className="border border-white/15 px-2 py-1">Total</td>
+              <td className="border border-white/15 px-2 py-1">{total} THB</td>
             </tr>
           </tbody>
         </table>
@@ -88,7 +88,7 @@ export function ApprovalCard({ payload, onApprove, onDeny, errorMessage }: Props
           aria-label="Approve recommended surcharge"
           disabled={buttonsDisabled}
           onClick={() => handle(onApprove)}
-          className="rounded border border-gray-300 bg-white px-4 py-2 text-base font-semibold text-gray-900 hover:bg-gray-100 disabled:opacity-60"
+          className="rounded glass-surface border border-white/20 px-4 py-2 text-base font-semibold text-text-primary hover:bg-white/15 disabled:opacity-60"
         >
           Approve
         </button>
@@ -97,7 +97,7 @@ export function ApprovalCard({ payload, onApprove, onDeny, errorMessage }: Props
           aria-label="Deny recommended surcharge"
           disabled={buttonsDisabled}
           onClick={() => handle(onDeny)}
-          className="rounded border border-gray-300 bg-white px-4 py-2 text-base font-semibold text-gray-900 hover:bg-gray-100 disabled:opacity-60"
+          className="rounded glass-surface border border-white/20 px-4 py-2 text-base font-semibold text-text-primary hover:bg-white/15 disabled:opacity-60"
         >
           Deny
         </button>
@@ -105,7 +105,7 @@ export function ApprovalCard({ payload, onApprove, onDeny, errorMessage }: Props
       {errorMessage && (
         <p
           role="alert"
-          className="mt-2 text-sm text-red-700"
+          className="mt-2 text-sm text-red-700 text-red-300"
         >
           {errorMessage}
         </p>
@@ -114,7 +114,7 @@ export function ApprovalCard({ payload, onApprove, onDeny, errorMessage }: Props
         <p
           role="status"
           aria-live="polite"
-          className="mt-2 text-xs italic text-yellow-900"
+          className="mt-2 text-xs italic text-yellow-200/90"
         >
           Sending your decision…
         </p>

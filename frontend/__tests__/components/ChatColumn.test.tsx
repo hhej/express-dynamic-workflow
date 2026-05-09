@@ -38,7 +38,7 @@ describe('ChatColumn (D-04 tab toggle)', () => {
     expect(dashboardTab).toHaveAttribute('aria-pressed', 'false');
   });
 
-  it('active tab uses LOCKED bg-blue-600 + text-white classes', () => {
+  it('active tab uses brand-gradient + text-white, inactive uses glass-surface + readable text', () => {
     render(
       <ChatColumn
         messages={[]}
@@ -48,11 +48,11 @@ describe('ChatColumn (D-04 tab toggle)', () => {
       />,
     );
     const active = screen.getByRole('button', { name: 'Chat' });
-    expect(active.className).toContain('bg-blue-600');
+    expect(active.className).toContain('brand-gradient');
     expect(active.className).toContain('text-white');
     const inactive = screen.getByRole('button', { name: 'Dashboard' });
-    expect(inactive.className).toContain('bg-white');
-    expect(inactive.className).toContain('text-gray-700');
+    expect(inactive.className).toContain('glass-surface');
+    expect(inactive.className).toContain('text-text-primary');
   });
 
   it('clicking Dashboard tab reveals DashboardView heading', async () => {

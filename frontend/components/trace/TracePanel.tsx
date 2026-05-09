@@ -17,11 +17,11 @@ export function TracePanel({
   const isEmpty = !isStreaming && entries.length === 0;
 
   return (
-    <aside className="flex w-96 flex-col gap-3 border-l border-gray-200 bg-gray-50 p-4">
+    <aside className="flex w-96 flex-col gap-3 border-l border-white/10 glass-panel p-4 text-text-primary">
       <h2 className="text-base font-semibold">Reasoning trace</h2>
       {isEmpty ? (
         <div className="space-y-3">
-          <p className="text-sm font-normal text-gray-700">
+          <p className="text-sm font-normal text-text-secondary">
             When you ask a question, the agent&apos;s planner, fuel, route, and
             pricing steps will stream here in real time.
           </p>
@@ -36,7 +36,7 @@ export function TracePanel({
             <TraceStep key={`${entry.step}-${entry.agent}`} entry={entry} />
           ))}
           {isStreaming && (
-            <li className="animate-pulse text-xs italic text-gray-500">
+            <li className="animate-pulse text-xs italic text-text-muted">
               …thinking
             </li>
           )}
