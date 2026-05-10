@@ -47,6 +47,15 @@ class ChatRequest(BaseModel):
             "Command(resume=approve)."
         ),
     )
+    # Phase 999.9 D-08
+    origin_hub_id: Optional[str] = Field(
+        default=None,
+        description=(
+            "Phase 999.9 D-08: chosen origin hub from frontend dropdown. "
+            "Backend allowlist-validates against hubs.json on receipt; "
+            "invalid or None -> 'hq-lat-krabang' (D-09)."
+        ),
+    )
 
 
 class SSEEvent(BaseModel):
