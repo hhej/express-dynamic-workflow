@@ -1,36 +1,36 @@
 ---
 gsd_state_version: 1.0
-milestone: v1.0
-milestone_name: milestone
-status: Awaiting next milestone
-stopped_at: Phase 999.9 context gathered
-last_updated: "2026-05-10T02:39:04.173Z"
-last_activity: "2026-05-09 - Completed quick task 260509-utd: guardrail hardening against adversarial classmate testing"
+milestone: v1.1
+milestone_name: real-world-routing-and-demo-hardening
+status: Defining requirements
+stopped_at: Milestone v1.1 started
+last_updated: "2026-05-10T00:00:00.000Z"
+last_activity: "2026-05-10 - Milestone v1.1 started (Real-World Routing & Demo Hardening)"
 progress:
-  total_phases: 4
+  total_phases: 0
   completed_phases: 0
   total_plans: 0
   completed_plans: 0
-  percent: 100
+  percent: 0
 ---
 
 # Project State
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-05-05 after v1.0 milestone completion)
+See: .planning/PROJECT.md (updated 2026-05-10 — milestone v1.1 declared)
 
 **Core value:** The agent must transparently reason through fuel price, route, and shipping data to produce an accurate, explainable surcharge recommendation.
-**Current focus:** Planning next milestone
+**Current focus:** Milestone v1.1 — Real-World Routing & Demo Hardening (defining requirements)
 
 ## Current Position
 
-Phase: — (v1.0 shipped)
+Phase: Not started (defining requirements)
 Plan: —
-Status: Awaiting next milestone
-Last activity: 2026-05-09 - Completed quick task 260509-utd: guardrail hardening against adversarial classmate testing
+Status: Defining requirements
+Last activity: 2026-05-10 — Milestone v1.1 started
 
-Progress: [██████████] 100% (v1.0 MVP)
+Progress: [░░░░░░░░░░] 0% (v1.1)
 
 ## Performance Metrics
 
@@ -269,7 +269,7 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-05-10T02:39:04.165Z
-Stopped at: Phase 999.9 context gathered
-Resume file: .planning/phases/999.9-hq-branch-origin-model-real-world-hub-to-destination-shipping/999.9-CONTEXT.md
+Last session: 2026-05-10T02:58:58.153Z
+Stopped at: Phase 999.9 UI-SPEC approved
+Resume file: .planning/phases/999.9-hq-branch-origin-model-real-world-hub-to-destination-shipping/999.9-UI-SPEC.md
 Next: Restart uvicorn, then run the 15 attacks in backend/tests/adversarial_pack.txt through /api/chat to confirm refusal-and-redirect behavior end-to-end; review Langfuse traces for guard activations. Also: inspect TraceStep expanded view to confirm UWB bullet markdown renders cleanly.
