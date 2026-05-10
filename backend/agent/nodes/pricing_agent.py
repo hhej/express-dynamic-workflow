@@ -187,6 +187,7 @@ def _build_bullets(
     volatility_flag: str,
     search_context: Optional[dict],
     origin_hub_was_unspecified: bool = False,
+    origin_hub_id: str = "hq-lat-krabang",
 ) -> list[str]:
     """Build the deterministic bullet list (3-6 items).
 
@@ -194,12 +195,17 @@ def _build_bullets(
     - Bullet 0 (Phase 999.9 D-09; only when origin_hub_was_unspecified):
       "Origin unspecified — defaulted to HQ Lat Krabang." landed FIRST
       so the user sees the assumption before the rate explanation.
-    - Bullet 1 (always): base rate + tier + zone + shipping_type.
+    - Bullet 1 (always): base rate + tier + origin hub label + origin
+      zone + destination zone + shipping_type. Phase 999.9 narration-
+      coherence fix: surfaces the origin so the user can tell why the
+      base rate differs across hubs.
     - Bullet 2 (always): diesel price vs baseline + delta_pct + volatility flag.
     - Bullet 3 (bounce only): traffic severity contribution.
     - Bullet 4 (only when search_context has non-empty summary): market context.
     - Bullet 5 (always, last): final surcharge_pct + total + cap/floor note.
     """
+    from backend.agent.tools.hubs import hub_label_for, origin_zone_for
+
     bullets: list[str] = []
 
     # Phase 999.9 D-09: silent-default narration MUST land first so the
@@ -209,9 +215,12 @@ def _build_bullets(
             "Origin unspecified — defaulted to HQ Lat Krabang."
         )
 
+    hub_label = hub_label_for(origin_hub_id)
+    origin_zone = origin_zone_for(origin_hub_id)
     bullets.append(
         f"Base rate {rate.base_rate:.2f} THB ({rate.rate_tier} tier, "
-        f"zone {route_data['zone']}, {shipping_type})."
+        f"from {hub_label} ({origin_zone}) to zone {route_data['zone']}, "
+        f"{shipping_type})."
     )
 
     bullets.append(
@@ -261,6 +270,7 @@ def _deterministic_narration(
     volatility_flag: str,
     search_context: Optional[dict],
     origin_hub_was_unspecified: bool = False,
+    origin_hub_id: str = "hq-lat-krabang",
 ) -> str:
     """D-11 fallback narration when Gemini parsing fails.
 
@@ -270,6 +280,8 @@ def _deterministic_narration(
 
     Phase 999.9 D-09: prepends an "Origin unspecified" bullet when
     ``origin_hub_was_unspecified`` is True (silent-default narration).
+    Phase 999.9 narration-coherence fix: ``origin_hub_id`` threads to
+    bullet 1 so the user sees the origin hub explicitly.
     """
     bullets = _build_bullets(
         rate,
@@ -280,6 +292,7 @@ def _deterministic_narration(
         volatility_flag,
         search_context,
         origin_hub_was_unspecified=origin_hub_was_unspecified,
+        origin_hub_id=origin_hub_id,
     )
     return _join_bullets(bullets)
 
@@ -308,6 +321,7 @@ def _narrate_with_llm(
     volatility_flag: str,
     search_context: Optional[dict],
     origin_hub_was_unspecified: bool = False,
+    origin_hub_id: str = "hq-lat-krabang",
 ) -> str:
     """Call Gemini; fall back to deterministic bullet narration on any failure (D-11).
 
@@ -330,6 +344,7 @@ def _narrate_with_llm(
         volatility_flag,
         search_context,
         origin_hub_was_unspecified=origin_hub_was_unspecified,
+        origin_hub_id=origin_hub_id,
     )
 
     try:
@@ -338,6 +353,7 @@ def _narrate_with_llm(
         # Per plan Task 1 action step 5: pass an augmented JSON payload to
         # the LLM (rate, surcharge, fuel, route, shipping_type, volatility,
         # search_context summary, seed bullets the node already built).
+        from backend.agent.tools.hubs import hub_label_for, origin_zone_for
         payload = {
             "rate": rate.model_dump(),
             "surcharge": surcharge.model_dump(),
@@ -348,6 +364,14 @@ def _narrate_with_llm(
             "search_context_summary": (
                 (search_context or {}).get("summary") if search_context else None
             ),
+            # Phase 999.9 narration-coherence: surface origin hub so the
+            # LLM can keep the "from {origin} to zone {dest}" framing
+            # when it rephrases seed_bullets[0/1].
+            "origin": {
+                "hub_id": origin_hub_id,
+                "label": hub_label_for(origin_hub_id),
+                "zone": origin_zone_for(origin_hub_id),
+            },
             "seed_bullets": seed_bullets,
         }
 
@@ -534,6 +558,7 @@ def pricing_agent_node(
         volatility_flag,
         search_context,
         origin_hub_was_unspecified=origin_hub_was_unspecified,
+        origin_hub_id=origin_hub_id,
     )
 
     prior_steps = len(state.get("reasoning_trace") or [])

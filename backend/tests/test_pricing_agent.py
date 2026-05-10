@@ -550,6 +550,49 @@ def test_pricing_agent_no_default_bullet_when_hub_provided(
     )
 
 
+def test_bullet_one_includes_origin_hub_label_and_zone(
+    mocker, monkeypatch, mock_hubs_json
+):
+    """Phase 999.9 narration-coherence: bullet 1 must mention the origin
+    hub label + origin zone + destination zone, so the user can see why
+    the base rate differs across hubs.
+    """
+    monkeypatch.setattr(
+        mod, "_compute_volatility_flag", lambda *a, **kw: "normal"
+    )
+    mocker.patch.object(
+        mod,
+        "lookup_rate",
+        return_value=RateResult(
+            base_rate=106.0, currency="THB", rate_tier="5-10kg"
+        ),
+    )
+
+    class _BrokenLLM:
+        def invoke(self, *a, **kw):
+            raise RuntimeError("simulated Gemini failure")
+
+    monkeypatch.setattr(mod, "get_chat_model", lambda **_: _BrokenLLM())
+
+    state = _full_state()
+    state["origin_hub_id"] = "branch-ayutthaya"  # central-2 per mock_hubs_json
+    state["weight_kg"] = 5.0
+
+    result = pricing_agent_node(state)
+
+    reasoning = result["reasoning_trace"][0]["reasoning"]
+    # Bullet 1 must contain the hub label and BOTH origin + destination zones.
+    assert "Phra Nakhon Si Ayutthaya" in reasoning, (
+        f"missing origin hub label in narration: {reasoning!r}"
+    )
+    assert "central-2" in reasoning, (
+        f"missing origin zone in narration: {reasoning!r}"
+    )
+    assert "zone central-1" in reasoning, (
+        f"missing destination zone framing: {reasoning!r}"
+    )
+
+
 def test_pricing_agent_unknown_hub_raises(mocker, monkeypatch):
     """D-09 lookup-miss precedent: origin_zone_for raises ValueError on an
     invalid hub_id; pricing_agent_node does NOT swallow it (matches the

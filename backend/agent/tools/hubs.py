@@ -15,6 +15,7 @@ __all__ = [
     "_HUB_INDEX",
     "origin_string_for",
     "origin_zone_for",
+    "hub_label_for",
 ]
 
 _REPO_ROOT = Path(__file__).resolve().parents[3]
@@ -53,6 +54,34 @@ def origin_string_for(hub_id: str) -> str:
             f"unknown hub_id={hub_id!r}; allowed={sorted(_HUB_INDEX)}"
         )
     return hub["address"]
+
+
+def hub_label_for(hub_id: str) -> str:
+    """Narration-friendly hub label (Phase 999.9 narration coherence).
+
+    Returns the part after ' — ' in ``hub.name`` (e.g.,
+    'Phra Nakhon Si Ayutthaya' from 'Express Branch — Phra Nakhon Si
+    Ayutthaya'), falling back to the full name if the em-dash separator
+    is absent.
+
+    Args:
+        hub_id: One of the 10 known hub identifiers.
+
+    Returns:
+        Short, narration-ready label suitable for both the seed bullets
+        the Pricing Agent emits and the prose summary the Response Node
+        renders into the chat answer.
+
+    Raises:
+        ValueError: If hub_id is not in the loaded hub index.
+    """
+    hub = _HUB_INDEX.get(hub_id)
+    if not hub:
+        raise ValueError(
+            f"unknown hub_id={hub_id!r}; allowed={sorted(_HUB_INDEX)}"
+        )
+    name = hub["name"]
+    return name.split(" — ", 1)[-1] if " — " in name else name
 
 
 def origin_zone_for(hub_id: str) -> str:

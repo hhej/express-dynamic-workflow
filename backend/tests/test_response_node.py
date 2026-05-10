@@ -64,6 +64,66 @@ def test_renders_locked_markdown_structure():
     assert "| Total |" in md
 
 
+def test_ok_prose_includes_origin_hub_label():
+    """Phase 999.9 narration-coherence: when state carries origin_hub_id,
+    the route phrase reads 'from {hub_label} to zone {dest}', not just
+    '{dest} route'. The user must see the origin so the differing base
+    rates across hubs are intelligible.
+    """
+    state = _ok_state()
+    state["origin_hub_id"] = "branch-ayutthaya"
+
+    result = response_node(state)
+    md = result["final_payload"]["markdown"]
+
+    assert "Phra Nakhon Si Ayutthaya" in md, (
+        f"missing origin hub label in user-facing markdown: {md!r}"
+    )
+    assert "from Phra Nakhon Si Ayutthaya to zone central-1" in md, (
+        f"origin->dest framing not surfaced: {md!r}"
+    )
+
+
+def test_ok_markdown_surfaces_pricing_reasoning_bullets():
+    """Phase 999.9 narration-coherence: pricing_agent's deterministic
+    bullets must appear inline in the user-facing markdown answer (under
+    a 'Reasoning' heading), not only in the side trace panel.
+    """
+    state = _ok_state()
+    state["origin_hub_id"] = "hq-lat-krabang"
+    state["reasoning_trace"] = [
+        {
+            "step": 5,
+            "agent": "pricing_agent",
+            "tool": "lookup_rate+calculate_surcharge",
+            "tool_input": {},
+            "tool_output": {},
+            "reasoning": (
+                "- Base rate 120.00 THB (11-25kg tier, from Lat Krabang "
+                "Industrial Estate, Bangkok (central-1) to zone central-1, "
+                "bounce shipment).\n"
+                "- Diesel at 31.00 THB/L is 3.54% above the 29.94 baseline; "
+                "volatility normal over the last 7 days.\n"
+                "- Bangkok Metro traffic severity 2/5 adds a per-step bump "
+                "on top of the fuel delta.\n"
+                "- Final surcharge 10.00% = 12.00 THB; total 132.00 THB."
+            ),
+            "timestamp": "2026-04-25T03:00:00Z",
+            "status": "ok",
+        }
+    ]
+
+    result = response_node(state)
+    md = result["final_payload"]["markdown"]
+
+    assert "**Reasoning:**" in md, (
+        f"missing inline 'Reasoning' block: {md!r}"
+    )
+    assert "Base rate 120.00 THB" in md, (
+        f"pricing bullet content not inlined into answer: {md!r}"
+    )
+
+
 def test_partial_status_on_errors():
     """state.errors is non-empty -> status='partial' and markdown surfaces it."""
     state = _ok_state()
