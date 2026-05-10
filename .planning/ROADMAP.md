@@ -62,16 +62,19 @@ Captured 2026-05-09 during scoping discussion. Expand from Bangkok Central to No
 Plans:
 - [ ] TBD (promote with /gsd:review-backlog when ready)
 
-### Phase 999.9: HQ/Branch Origin Model (BACKLOG)
+### Phase 999.9: HQ/Branch Origin Model (BACKLOG — PLANNED 2026-05-10)
 
-**Goal:** [Captured for future planning]
-**Requirements:** TBD
-**Plans:** 0 plans
+**Goal:** Upgrade the agent to model real Thai logistics — sender picks HQ or branch as origin, agent calculates route + surcharge from actual hub-to-destination, matching how Kerry/Flash/Thailand Post quote shipments.
+**Requirements:** PHASE-999.9-D-01..D-10, PHASE-999.9-UI-SPEC, PHASE-999.9-DOC, PHASE-999.9-VERIFY
+**Plans:** 4 plans (planned 2026-05-10; execution pending v1.1 milestone promotion)
 
-Captured 2026-05-09 during scoping discussion. Currently the agent treats origin as implicit (zone is destination-only). Upgrade to model real Thai logistics: sender picks HQ or branch as origin, agent calculates route + surcharge from actual hub-to-destination — matches how Kerry/Flash/Thailand Post quote shipments. Touches: RouteData schema (origin_hub field), rate_table (origin_zone × destination_zone matrix), Route Agent prompt + tool signature, Pricing Agent rate-lookup, frontend chat UI to capture sender hub, seed data for hub locations. Belongs in v1.1 milestone — promote via /gsd:new-milestone when ready.
+Captured 2026-05-09 during scoping discussion. Discussion + research + UI-SPEC + validation strategy locked 2026-05-10. Belongs in v1.1 milestone — promote via /gsd:new-milestone when ready, then run /gsd:execute-phase 999.9.
 
 Plans:
-- [ ] TBD (promote with /gsd:review-backlog when ready)
+- [ ] 999.9-01-PLAN.md — Hub data + 135-row rate matrix (data + seeding) [Wave 1]
+- [ ] 999.9-02-PLAN.md — Backend agent integration: state + tools + planner + chat handler [Wave 2]
+- [ ] 999.9-03-PLAN.md — Frontend HubPicker UI + sessionStorage + ChatRequest forwarding [Wave 3]
+- [ ] 999.9-04-PLAN.md — Documentation + end-to-end human-verify checkpoint [Wave 4]
 
 ### Phase 999.10: Unify refusal copy on guard_input bypass paths (BACKLOG)
 
