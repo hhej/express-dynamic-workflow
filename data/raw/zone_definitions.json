@@ -1,0 +1,29 @@
+{
+  "central-1": {
+    "name": "Bangkok Metro",
+    "provinces": ["Bangkok", "Nonthaburi", "Pathum Thani", "Samut Prakan"]
+  },
+  "central-2": {
+    "name": "Greater Central",
+    "provinces": [
+      "Ayutthaya",
+      "Phra Nakhon Si Ayutthaya",
+      "Ang Thong",
+      "Saraburi",
+      "Nakhon Pathom",
+      "Samut Sakhon"
+    ]
+  },
+  "central-3": {
+    "name": "Extended Central",
+    "provinces": [
+      "Lop Buri",
+      "Lopburi",
+      "Sing Buri",
+      "Chai Nat",
+      "Suphan Buri",
+      "Kanchanaburi",
+      "Ratchaburi"
+    ]
+  }
+}
