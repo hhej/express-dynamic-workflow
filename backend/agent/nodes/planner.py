@@ -390,7 +390,13 @@ def planner_node(state: dict) -> dict:
         missing.append("shipping_type")
     if merged_weight is None:
         missing.append("weight_kg")
-    if not merged_origin:
+    # Phase 999.9 D-09/D-10: origin is satisfied if EITHER prose-level
+    # origin OR origin_hub_id is set. The API boundary seeds
+    # origin_hub_id='hq-lat-krabang' as a default (Pitfall 1), and the
+    # dropdown supplies it for non-HQ branches — in both cases the
+    # downstream graph (route_agent, pricing_agent) reads origin_hub_id
+    # directly via origin_string_for(), so prose-origin is decorative.
+    if not merged_origin and not merged_origin_hub_id:
         missing.append("origin")
     if not merged_destination:
         missing.append("destination")
@@ -415,7 +421,7 @@ def planner_node(state: dict) -> dict:
         and not _route_matches(state, merged_origin, merged_destination)
         and merged_shipping
         and merged_weight is not None
-        and merged_origin
+        and (merged_origin or merged_origin_hub_id)
         and merged_destination
     ):
         next_step = "fanout_fuel_route"

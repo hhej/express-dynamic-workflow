@@ -148,6 +148,42 @@ def test_emits_clarify_on_missing_fields(monkeypatch):
     assert result["reasoning_trace"][0]["agent"] == "planner"
 
 
+def test_origin_hub_id_satisfies_origin_requirement(monkeypatch):
+    """Phase 999.9 D-09/D-10 regression: when prose has no origin but the
+    API boundary or dropdown supplies origin_hub_id, the planner must
+    treat origin as satisfied (no missing_fields=['origin']) and route to
+    fanout_fuel_route, not clarify.
+
+    Reproduces the Wave 4 human-verify gap where Flow 2a (dropdown only,
+    no prose origin) and Flow 4 (default-seeded HQ, no prose origin)
+    both clarified instead of computing surcharge.
+    """
+    state = _user_state(
+        "Ship 5kg bounce to Nonthaburi",
+        origin_hub_id="branch-ayutthaya",
+    )
+    monkeypatch.setattr(
+        mod,
+        "get_chat_model",
+        lambda **_: _scripted_llm(
+            '{"user_intent": "surcharge_query", '
+            '"shipping_type": "bounce", "weight_kg": 5, '
+            '"origin": null, "destination": "Nonthaburi", '
+            '"origin_hub_id": null, '
+            '"missing_fields": ["origin"], '
+            '"next_step": "clarify", '
+            '"clarification_reason": "Missing origin"}'
+        ),
+    )
+
+    result = planner_node(state)
+
+    assert "origin" not in result["missing_fields"]
+    assert result["missing_fields"] == []
+    assert result["origin_hub_id"] == "branch-ayutthaya"
+    assert result["next_step"] == "fanout_fuel_route"
+
+
 def test_loop_budget_exhaustion_forces_respond(monkeypatch):
     """D-04 (windowed per turn, 999.4): when the CURRENT turn already contains
     >= PLANNER_MAX_ITERATIONS-1 planner-tagged entries (with no intervening
