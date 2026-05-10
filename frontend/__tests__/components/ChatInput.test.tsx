@@ -4,11 +4,11 @@ import userEvent from '@testing-library/user-event';
 import { ChatInput } from '@/components/chat/ChatInput';
 
 describe('ChatInput', () => {
-  it('renders the LOCKED placeholder copy', () => {
+  it('renders the LOCKED placeholder copy (Phase 999.9 — hub-aware example)', () => {
     render(<ChatInput onSend={() => {}} />);
     expect(
       screen.getByPlaceholderText(
-        /Ask about a surcharge, e.g., 15kg Bounce from Bangkok to Nonthaburi/,
+        /Ask about a surcharge, e.g., 15kg Bounce from Bang Na to Nonthaburi/,
       ),
     ).toBeInTheDocument();
   });

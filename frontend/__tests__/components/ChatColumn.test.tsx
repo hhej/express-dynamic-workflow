@@ -3,8 +3,9 @@ import { render, screen, fireEvent } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { ChatColumn } from '@/components/chat/ChatColumn';
 import { HAPPY_PAYLOAD } from '../fixtures/sse';
+import hubsFixture from '../fixtures/hubs.json';
 import type { ChatMessage } from '@/components/chat/MessageList';
-import type { ApprovalPayload } from '@/types/agent.types';
+import type { ApprovalPayload, Hub } from '@/types/agent.types';
 
 const SAMPLE_MESSAGES: ChatMessage[] = [
   { role: 'user', content: 'Surcharge for 15kg Bounce, Bangkok → Nonthaburi' },
@@ -22,6 +23,22 @@ const APPROVAL_PAYLOAD: ApprovalPayload = {
   threshold: 500,
 };
 
+// Phase 999.9 D-08: hub list passed to ChatColumn.HubPicker via prop chain.
+const HUBS: Hub[] = Object.entries(hubsFixture).map(([hub_id, data]) => ({
+  hub_id,
+  ...(data as Omit<Hub, 'hub_id'>),
+}));
+
+/**
+ * Phase 999.9 — default props for the new HubPicker prop chain. Pre-existing
+ * tests use these as a base + override what they exercise.
+ */
+const HUB_PROPS = {
+  hubs: HUBS,
+  originHubId: 'hq-lat-krabang',
+  onHubChange: () => {},
+};
+
 describe('ChatColumn (D-04 tab toggle)', () => {
   it('renders LOCKED tab labels "Chat" and "Dashboard" with Chat active by default', () => {
     render(
@@ -30,6 +47,7 @@ describe('ChatColumn (D-04 tab toggle)', () => {
         threadId={null}
         inputDisabled={false}
         onSend={() => {}}
+        {...HUB_PROPS}
       />,
     );
     const chatTab = screen.getByRole('button', { name: 'Chat' });
@@ -45,6 +63,7 @@ describe('ChatColumn (D-04 tab toggle)', () => {
         threadId={null}
         inputDisabled={false}
         onSend={() => {}}
+        {...HUB_PROPS}
       />,
     );
     const active = screen.getByRole('button', { name: 'Chat' });
@@ -63,6 +82,7 @@ describe('ChatColumn (D-04 tab toggle)', () => {
         threadId="t1"
         inputDisabled={false}
         onSend={() => {}}
+        {...HUB_PROPS}
       />,
     );
     await user.click(screen.getByRole('button', { name: 'Dashboard' }));
@@ -77,6 +97,7 @@ describe('ChatColumn (D-04 tab toggle)', () => {
         threadId="t1"
         inputDisabled={false}
         onSend={() => {}}
+        {...HUB_PROPS}
       />,
     );
     // Initially Chat is visible — send button present.
@@ -101,6 +122,7 @@ describe('ChatColumn (D-04 tab toggle)', () => {
         threadId={null}
         inputDisabled={true}
         onSend={() => {}}
+        {...HUB_PROPS}
       />,
     );
     expect(screen.getByRole('button', { name: 'Send message' })).toBeDisabled();
@@ -115,6 +137,7 @@ describe('ChatColumn (D-04 tab toggle)', () => {
         threadId={null}
         inputDisabled={false}
         onSend={onSend}
+        {...HUB_PROPS}
       />,
     );
     await user.type(
@@ -143,6 +166,7 @@ describe('ChatColumn (D-04 tab toggle)', () => {
         awaitingApproval={APPROVAL_PAYLOAD}
         onApprove={onApprove}
         onDeny={onDeny}
+        {...HUB_PROPS}
       />,
     );
     // ApprovalCard heading must be in the tree — proves the prop chain forwarded.
@@ -161,6 +185,7 @@ describe('ChatColumn (D-04 tab toggle)', () => {
         awaitingApproval={APPROVAL_PAYLOAD}
         onApprove={onApprove}
         onDeny={onDeny}
+        {...HUB_PROPS}
       />,
     );
     fireEvent.click(screen.getByRole('button', { name: /Deny/ }));
@@ -182,6 +207,7 @@ describe('ChatColumn (D-04 tab toggle)', () => {
         onApprove={() => {}}
         onDeny={() => {}}
         approvalErrorMessage="Could not send your decision — try again."
+        {...HUB_PROPS}
       />,
     );
     expect(
@@ -197,6 +223,7 @@ describe('ChatColumn (D-04 tab toggle)', () => {
         inputDisabled={true}
         onSend={() => {}}
         placeholder="Awaiting your approval — use Approve / Deny above"
+        {...HUB_PROPS}
       />,
     );
     expect(
@@ -204,5 +231,72 @@ describe('ChatColumn (D-04 tab toggle)', () => {
         'Awaiting your approval — use Approve / Deny above',
       ),
     ).toBeInTheDocument();
+  });
+});
+
+describe('ChatColumn HubPicker integration (Phase 999.9)', () => {
+  it('renders the HubPicker dropdown with the locked aria-label', () => {
+    render(
+      <ChatColumn
+        messages={[]}
+        threadId={null}
+        inputDisabled={false}
+        onSend={() => {}}
+        {...HUB_PROPS}
+      />,
+    );
+    expect(screen.getByLabelText('Origin hub')).toBeInTheDocument();
+  });
+
+  it('forwards inputDisabled to the HubPicker (single source of truth with ChatInput)', () => {
+    render(
+      <ChatColumn
+        messages={[]}
+        threadId={null}
+        inputDisabled={true}
+        onSend={() => {}}
+        {...HUB_PROPS}
+      />,
+    );
+    // Both HubPicker and ChatInput's send button must be disabled.
+    expect(screen.getByLabelText('Origin hub')).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Send message' })).toBeDisabled();
+  });
+
+  it('calls onHubChange with the chosen hub_id when user picks a different hub', async () => {
+    const user = userEvent.setup();
+    const onHubChange = vi.fn();
+    render(
+      <ChatColumn
+        messages={[]}
+        threadId={null}
+        inputDisabled={false}
+        onSend={() => {}}
+        hubs={HUBS}
+        originHubId="hq-lat-krabang"
+        onHubChange={onHubChange}
+      />,
+    );
+    await user.selectOptions(screen.getByLabelText('Origin hub'), 'branch-bang-na');
+    expect(onHubChange).toHaveBeenCalledWith('branch-bang-na');
+  });
+
+  it('renders HubPicker BEFORE the ChatInput textarea in document order (UI-SPEC §Spacing Scale)', () => {
+    const { container } = render(
+      <ChatColumn
+        messages={[]}
+        threadId={null}
+        inputDisabled={false}
+        onSend={() => {}}
+        {...HUB_PROPS}
+      />,
+    );
+    const picker = container.querySelector('select#hub-picker');
+    const textarea = container.querySelector('textarea');
+    expect(picker).not.toBeNull();
+    expect(textarea).not.toBeNull();
+    // DOCUMENT_POSITION_FOLLOWING (0x04) — picker comes BEFORE textarea.
+    // eslint-disable-next-line no-bitwise
+    expect(picker!.compareDocumentPosition(textarea!) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   });
 });

@@ -12,7 +12,7 @@ interface Props {
 export function ChatInput({
   onSend,
   disabled = false,
-  placeholder = 'Ask about a surcharge, e.g., 15kg Bounce from Bangkok to Nonthaburi',
+  placeholder = 'Ask about a surcharge, e.g., 15kg Bounce from Bang Na to Nonthaburi',
 }: Props) {
   const [text, setText] = useState('');
 
@@ -34,7 +34,7 @@ export function ChatInput({
   return (
     <form
       onSubmit={submit}
-      className="flex items-end gap-2 border-t border-white/10 bg-transparent p-4"
+      className="flex items-end gap-2 bg-transparent p-4"
     >
       <textarea
         value={text}
