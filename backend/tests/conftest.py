@@ -33,6 +33,9 @@ def sample_agent_state() -> dict:
         "surcharge_result": None,
         "reasoning_trace": [],
         "next_step": "",
+        # Phase 999.9: default to HQ for backwards-compat with existing tests
+        # (so old tests don't accidentally exercise the D-09 narration path).
+        "origin_hub_id": "hq-lat-krabang",
     }
 
 

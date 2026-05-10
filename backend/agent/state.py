@@ -127,3 +127,16 @@ class AgentState(TypedDict):
     the operator.add contract — the alternative of using a non-additive
     reducer would break under fan-out (two concurrent writes per step).
     """
+
+    origin_hub_id: Optional[str]
+    """Phase 999.9 (D-08/D-09/D-10): chosen origin hub identifier (e.g.,
+    'hq-lat-krabang', 'branch-bang-na'). Resolved by Planner from
+    prose extraction (D-10) or seeded from ChatRequest.origin_hub_id
+    (D-08) at the API boundary. Pricing Agent reads this to derive
+    origin_zone via origin_zone_for(hub_id) before calling lookup_rate.
+
+    None means dropdown not yet picked AND prose did not specify —
+    pricing_agent silently defaults to 'hq-lat-krabang' (D-09) and
+    narrates the assumption in the reasoning trace. The API boundary
+    ALSO defaults to 'hq-lat-krabang' (Pitfall 1 mitigation), so in
+    practice state.origin_hub_id is always non-None at planner entry."""

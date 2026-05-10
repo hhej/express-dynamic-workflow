@@ -12,12 +12,13 @@ from backend.agent.nodes.route_agent import route_agent_node
 from backend.agent.tools.models import RouteData
 
 _FAKE_ROUTE = RouteData(
-    origin="Bangkok",
+    origin="Lat Krabang Industrial Estate, Bangkok",
     destination="Nonthaburi",
     distance_km=15.2,
     duration_min=30,
     traffic_severity=3,
     zone="central-1",
+    origin_hub_id="hq-lat-krabang",
 )
 
 
@@ -29,8 +30,12 @@ def _scripted_llm(response_json: str) -> FakeMessagesListChatModel:
 
 def _state_with_route(sample_agent_state):
     s = dict(sample_agent_state)
+    # Phase 999.9: legacy free-text origin kept on state for backwards
+    # compat, but route_agent_node now reads origin_hub_id (defaulted to
+    # "hq-lat-krabang" via sample_agent_state fixture).
     s["origin"] = "Bangkok"
     s["destination"] = "Nonthaburi"
+    # origin_hub_id already set to "hq-lat-krabang" by the fixture.
     return s
 
 
@@ -50,8 +55,13 @@ def test_state_updates_route_data_and_trace(
     result = route_agent_node(_state_with_route(sample_agent_state))
 
     assert set(result.keys()) >= {"route_data", "reasoning_trace"}
-    assert result["route_data"]["origin"] == "Bangkok"
+    # Phase 999.9: RouteData.origin is the resolved hub address, not the
+    # free-text "Bangkok" the planner extracts.
+    assert result["route_data"]["origin"] == (
+        "Lat Krabang Industrial Estate, Bangkok"
+    )
     assert result["route_data"]["destination"] == "Nonthaburi"
+    assert result["route_data"]["origin_hub_id"] == "hq-lat-krabang"
     assert len(result["reasoning_trace"]) == 1
 
 
@@ -88,14 +98,24 @@ def test_trace_schema(sample_agent_state, mocker, monkeypatch):
     assert entry["agent"] == "route_agent"
     assert entry["tool"] == "calculate_route"
     assert entry["status"] == "ok"
-    assert entry["tool_input"] == {"origin": "Bangkok", "destination": "Nonthaburi"}
+    # Phase 999.9 D-04: tool_input shape is {origin_hub_id, destination}.
+    assert entry["tool_input"] == {
+        "origin_hub_id": "hq-lat-krabang",
+        "destination": "Nonthaburi",
+    }
     assert entry["timestamp"].endswith("Z")
 
 
-def test_missing_origin_or_destination_raises(sample_agent_state):
-    """D-10: origin/destination must be pre-extracted by Planner."""
-    with pytest.raises(ValueError, match="origin|destination"):
-        route_agent_node(sample_agent_state)  # no origin/destination set
+def test_missing_destination_raises(sample_agent_state):
+    """D-10: destination must be pre-extracted by Planner.
+
+    Phase 999.9 D-04: origin_hub_id defaults to HQ when missing, so only
+    destination triggers the contract-violation ValueError now.
+    """
+    state = dict(sample_agent_state)  # has origin_hub_id="hq-lat-krabang"
+    # No destination set → ValueError per D-10.
+    with pytest.raises(ValueError, match="destination"):
+        route_agent_node(state)
 
 
 def test_gemini_failure_triggers_deterministic_fallback(
@@ -202,11 +222,67 @@ def test_zone_miss_returns_clarify_eligible_state(
     assert trace[0]["status"] == "warn"
 
 
-def test_missing_origin_destination_still_raises(sample_agent_state):
-    """gap-2 invariant: the D-10 ValueError on missing origin/destination
-    MUST still bubble — only the zone-miss ValueError is caught."""
-    # No origin/destination set on the state; the gap-2 catch must NOT
-    # swallow this — it surfaces a Planner pre-extraction contract
-    # violation eagerly per Phase 2 Plan 05 decision.
-    with pytest.raises(ValueError, match="route_agent_node requires both"):
-        route_agent_node(dict(sample_agent_state))
+def test_missing_destination_still_raises(sample_agent_state):
+    """gap-2 invariant: the D-10 ValueError on missing destination MUST
+    still bubble — only the zone-miss ValueError is caught.
+
+    Phase 999.9: legacy `origin` is no longer required (origin_hub_id
+    defaults to HQ when missing), so only destination triggers the
+    pre-extraction contract violation now.
+    """
+    state = dict(sample_agent_state)  # has origin_hub_id="hq-lat-krabang"
+    # No destination set on the state; the gap-2 catch must NOT swallow
+    # this — it surfaces a Planner pre-extraction contract violation
+    # eagerly per Phase 2 Plan 05 decision.
+    with pytest.raises(ValueError, match="route_agent_node requires"):
+        route_agent_node(state)
+
+
+# ---------------------------------------------------------------------------
+# Phase 999.9 D-04 — route_agent forwards origin_hub_id to calculate_route
+# ---------------------------------------------------------------------------
+
+
+def test_route_agent_passes_hub_id_to_calculate_route(
+    sample_agent_state, mocker, monkeypatch
+):
+    """D-04: route_agent_node must forward state.origin_hub_id (not the
+    legacy free-text origin) as the FIRST positional arg of calculate_route.
+    """
+    spy = mocker.patch.object(mod, "calculate_route", return_value=_FAKE_ROUTE)
+    monkeypatch.setattr(
+        mod, "get_chat_model",
+        lambda **_: _scripted_llm(
+            '{"summary": "ok", "traffic_label": "moderate"}'
+        ),
+    )
+
+    state = dict(sample_agent_state)
+    state["destination"] = "Nonthaburi"
+    state["origin_hub_id"] = "branch-bang-na"
+
+    route_agent_node(state)
+
+    spy.assert_called_once_with("branch-bang-na", "Nonthaburi")
+
+
+def test_route_agent_unknown_hub_raises(
+    sample_agent_state, mocker, monkeypatch
+):
+    """Defensive: route_agent_node validates the hub_id allowlist before
+    calling calculate_route (the API boundary should always seed a valid
+    hub_id, but be loud if it doesn't).
+    """
+    monkeypatch.setattr(
+        mod, "get_chat_model",
+        lambda **_: _scripted_llm(
+            '{"summary": "ok", "traffic_label": "moderate"}'
+        ),
+    )
+
+    state = dict(sample_agent_state)
+    state["destination"] = "Nonthaburi"
+    state["origin_hub_id"] = "definitely-not-a-real-hub"
+
+    with pytest.raises(ValueError, match="unknown origin_hub_id"):
+        route_agent_node(state)

@@ -18,6 +18,7 @@ from typing import Optional
 import googlemaps
 
 from backend.agent.tools._cache import TTLCache
+from backend.agent.tools.hubs import _HUB_INDEX, origin_string_for
 from backend.agent.tools.models import RouteData
 from backend.config import (
     GOOGLE_MAPS_API_KEY,
@@ -100,37 +101,54 @@ def _zone_for_destination(destination: str) -> str:
     raise ValueError(f"No Bangkok Metro zone for {destination!r}")
 
 
-def calculate_route(origin: str, destination: str) -> RouteData:
-    """Compute route metrics + zone for a (origin, destination) pair.
+def calculate_route(origin_hub_id: str, destination: str) -> RouteData:
+    """Compute route metrics + zone for a (hub, destination) pair.
+
+    Phase 999.9 D-04: signature change — origin is now a hub_id, not a
+    free-text string. Cache key extends to (origin_hub_id, destination).
 
     Args:
-        origin: Address or place string (e.g., "Bangkok").
+        origin_hub_id: Hub identifier (e.g., 'hq-lat-krabang',
+            'branch-bang-na'). Validated against _HUB_INDEX; ValueError
+            on unknown.
         destination: Address or place string (e.g., "Nonthaburi").
 
     Returns:
         RouteData with distance_km, duration_min, traffic_severity (1-5),
-        and zone (central-1/2/3).
+        zone (central-1/2/3 — destination zone), and origin_hub_id.
 
     Raises:
-        ValueError: No route found, or destination outside Bangkok Metro.
+        ValueError: Unknown hub_id, no route found, or destination
+            outside Bangkok Metro.
     """
-    key = (origin, destination)
+    if origin_hub_id not in _HUB_INDEX:
+        raise ValueError(
+            f"unknown origin_hub_id={origin_hub_id!r}; "
+            f"allowed={sorted(_HUB_INDEX)}"
+        )
+
+    key = (origin_hub_id, destination)
     cached = _route_cache.get(key)
     if cached is not None:
-        logger.info("route cache hit: %s -> %s", origin, destination)
+        logger.info(
+            "route cache hit: %s -> %s", origin_hub_id, destination
+        )
         return cached
 
+    origin_address = origin_string_for(origin_hub_id)
     client = _client()
     # departure_time + mode=driving required for duration_in_traffic (Pitfall 3)
     results = client.directions(
-        origin,
+        origin_address,
         destination,
         mode="driving",
         departure_time=datetime.now(),
         traffic_model="best_guess",
     )
     if not results:
-        raise ValueError(f"No route from {origin!r} to {destination!r}")
+        raise ValueError(
+            f"No route from {origin_hub_id!r} ({origin_address}) to {destination!r}"
+        )
 
     leg = results[0]["legs"][0]
     distance_km = round(leg["distance"]["value"] / 1000.0, 2)
@@ -145,16 +163,18 @@ def calculate_route(origin: str, destination: str) -> RouteData:
     zone = _zone_for_destination(destination)
 
     route = RouteData(
-        origin=origin,
+        origin=origin_address,
         destination=destination,
         distance_km=distance_km,
         duration_min=int(duration_min),
         traffic_severity=severity,
         zone=zone,
+        origin_hub_id=origin_hub_id,
     )
     _route_cache.set(key, route)
     logger.info(
-        "route computed: %s -> %s (%.1fkm, %dmin, sev=%d, zone=%s)",
-        origin, destination, distance_km, duration_min, severity, zone,
+        "route computed: %s (%s) -> %s (%.1fkm, %dmin, sev=%d, zone=%s)",
+        origin_hub_id, origin_address, destination,
+        distance_km, duration_min, severity, zone,
     )
     return route

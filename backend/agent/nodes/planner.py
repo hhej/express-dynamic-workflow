@@ -93,11 +93,31 @@ def _fuel_fresh(state: dict) -> bool:
 def _route_matches(
     state: dict, origin: Optional[str], destination: Optional[str]
 ) -> bool:
-    """True if state.route_data has matching origin and destination."""
+    """True if state.route_data matches the (origin, destination) pair.
+
+    Phase 999.9 D-04: cache hit is driven by ``origin_hub_id`` when
+    available — the route_data's ``origin_hub_id`` field is set by
+    calculate_route from its argument; ``state["origin_hub_id"]`` is
+    seeded by the API boundary or planner extraction. The legacy
+    free-text ``state["origin"]`` is no longer load-bearing for
+    routing, so we fall back to the legacy origin compare ONLY when
+    neither side carries an ``origin_hub_id`` (e.g., pre-999.9 cached
+    entries replayed in tests).
+    """
     rd = state.get("route_data")
-    if not rd or not origin or not destination:
+    if not rd or not destination:
         return False
-    return rd.get("origin") == origin and rd.get("destination") == destination
+    if rd.get("destination") != destination:
+        return False
+    state_hub = state.get("origin_hub_id")
+    rd_hub = rd.get("origin_hub_id")
+    if state_hub and rd_hub:
+        return rd_hub == state_hub
+    # Legacy fallback: compare on free-text origin. Used only when neither
+    # side has hub_id information (pre-999.9 RouteData payloads).
+    if not origin:
+        return False
+    return rd.get("origin") == origin
 
 
 def _loop_budget_exhausted(state: dict) -> bool:
