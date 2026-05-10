@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: — Real-World Routing & Demo Hardening
-status: executing
-stopped_at: "Completed 999.9-03-PLAN.md (Wave 3: frontend HubPicker UI -- 10-hub dropdown with glass-morphism + sessionStorage persistence + post-hydration seeding (Pitfall 6) + chat.send forwards origin_hub_id; 145/145 frontend vitest green; type-check + build clean)"
-last_updated: "2026-05-10T04:41:49.111Z"
+status: ready
+stopped_at: "Completed Phase 999.9 (Phase 9 / v1.1 — HQ/Branch Origin Model). All 4 plans + 5 Wave 4 calibration fixes (planner origin gate, hub-aware narration, dynamic 90d rolling baseline, geocode aliases, demo prompt refresh, screenshot refresh) landed. PR #17 open against develop. Backend 345/345 pytest green; frontend 145/145 vitest green; production build clean. Next: Phase 10 — Unify Refusal Copy on Planner Bypass Paths."
+last_updated: "2026-05-10T06:30:00.000Z"
 last_activity: 2026-05-10
 progress:
-  total_phases: 4
-  completed_phases: 0
-  total_plans: 0
-  completed_plans: 0
-  percent: 0
+  total_phases: 3
+  completed_phases: 1
+  total_plans: 4
+  completed_plans: 4
+  percent: 33
 ---
 
 # Project State
@@ -21,16 +21,16 @@ progress:
 See: .planning/PROJECT.md (updated 2026-05-10 — milestone v1.1 declared)
 
 **Core value:** The agent must transparently reason through fuel price, route, and shipping data to produce an accurate, explainable surcharge recommendation.
-**Current focus:** Phase 999.9 — HQ/Branch Origin Model
+**Current focus:** Phase 10 — Unify Refusal Copy on Planner Bypass Paths (Phase 9 complete; PR #17 open against develop)
 
 ## Current Position
 
-Phase: 999.9 (HQ/Branch Origin Model) — EXECUTING
-Plan: 4 of 4
-Status: Ready to execute
+Phase: 999.10 (Phase 10 / v1.1) — Ready to plan
+Last completed: Phase 999.9 (Phase 9 / v1.1) — HQ/Branch Origin Model — 2026-05-10
+Status: Ready (Phase 9 PR #17 open; awaiting merge or directly proceed to Phase 10 planning)
 Last activity: 2026-05-10
 
-Progress: [░░░░░░░░░░] 0% (v1.1)
+Progress: [███░░░░░░░] 33% (v1.1 — 1 of 3 phases complete)
 
 ## Performance Metrics
 

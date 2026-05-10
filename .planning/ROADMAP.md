@@ -36,7 +36,7 @@
 
 ### v1.1 Phases (active)
 
-- [ ] **Phase 9: HQ/Branch Origin Model** — Replace implicit-origin model with hub-based origin selection (HQ + 9 branches), 135-row origin×destination rate matrix, HubPicker UI
+- [x] **Phase 9: HQ/Branch Origin Model** (4/4 plans) — completed 2026-05-10 — Replace implicit-origin model with hub-based origin selection (HQ + 9 branches), 135-row origin×destination rate matrix, HubPicker UI
 - [ ] **Phase 10: Unify Refusal Copy on Planner Bypass Paths** — `out_of_scope` LLM emission and `parse_failed` exhaustion both render the locked `REFUSAL_COPY` + `status='refused'` (not the generic clarify copy)
 - [ ] **Phase 11: Live SSE Hang Root-Cause Fix** — Diagnose AND fix the live `POST /api/chat` hang on the legit baseline diesel-price query; demo-gating for W6
 
@@ -75,7 +75,7 @@ Plans:
 - [x] 999.9-01-PLAN.md — Hub data + 135-row rate matrix (data + seeding) [Wave 1]
 - [x] 999.9-02-PLAN.md — Backend agent integration: state + tools + planner + chat handler [Wave 2]
 - [x] 999.9-03-PLAN.md — Frontend HubPicker UI + sessionStorage + ChatRequest forwarding [Wave 3]
-- [ ] 999.9-04-PLAN.md — Documentation + end-to-end human-verify checkpoint [Wave 4]
+- [x] 999.9-04-PLAN.md — Documentation + end-to-end human-verify checkpoint [Wave 4]
 
 ### Phase 10: Unify Refusal Copy on Planner Bypass Paths
 **Goal**: When the planner emits `user_intent='out_of_scope'` OR the `parse_failed` retry loop exhausts, render the same locked `REFUSAL_COPY` + `status='refused'` as `guard_input` refusals — instead of the generic `planner_parse_failed` clarify copy with `status='clarify'`. Closes the visible refusal-copy split observed against the adversarial pack (cases 2 "weather/Bangkok" and 4 "loop forever" returned clarify; cases 1 "injection" and 3 "recipe" returned the branded refusal).
@@ -120,7 +120,7 @@ Plans:
 | 6. HITL Approval UI Wiring | v1.0 | 3/3 | Complete | 2026-05-04 |
 | 7. Feedback Contract Alignment | v1.0 | 3/3 | Complete | 2026-05-04 |
 | 8. Search Context + Sidebar Polish | v1.0 | 2/2 | Complete | 2026-05-05 |
-| 9. HQ/Branch Origin Model | v1.1 | 1/4 | In Progress (Wave 1 data foundation complete) | - |
+| 9. HQ/Branch Origin Model | v1.1 | 4/4 | Complete | 2026-05-10 |
 | 10. Unify Refusal Copy on Planner Bypass Paths | v1.1 | 0/? | Context-ready (PLAN docs pending) | - |
 | 11. Live SSE Hang Root-Cause Fix | v1.1 | 0/? | Context-ready (PLAN docs pending) — **DEMO GATE** | - |
 
