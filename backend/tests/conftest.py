@@ -182,3 +182,37 @@ def mock_pricing_high():
         "total": 715.0,  # above the 500 default threshold
         "capped": False,
     }
+
+
+# ----- Phase 999.9 fixtures -----
+
+
+@pytest.fixture
+def mock_hubs_json(monkeypatch):
+    """Test fixture: monkeypatch _HUB_INDEX to a minimal 3-hub set
+    covering all three zones for downstream agent tests.
+
+    Lets Wave 2 tests (planner, pricing_agent, route_agent) isolate from
+    the prod hubs.json without re-loading from disk.
+    """
+    from backend.agent.tools import hubs as hubs_module
+
+    test_hubs = {
+        "hq-lat-krabang": {
+            "name": "Express HQ — Lat Krabang Industrial Estate, Bangkok",
+            "address": "Lat Krabang Industrial Estate, Bangkok",
+            "zone": "central-1",
+        },
+        "branch-bang-na": {
+            "name": "Express Branch — Bang Na, Bangkok",
+            "address": "Bang Na, Bangkok",
+            "zone": "central-1",
+        },
+        "branch-ayutthaya": {
+            "name": "Express Branch — Phra Nakhon Si Ayutthaya",
+            "address": "Phra Nakhon Si Ayutthaya, Ayutthaya",
+            "zone": "central-2",
+        },
+    }
+    monkeypatch.setattr(hubs_module, "_HUB_INDEX", test_hubs)
+    return test_hubs
