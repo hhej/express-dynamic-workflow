@@ -1,16 +1,16 @@
 ---
 gsd_state_version: 1.0
 milestone: v1.0
-milestone_name: MVP
-status: shipped
-stopped_at: v1.0 MVP milestone complete (8 phases, 36 plans, 87 tasks)
-last_updated: "2026-05-09T15:30:00.000Z"
-last_activity: 2026-05-09
+milestone_name: milestone
+status: Awaiting next milestone
+stopped_at: Phase 999.10 context gathered
+last_updated: "2026-05-10T02:24:43.530Z"
+last_activity: "2026-05-09 - Completed quick task 260509-utd: guardrail hardening against adversarial classmate testing"
 progress:
-  total_phases: 8
-  completed_phases: 8
-  total_plans: 36
-  completed_plans: 36
+  total_phases: 4
+  completed_phases: 0
+  total_plans: 0
+  completed_plans: 0
   percent: 100
 ---
 
@@ -269,7 +269,7 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-05-09T15:30:00.000Z
-Stopped at: Quick task 260509-utd complete — two-layer guardrails (hardened prompts + guard_input/guard_output nodes) + per-turn tool counter + adversarial_pack.txt landed; 295/295 backend tests green (UWB pricing-bullets work also landed via PR #15 prior to this rebase)
-Resume file: None
+Last session: 2026-05-10T02:24:43.520Z
+Stopped at: Phase 999.10 context gathered
+Resume file: .planning/phases/999.10-guard-input-bypass-paths-return-inconsistent-refusal-copy/999.10-CONTEXT.md
 Next: Restart uvicorn, then run the 15 attacks in backend/tests/adversarial_pack.txt through /api/chat to confirm refusal-and-redirect behavior end-to-end; review Langfuse traces for guard activations. Also: inspect TraceStep expanded view to confirm UWB bullet markdown renders cleanly.
