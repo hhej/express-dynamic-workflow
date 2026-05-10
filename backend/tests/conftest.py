@@ -21,6 +21,30 @@ from langgraph.checkpoint.sqlite.aio import AsyncSqliteSaver
 _FIXTURES_DIR = Path(__file__).parent / "fixtures"
 
 
+@pytest.fixture(autouse=True)
+def _pin_baseline_diesel_price(monkeypatch):
+    """Pin BASELINE_DIESEL_PRICE to the historical 29.94 anchor for all
+    tests.
+
+    Phase 999.9 calibration fix: backend.config now computes a rolling
+    90-day mean from the EPPO CSV at import time, so the prod baseline
+    drifts as fuel data updates. The hand-calculated formula tests in
+    test_surcharge.py and the synthetic-state fixtures across the suite
+    were authored against the old static 29.94. This fixture pins the
+    constant in every module that imports the symbol so existing test
+    math stays valid; tests that want to exercise the dynamic baseline
+    can override locally with their own monkeypatch.
+    """
+    from backend.agent.tools import calculate_surcharge as _cs
+
+    monkeypatch.setattr(_cs, "BASELINE_DIESEL_PRICE", 29.94)
+    # Note: deliberately not patching fetch_fuel_price.BASELINE_DIESEL_PRICE
+    # — those tests assert tautologies (result.baseline == BASELINE_DIESEL_PRICE
+    # imported from config), which pass regardless of the actual numeric value.
+    # Patching only there but not the test module's local import would break
+    # the tautology.
+
+
 @pytest.fixture
 def sample_agent_state() -> dict:
     """A minimal valid AgentState dict for node tests (ORCH-02, ORCH-03)."""
