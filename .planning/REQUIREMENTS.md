@@ -133,4 +133,4 @@ Which phases cover which v1.1 requirements. Updated by roadmapper.
 
 ---
 *Requirements defined: 2026-05-10*
-*Last updated: 2026-05-10 after milestone v1.1 declaration — traceability finalized at roadmap creation*
+*Last updated: 2026-05-10 — milestone v1.1 roadmap created. Traceability confirmed: 10 active reqs mapped (HUB-01..08 → Phase 9, GUARD-07 → Phase 10, FIX-02 → Phase 11), 12 already Complete via retroactive references, 0 unmapped.*

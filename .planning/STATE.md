@@ -2,12 +2,12 @@
 gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: real-world-routing-and-demo-hardening
-status: Defining requirements
-stopped_at: Milestone v1.1 started
-last_updated: "2026-05-10T00:00:00.000Z"
-last_activity: "2026-05-10 - Milestone v1.1 started (Real-World Routing & Demo Hardening)"
+status: Roadmap created
+stopped_at: Roadmap created — Phase 9 ready, Phases 10/11 context-ready
+last_updated: "2026-05-10T03:00:00.000Z"
+last_activity: "2026-05-10 - v1.1 roadmap created: 3 active phases (9/10/11), 10 active reqs mapped, 12 already retroactively validated"
 progress:
-  total_phases: 0
+  total_phases: 3
   completed_phases: 0
   total_plans: 0
   completed_plans: 0
@@ -21,14 +21,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-05-10 — milestone v1.1 declared)
 
 **Core value:** The agent must transparently reason through fuel price, route, and shipping data to produce an accurate, explainable surcharge recommendation.
-**Current focus:** Milestone v1.1 — Real-World Routing & Demo Hardening (defining requirements)
+**Current focus:** Milestone v1.1 — Real-World Routing & Demo Hardening (roadmap created; Phase 9 ready for execution)
 
 ## Current Position
 
-Phase: Not started (defining requirements)
+Phase: 9 — HQ/Branch Origin Model (ready)
 Plan: —
-Status: Defining requirements
-Last activity: 2026-05-10 — Milestone v1.1 started
+Status: Roadmap created — Phase 9 has full PLAN docs; Phases 10 & 11 context-ready (PLAN docs pending)
+Last activity: 2026-05-10 — v1.1 roadmap created (3 active phases, 10 active reqs mapped, 12 retroactively validated)
 
 Progress: [░░░░░░░░░░] 0% (v1.1)
 
