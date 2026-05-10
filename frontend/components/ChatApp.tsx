@@ -5,8 +5,20 @@ import { ConversationSidebar } from '@/components/sidebar/ConversationSidebar';
 import { TracePanel } from '@/components/trace/TracePanel';
 import { useChatStream } from '@/hooks/useChatStream';
 import { ConversationsProvider, useConversations } from '@/hooks/useConversations';
+import hubsData from '@/data/hubs.json';
+import { HUB_PICKER_STORAGE_KEY, DEFAULT_HUB_ID } from '@/lib/constants';
 import type { ChatMessage } from '@/components/chat/MessageList';
-import type { FinalPayload } from '@/types/agent.types';
+import type { FinalPayload, Hub } from '@/types/agent.types';
+
+// Phase 999.9 D-08 — module-level constant; static-import is build-time
+// resolved so the array is stable across renders without useMemo.
+const HUBS_LIST: Hub[] = Object.entries(hubsData).map(
+  ([hub_id, data]) => ({
+    hub_id,
+    ...(data as Omit<Hub, 'hub_id'>),
+  }),
+);
+const HUB_ID_ALLOWLIST = new Set(HUBS_LIST.map((h) => h.hub_id));
 
 /**
  * Top-level Client Component composing the three-column desktop layout
@@ -23,6 +35,38 @@ function ChatAppInner() {
   const chat = useChatStream();
   const conversations = useConversations();
   const [messages, setMessages] = useState<ChatMessage[]>([]);
+
+  // Phase 999.9 D-08 — lifted originHubId state. Cold render uses
+  // DEFAULT_HUB_ID; the post-hydration useEffect below seeds from
+  // sessionStorage if a valid hub_id is stored (RESEARCH Pitfall 6 —
+  // avoid SSR hydration mismatch by reading sessionStorage in an effect,
+  // not in the initial useState).
+  const [originHubId, setOriginHubId] = useState<string>(DEFAULT_HUB_ID);
+
+  // Phase 999.9 D-08 / RESEARCH Pitfall 6 — post-hydration sessionStorage
+  // read avoids SSR mismatch. Cold render uses DEFAULT_HUB_ID; this
+  // effect runs once after mount and overrides if sessionStorage holds
+  // a valid hub_id. Invalid stored values fall through (allowlist guard).
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const stored = window.sessionStorage.getItem(HUB_PICKER_STORAGE_KEY);
+    if (stored && HUB_ID_ALLOWLIST.has(stored)) {
+      setOriginHubId(stored);
+    }
+  }, []);
+
+  // Phase 999.9 D-08 — persist every change to sessionStorage so the
+  // picker survives cross-route navigation within the same tab.
+  // sessionStorage scope: per browser tab; closes with the tab.
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    window.sessionStorage.setItem(HUB_PICKER_STORAGE_KEY, originHubId);
+  }, [originHubId]);
+
+  const handleHubChange = useCallback((hubId: string) => {
+    setOriginHubId(hubId);
+  }, []);
+
   // Track the finalPayload we've already appended so a re-render after `done`
   // doesn't double-append the same assistant message.
   const lastAppendedPayloadRef = useRef<FinalPayload | null>(null);
@@ -106,9 +150,11 @@ function ChatAppInner() {
   const handleSend = useCallback(
     (message: string) => {
       setMessages((prev) => [...prev, { role: 'user', content: message }]);
-      void chat.send(message);
+      // Phase 999.9 D-08 — forward originHubId so backend receives the
+      // user's chosen hub on every turn (or the default 'hq-lat-krabang').
+      void chat.send(message, originHubId);
     },
-    [chat],
+    [chat, originHubId],
   );
 
   // Plan 06-02 D-03: thin handler callbacks consume chat.approve so the
@@ -234,6 +280,9 @@ function ChatAppInner() {
         onDeny={handleDeny}
         approvalErrorMessage={approvalErrorMessage}
         placeholder={placeholder}
+        hubs={HUBS_LIST}
+        originHubId={originHubId}
+        onHubChange={handleHubChange}
       />
       <div className="hidden md:flex">
         <TracePanel
