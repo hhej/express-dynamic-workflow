@@ -1,13 +1,13 @@
 ---
 gsd_state_version: 1.0
 milestone: v1.1
-milestone_name: real-world-routing-and-demo-hardening
-status: Roadmap created
-stopped_at: Roadmap created — Phase 9 ready, Phases 10/11 context-ready
-last_updated: "2026-05-10T03:00:00.000Z"
-last_activity: "2026-05-10 - v1.1 roadmap created: 3 active phases (9/10/11), 10 active reqs mapped, 12 already retroactively validated"
+milestone_name: — Real-World Routing & Demo Hardening
+status: executing
+stopped_at: "Completed 999.9-01-PLAN.md (Wave 1: data foundation -- hubs.json + 135-row matrix + lookup_rate v2 signature)"
+last_updated: "2026-05-10T04:02:16.502Z"
+last_activity: 2026-05-10
 progress:
-  total_phases: 3
+  total_phases: 4
   completed_phases: 0
   total_plans: 0
   completed_plans: 0
@@ -21,14 +21,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-05-10 — milestone v1.1 declared)
 
 **Core value:** The agent must transparently reason through fuel price, route, and shipping data to produce an accurate, explainable surcharge recommendation.
-**Current focus:** Milestone v1.1 — Real-World Routing & Demo Hardening (roadmap created; Phase 9 ready for execution)
+**Current focus:** Phase 999.9 — HQ/Branch Origin Model
 
 ## Current Position
 
-Phase: 9 — HQ/Branch Origin Model (ready)
-Plan: —
-Status: Roadmap created — Phase 9 has full PLAN docs; Phases 10 & 11 context-ready (PLAN docs pending)
-Last activity: 2026-05-10 — v1.1 roadmap created (3 active phases, 10 active reqs mapped, 12 retroactively validated)
+Phase: 999.9 (HQ/Branch Origin Model) — EXECUTING
+Plan: 2 of 4
+Status: Ready to execute
+Last activity: 2026-05-10
 
 Progress: [░░░░░░░░░░] 0% (v1.1)
 
@@ -86,6 +86,7 @@ Progress: [░░░░░░░░░░] 0% (v1.1)
 | Phase 07 P02 | 7min | 3 tasks | 7 files |
 | Phase 07 P03 | 2 min | 3 tasks | 2 files |
 | Phase 08 P02 | 6min | 3 tasks | 6 files |
+| Phase 999.9 P01 | 9min | 3 tasks | 9 files |
 
 ## Accumulated Context
 
@@ -243,6 +244,10 @@ Recent decisions affecting current work:
 - [Phase 08]: Plan 08-02: useMemo on context value AND narrowed useEffect deps from [conversations] to [conversations.refresh] — defense-in-depth against unbounded refetch loop where every items update would re-create the value object and refire the post-done effect (Pitfall 3)
 - [Phase 08]: Plan 08-02: D-14 integration test scopes sidebar assertion to Resume button aria-label (/Resume Surcharge for 15kg Bounce/) — chat-answer markdown also contains preview text so getByText collides; aria-label scoping disambiguates (Rule 1 fix discovered during test execution)
 - [Phase 08]: Plan 08-02: ConversationSidebar.test.tsx and SurchargeHistoryChart.test.tsx gained renderWithProvider helpers — Rule 1 fix because provider migration broke standalone component renders; in-scope because direct consumers of useConversations broken by THIS task's changes
+- [Phase 999.9]: Plan 01: ORIGIN_DEST_MULTIPLIER 3x3 symmetric matrix replaces legacy single-zone multipliers; diagonal=1.0 preserves v1.0 byte-for-byte (Pitfall 3); off-diagonals 1.25 / 1.45 / 1.70 calibrated by zone-distance
+- [Phase 999.9]: Plan 01: hubs.py mirrors _ZONE_INDEX pattern -- _HUB_INDEX built once at module import time; uvicorn restart required to pick up hubs.json edits (matches Phase 2 D-08 baseline cache philosophy)
+- [Phase 999.9]: Plan 01: lookup_rate signature change is breaking in arity (3 -> 4); pricing_agent.py:460 still on 3-arg form -- documented inter-wave breakage that Wave 2 Plan 999.9-02 Task 1 closes FIRST so test suite returns to all-green within one merge window
+- [Phase 999.9]: Plan 01: hub display strings (the 'name' field in hubs.json) are FULL strings from UI-SPEC -- frontend renders verbatim with zero concatenation; UI-SPEC locks these literals
 
 ### Pending Todos
 
@@ -269,7 +274,7 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-05-10T02:58:58.153Z
-Stopped at: Phase 999.9 UI-SPEC approved
-Resume file: .planning/phases/999.9-hq-branch-origin-model-real-world-hub-to-destination-shipping/999.9-UI-SPEC.md
+Last session: 2026-05-10T04:02:16.499Z
+Stopped at: Completed 999.9-01-PLAN.md (Wave 1: data foundation -- hubs.json + 135-row matrix + lookup_rate v2 signature)
+Resume file: None
 Next: Restart uvicorn, then run the 15 attacks in backend/tests/adversarial_pack.txt through /api/chat to confirm refusal-and-redirect behavior end-to-end; review Langfuse traces for guard activations. Also: inspect TraceStep expanded view to confirm UWB bullet markdown renders cleanly.

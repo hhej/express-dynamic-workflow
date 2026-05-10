@@ -72,7 +72,7 @@
 **UI hint**: yes
 
 Plans:
-- [ ] 999.9-01-PLAN.md — Hub data + 135-row rate matrix (data + seeding) [Wave 1]
+- [x] 999.9-01-PLAN.md — Hub data + 135-row rate matrix (data + seeding) [Wave 1]
 - [ ] 999.9-02-PLAN.md — Backend agent integration: state + tools + planner + chat handler [Wave 2]
 - [ ] 999.9-03-PLAN.md — Frontend HubPicker UI + sessionStorage + ChatRequest forwarding [Wave 3]
 - [ ] 999.9-04-PLAN.md — Documentation + end-to-end human-verify checkpoint [Wave 4]
@@ -120,7 +120,7 @@ Plans:
 | 6. HITL Approval UI Wiring | v1.0 | 3/3 | Complete | 2026-05-04 |
 | 7. Feedback Contract Alignment | v1.0 | 3/3 | Complete | 2026-05-04 |
 | 8. Search Context + Sidebar Polish | v1.0 | 2/2 | Complete | 2026-05-05 |
-| 9. HQ/Branch Origin Model | v1.1 | 0/4 | Ready (planning complete) | - |
+| 9. HQ/Branch Origin Model | v1.1 | 1/4 | In Progress (Wave 1 data foundation complete) | - |
 | 10. Unify Refusal Copy on Planner Bypass Paths | v1.1 | 0/? | Context-ready (PLAN docs pending) | - |
 | 11. Live SSE Hang Root-Cause Fix | v1.1 | 0/? | Context-ready (PLAN docs pending) — **DEMO GATE** | - |
 
