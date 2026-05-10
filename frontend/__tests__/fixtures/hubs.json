@@ -1,0 +1,17 @@
+{
+  "hq-lat-krabang": {
+    "name": "Express HQ — Lat Krabang Industrial Estate, Bangkok",
+    "address": "Lat Krabang Industrial Estate, Bangkok",
+    "zone": "central-1"
+  },
+  "branch-bang-na": {
+    "name": "Express Branch — Bang Na, Bangkok",
+    "address": "Bang Na, Bangkok",
+    "zone": "central-1"
+  },
+  "branch-ayutthaya": {
+    "name": "Express Branch — Phra Nakhon Si Ayutthaya",
+    "address": "Phra Nakhon Si Ayutthaya, Ayutthaya",
+    "zone": "central-2"
+  }
+}

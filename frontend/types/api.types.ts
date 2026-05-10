@@ -10,6 +10,12 @@ export interface ChatRequest {
   thread_id?: string;
   /** Plan 05-05 D-06: HITL resume decision; pair with thread_id, omit message. */
   approve?: boolean;
+  /**
+   * Phase 999.9 D-08 — chosen origin hub from HubPicker dropdown.
+   * Defaults to 'hq-lat-krabang' on cold start. Backend allowlist-
+   * validates and falls back to HQ on invalid (Pitfall 1).
+   */
+  origin_hub_id?: string;
 }
 
 /** Item in `GET /api/conversations` array. Mirrors backend ConversationSummary. */

@@ -26,3 +26,9 @@ export const LOCAL_STORAGE_KEYS = {
 
 /** D-15.2 surcharge-history walks the most recent N threads. */
 export const SURCHARGE_HISTORY_LIMIT = 20;
+
+/** Phase 999.9 D-08 — sessionStorage key for HubPicker persistence (per browser tab). */
+export const HUB_PICKER_STORAGE_KEY = 'express_origin_hub_id';
+
+/** Phase 999.9 D-08 — cold-start default hub. */
+export const DEFAULT_HUB_ID = 'hq-lat-krabang';
