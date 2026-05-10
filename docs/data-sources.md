@@ -26,27 +26,76 @@ Metro is the single supported region (`central-1` / `central-2` /
 ## Simulated Express Rate Table
 
 - **Generator:** `data/scripts/generate_rate_table.py`.
-- **Schema:** `shipping_type, zone, weight_min_kg, weight_max_kg,
-  base_rate_thb`.
-- **Assumptions (verbatim):**
-  - Zone multipliers: `central-1 = 1.0`, `central-2 = 1.25`,
-    `central-3 = 1.55`. Approximate the cost stack-up from Bangkok
-    outward — central-1 is intra-Bangkok (no zone toll), central-2
-    adjacent provinces, central-3 the outer Bangkok Metro ring.
+- **Schema (Phase 9 / v1.1 — 999.9 D-05/D-07):** `shipping_type,
+  origin_zone, dest_zone, weight_min_kg, weight_max_kg, base_rate_thb`.
+  `origin_zone` was added BEFORE the existing zone column (renamed to
+  `dest_zone`). The pre-v1.1 schema (`shipping_type, zone,
+  weight_min_kg, weight_max_kg, base_rate_thb`) is replaced by
+  `if_exists="replace"` re-seed semantics.
+- **Lookup key:** `lookup_rate(shipping_type, origin_zone, dest_zone,
+  weight_kg)`. `origin_zone` is derived at the pricing-agent layer
+  from the chosen `origin_hub_id` via
+  `origin_zone_for(hub_id)` (`backend/agent/tools/hubs.py`).
+- **Assumptions (Phase 9 / v1.1 — 999.9 D-06 verbatim):**
+  - `ORIGIN_DEST_MULTIPLIER` 3×3 symmetric matrix replaces the
+    legacy single-zone multiplier dict:
+
+    | M | central-1 | central-2 | central-3 |
+    |---|-----------|-----------|-----------|
+    | **central-1** | 1.00 | 1.25 | 1.70 |
+    | **central-2** | 1.25 | 1.00 | 1.45 |
+    | **central-3** | 1.70 | 1.45 | 1.00 |
+
+    Symmetric: `M[origin][dest] == M[dest][origin]`. Diagonal = 1.00
+    preserves v1.0 central-1 → central-1 base rates byte-for-byte
+    (e.g., `bounce 0-5kg = 55 THB`, `retail_standard 0-5kg = 50 THB`,
+    `retail_fast 0-5kg = 65 THB`). Off-diagonal scales with zone
+    distance: one-zone-apart = 1.25, two-zones-apart = 1.70.
   - Shipping multipliers (applied to the surcharge percentage,
     NOT base rate): `bounce = 1.0` (most fuel-sensitive),
     `retail_standard = 0.5`, `retail_fast = 0.8`.
-  - Base rate range produced: 50 – 698 THB.
-  - Total rows: 45 (3 ship types × 3 zones × 5 weight tiers).
+  - Base rate range produced: 50 – 765 THB.
+  - Total rows: **135** (3 origin × 3 dest × 3 ship × 5 weight tiers).
 - **HITL threshold (Phase 5 D-04):** `HITL_TOTAL_THB_THRESHOLD = 500`
-  (default). Calibrated empirically against the 45-row distribution
-  to gate ~9% of representative demo queries (RESEARCH §HITL
-  Threshold Calibration). Override via env to demo more/fewer
-  gate triggers.
+  (default). The threshold was calibrated against the original 45-row
+  distribution to gate ~9% of representative demo queries (RESEARCH
+  §HITL Threshold Calibration); the 135-row matrix preserves
+  intra-zone rates, so cross-zone shipments simply fire HITL more
+  often (desirable). Override via env to demo more/fewer gate
+  triggers.
 - **Why simulated:** real Express tariff sheets are confidential.
   The simulation captures the structural assumptions (zone +
   shipping-type multipliers + weight tiers) sufficient for an
   end-to-end agent demo with transparent, reproducible numbers.
+
+## HQ/Branch Hub Network (Phase 9 / v1.1)
+
+Source: `data/raw/hubs.json` (also mirrored to `frontend/data/hubs.json` for static-import on the UI).
+
+The Express network consists of 1 HQ + 9 branches across Bangkok Metro:
+
+| hub_id | Display name | Address (Google-geocodable) | Zone |
+|--------|--------------|------------------------------|------|
+| `hq-lat-krabang` | Express HQ — Lat Krabang Industrial Estate, Bangkok | Lat Krabang Industrial Estate, Bangkok | central-1 |
+| `branch-bang-na` | Express Branch — Bang Na, Bangkok | Bang Na, Bangkok | central-1 |
+| `branch-nonthaburi` | Express Branch — Mueang Nonthaburi | Mueang Nonthaburi, Nonthaburi | central-1 |
+| `branch-pathum-thani` | Express Branch — Mueang Pathum Thani | Mueang Pathum Thani, Pathum Thani | central-1 |
+| `branch-samut-prakan` | Express Branch — Mueang Samut Prakan | Mueang Samut Prakan, Samut Prakan | central-1 |
+| `branch-ayutthaya` | Express Branch — Phra Nakhon Si Ayutthaya | Phra Nakhon Si Ayutthaya, Ayutthaya | central-2 |
+| `branch-nakhon-pathom` | Express Branch — Mueang Nakhon Pathom | Mueang Nakhon Pathom, Nakhon Pathom | central-2 |
+| `branch-samut-sakhon` | Express Branch — Mueang Samut Sakhon | Mueang Samut Sakhon, Samut Sakhon | central-2 |
+| `branch-ratchaburi` | Express Branch — Mueang Ratchaburi | Mueang Ratchaburi, Ratchaburi | central-3 |
+| `branch-lop-buri` | Express Branch — Mueang Lop Buri | Mueang Lop Buri, Lop Buri | central-3 |
+
+**Distribution:** central-1 = 5 hubs, central-2 = 3 hubs, central-3 = 2 hubs. Mirrors real Bangkok logistics density; Lat Krabang HQ is the canonical e-commerce / logistics cluster.
+
+**Origin zone derivation:** at lookup time, `pricing_agent_node` resolves `origin_hub_id` -> `origin_zone` via the `origin_zone_for(hub_id)` helper in `backend/agent/tools/hubs.py`. The zone is then passed to `lookup_rate(shipping_type, origin_zone, dest_zone, weight_kg)`.
+
+**Single-leg routing (D-04):** every chat turn makes ONE Google Maps Directions call from the chosen hub to the destination. The internal HQ→branch transfer is operational cost, NOT customer-facing pricing — matches Kerry / Flash / Thailand Post quoting behaviour. The route TTL cache key is the `(origin_hub_id, destination)` tuple.
+
+**Origin capture:** hybrid dropdown + prose. The `HubPicker` component sets a per-tab default (sessionStorage key `express_origin_hub_id`, default `hq-lat-krabang`); inline prose like "ship from Bang Na to Nonthaburi" is extracted by the planner via a 10-hub shortlist injected into its SYSTEM_PROMPT and validated against the `_HUB_INDEX` allowlist. Invalid LLM emissions silently fall back to the dropdown's value; absence on both layers defaults to `hq-lat-krabang` at the API boundary (`_fresh_stream` in `backend/api/routes/chat.py`).
+
+**Refreshing:** the SQLite `hubs` table is rebuilt on every run of `python data/scripts/seed_database.py` via `if_exists="replace"` semantics — the script is idempotent, re-running produces the same 10-row table.
 
 ## Google Maps Directions API
 
