@@ -23,6 +23,7 @@ DB_PATH = DATA_DIR / "express.db"
 RATE_TABLE_CSV = RAW_DIR / "express_rate_table.csv"
 FUEL_PRICES_CSV = RAW_DIR / "eppo_diesel_prices.csv"
 ZONE_DEFINITIONS_JSON = RAW_DIR / "zone_definitions.json"
+HUBS_JSON = RAW_DIR / "hubs.json"
 
 
 def seed_rate_table(conn: sqlite3.Connection) -> int:
@@ -81,20 +82,51 @@ def _seed_zones(conn: sqlite3.Connection) -> int:
     return len(zones)
 
 
+def seed_hubs(conn: sqlite3.Connection) -> int:
+    """Load hub seed JSON into SQLite hubs table (Phase 999.9 D-01).
+
+    Args:
+        conn: SQLite database connection.
+
+    Returns:
+        Number of hubs inserted.
+    """
+    with open(HUBS_JSON, "r") as f:
+        hubs = json.load(f)
+
+    conn.execute(
+        "CREATE TABLE IF NOT EXISTS hubs "
+        "(hub_id TEXT PRIMARY KEY, name TEXT, address TEXT, zone TEXT)"
+    )
+    conn.execute("DELETE FROM hubs")
+
+    for hub_id, data in hubs.items():
+        conn.execute(
+            "INSERT INTO hubs (hub_id, name, address, zone) "
+            "VALUES (?, ?, ?, ?)",
+            (hub_id, data["name"], data["address"], data["zone"]),
+        )
+
+    conn.commit()
+    return len(hubs)
+
+
 def main() -> None:
-    """Seed express.db with rate table, fuel prices, and zone data."""
+    """Seed express.db with rate table, fuel prices, zone data, and hubs."""
     conn = sqlite3.connect(DB_PATH)
 
     try:
         rate_count = seed_rate_table(conn)
         fuel_count = seed_fuel_prices(conn)
         zone_count = _seed_zones(conn)
+        hub_count = seed_hubs(conn)
         conn.commit()
 
         print(
             f"Seeded {rate_count} rate table rows, "
             f"{fuel_count} fuel price rows, "
-            f"{zone_count} zones -> {DB_PATH}"
+            f"{zone_count} zones, "
+            f"{hub_count} hubs -> {DB_PATH}"
         )
     finally:
         conn.close()

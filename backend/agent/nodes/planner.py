@@ -63,6 +63,11 @@ class PlannerOutput(BaseModel):
     weight_kg: Optional[float] = None
     origin: Optional[str] = None
     destination: Optional[str] = None
+    # Phase 999.9 D-10: structured hub identifier extracted from prose
+    # ("ship from Bang Na to Nonthaburi" -> "branch-bang-na"). Null when
+    # the user did not mention a hub; the post-processor falls back to
+    # the dropdown / API-boundary default.
+    origin_hub_id: Optional[str] = None
     missing_fields: List[str] = Field(default_factory=list)
     next_step: Literal[
         "fetch_fuel",
@@ -93,11 +98,31 @@ def _fuel_fresh(state: dict) -> bool:
 def _route_matches(
     state: dict, origin: Optional[str], destination: Optional[str]
 ) -> bool:
-    """True if state.route_data has matching origin and destination."""
+    """True if state.route_data matches the (origin, destination) pair.
+
+    Phase 999.9 D-04: cache hit is driven by ``origin_hub_id`` when
+    available — the route_data's ``origin_hub_id`` field is set by
+    calculate_route from its argument; ``state["origin_hub_id"]`` is
+    seeded by the API boundary or planner extraction. The legacy
+    free-text ``state["origin"]`` is no longer load-bearing for
+    routing, so we fall back to the legacy origin compare ONLY when
+    neither side carries an ``origin_hub_id`` (e.g., pre-999.9 cached
+    entries replayed in tests).
+    """
     rd = state.get("route_data")
-    if not rd or not origin or not destination:
+    if not rd or not destination:
         return False
-    return rd.get("origin") == origin and rd.get("destination") == destination
+    if rd.get("destination") != destination:
+        return False
+    state_hub = state.get("origin_hub_id")
+    rd_hub = rd.get("origin_hub_id")
+    if state_hub and rd_hub:
+        return rd_hub == state_hub
+    # Legacy fallback: compare on free-text origin. Used only when neither
+    # side has hub_id information (pre-999.9 RouteData payloads).
+    if not origin:
+        return False
+    return rd.get("origin") == origin
 
 
 def _loop_budget_exhausted(state: dict) -> bool:
@@ -237,6 +262,20 @@ def planner_node(state: dict) -> dict:
 
     assert parsed is not None  # for type checkers; loop break/return covers all paths
 
+    # Phase 999.9 D-10 / RESEARCH Pattern 2: validate origin_hub_id against
+    # the _HUB_INDEX allowlist. On invalid, set to None so the 999.1 merge
+    # falls through to state.get("origin_hub_id"), then to the API-boundary
+    # default 'hq-lat-krabang' if the chat handler did not seed one.
+    if parsed.origin_hub_id is not None:
+        from backend.agent.tools.hubs import _HUB_INDEX
+        if parsed.origin_hub_id not in _HUB_INDEX:
+            logger.warning(
+                "planner emitted invalid origin_hub_id=%r; allowed=%s; "
+                "discarding (will fall back via 999.1 merge)",
+                parsed.origin_hub_id, sorted(_HUB_INDEX),
+            )
+            parsed.origin_hub_id = None
+
     # gap-1 fix (2026-05-03): null-out hallucinated extraction fields on
     # followup_query turns BEFORE the 999.1 merge picks them up. The 999.1
     # merge is a null-only coalesce (`parsed.X or state.get("X")`); if the
@@ -291,6 +330,40 @@ def planner_node(state: dict) -> dict:
             and not any(c.isdigit() for c in last_user_text)
         ):
             parsed.weight_kg = None
+        # Phase 999.9 / Pitfall 2: origin_hub_id follow-up inheritance. If
+        # parsed.origin_hub_id is non-null but the user message doesn't
+        # contain any of the 10 hub-address tokens AND prior state has a
+        # different hub_id, null out the parsed value so the prior wins
+        # via the 999.1 merge below. Mirrors the shipping_type / origin /
+        # destination patterns above (D-08 token-detection allow-list).
+        prior_hub = state.get("origin_hub_id")
+        if (
+            parsed.origin_hub_id
+            and prior_hub
+            and prior_hub != parsed.origin_hub_id
+        ):
+            from backend.agent.tools.hubs import _HUB_INDEX
+            hub_mentioned = False
+            for h_data in _HUB_INDEX.values():
+                # Check ALL comma-separated address tokens (e.g.,
+                # "Mueang Nonthaburi, Nonthaburi" yields "mueang nonthaburi"
+                # AND "nonthaburi"). Users typically refer to the province
+                # rather than the muang prefix.
+                addr_lower = h_data["address"].lower()
+                tokens = [
+                    tok.strip() for tok in addr_lower.split(",") if tok.strip()
+                ]
+                # Also include the bare province (e.g., "nonthaburi") split
+                # off the leading "mueang " prefix.
+                expanded = list(tokens)
+                for tok in tokens:
+                    if tok.startswith("mueang "):
+                        expanded.append(tok[len("mueang "):].strip())
+                if any(tok and tok in last_user_text for tok in expanded):
+                    hub_mentioned = True
+                    break
+            if not hub_mentioned:
+                parsed.origin_hub_id = None
 
     # 999.1 fix: merge parsed (latest user message) with prior state values
     # BEFORE deciding next_step. The LLM only sees the latest user message,
@@ -305,6 +378,10 @@ def planner_node(state: dict) -> dict:
     )
     merged_origin = parsed.origin or state.get("origin")
     merged_destination = parsed.destination or state.get("destination")
+    # Phase 999.9 D-10 / Pitfall 2: 999.1 null-only merge for origin_hub_id.
+    # The API boundary seeds 'hq-lat-krabang' as a default, so the merged
+    # value is almost always non-None at planner exit (Pitfall 1).
+    merged_origin_hub_id = parsed.origin_hub_id or state.get("origin_hub_id")
 
     # 999.1 fix: recompute missing_fields from merged values, not from the
     # LLM's per-message emission.
@@ -313,7 +390,13 @@ def planner_node(state: dict) -> dict:
         missing.append("shipping_type")
     if merged_weight is None:
         missing.append("weight_kg")
-    if not merged_origin:
+    # Phase 999.9 D-09/D-10: origin is satisfied if EITHER prose-level
+    # origin OR origin_hub_id is set. The API boundary seeds
+    # origin_hub_id='hq-lat-krabang' as a default (Pitfall 1), and the
+    # dropdown supplies it for non-HQ branches — in both cases the
+    # downstream graph (route_agent, pricing_agent) reads origin_hub_id
+    # directly via origin_string_for(), so prose-origin is decorative.
+    if not merged_origin and not merged_origin_hub_id:
         missing.append("origin")
     if not merged_destination:
         missing.append("destination")
@@ -338,7 +421,7 @@ def planner_node(state: dict) -> dict:
         and not _route_matches(state, merged_origin, merged_destination)
         and merged_shipping
         and merged_weight is not None
-        and merged_origin
+        and (merged_origin or merged_origin_hub_id)
         and merged_destination
     ):
         next_step = "fanout_fuel_route"
@@ -375,6 +458,9 @@ def planner_node(state: dict) -> dict:
         "weight_kg": merged_weight,
         "origin": merged_origin,
         "destination": merged_destination,
+        # Phase 999.9 D-10: surface the merged hub_id so downstream
+        # agents (route_agent, pricing_agent) read the consistent value.
+        "origin_hub_id": merged_origin_hub_id,
         "missing_fields": missing,
         "clarification_reason": parsed.clarification_reason,
         "next_step": next_step,
@@ -393,6 +479,7 @@ def planner_node(state: dict) -> dict:
                     "weight_kg": merged_weight,
                     "origin": merged_origin,
                     "destination": merged_destination,
+                    "origin_hub_id": merged_origin_hub_id,  # Phase 999.9
                     "missing_fields": missing,
                     "next_step": next_step,
                     "clarification_reason": parsed.clarification_reason,

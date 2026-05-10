@@ -1,14 +1,59 @@
 """Environment-based configuration for surcharge calculation (D-09)."""
 import os
+from pathlib import Path
 
 from dotenv import load_dotenv
 
 # Load .env file if present (development convenience)
 load_dotenv()
 
-# Surcharge formula constants
-BASELINE_DIESEL_PRICE: float = float(
-    os.environ.get("BASELINE_DIESEL_PRICE", "29.94")
+
+_STATIC_BASELINE_FALLBACK: float = 29.94  # historical pre-2024 anchor
+
+
+def _compute_rolling_baseline(window_days: int = 90) -> float:
+    """Phase 999.9 calibration fix: rolling-mean baseline from EPPO CSV.
+
+    The original static 29.94 was a pre-2024 anchor; with 2026 prices
+    near 40 THB/L, every query tripped the 15% surcharge cap and the
+    agent's reasoning collapsed into a flat "cap applied". A 90-day
+    rolling mean tracks "recent normal" so the surcharge varies with
+    actual fuel signal instead of always saturating.
+
+    Falls back to ``_STATIC_BASELINE_FALLBACK`` if the CSV is missing,
+    empty, or unreadable — so first-run / fresh-checkout flows still
+    boot with a sensible number.
+
+    Restart-to-pick-up semantics: this runs once at module import.
+    Mirrors the hubs.py / calculate_route.py one-shot load pattern.
+    """
+    csv_path = (
+        Path(__file__).resolve().parent.parent
+        / "data" / "raw" / "eppo_diesel_prices.csv"
+    )
+    try:
+        import pandas as pd
+
+        df = pd.read_csv(csv_path, parse_dates=["date"])
+        if "diesel_b7_price" not in df.columns or df.empty:
+            return _STATIC_BASELINE_FALLBACK
+        cutoff = df["date"].max() - pd.Timedelta(days=window_days)
+        recent = df[df["date"] >= cutoff]
+        if recent.empty:
+            return _STATIC_BASELINE_FALLBACK
+        return round(float(recent["diesel_b7_price"].mean()), 2)
+    except Exception:  # noqa: BLE001 — broad catch is intentional fallback
+        return _STATIC_BASELINE_FALLBACK
+
+
+# Surcharge formula constants. Explicit env override always wins (tests
+# pin to 29.94 for hand-calculated formula cases; prod can pin to a
+# specific value if EPPO data temporarily unreliable).
+_baseline_env = os.environ.get("BASELINE_DIESEL_PRICE")
+BASELINE_DIESEL_PRICE: float = (
+    float(_baseline_env)
+    if _baseline_env
+    else _compute_rolling_baseline(90)
 )
 SURCHARGE_CAP: float = float(os.environ.get("SURCHARGE_CAP", "0.15"))
 SURCHARGE_FLOOR: float = float(os.environ.get("SURCHARGE_FLOOR", "-0.05"))

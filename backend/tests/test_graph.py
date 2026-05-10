@@ -90,6 +90,14 @@ def _empty_state(message: str) -> dict:
         "next_step": "",
         "origin": None,
         "destination": None,
+        # Phase 999.9 (Pitfall 1): mirror the API-boundary default
+        # 'hq-lat-krabang' so the graph integration tests exercise the
+        # production path. Without this seed, route_agent applies its own
+        # default and the route_data carries origin_hub_id="hq-lat-krabang"
+        # while state.origin_hub_id stays None — _route_matches falls
+        # through to the legacy free-text compare and the cache misses
+        # spuriously on follow-up turns.
+        "origin_hub_id": "hq-lat-krabang",
         "user_intent": None,
         "missing_fields": [],
         "clarification_reason": None,
@@ -241,7 +249,8 @@ async def test_checkpointer_persists_across_invocations(
         return_value=RouteData(origin="Bangkok",
                                destination="Nonthaburi",
                                distance_km=18.0, duration_min=30,
-                               traffic_severity=2, zone="central-1"),
+                               traffic_severity=2, zone="central-1",
+                               origin_hub_id="hq-lat-krabang"),
     )
     mocker.patch.object(
         pricing_mod, "lookup_rate",
@@ -311,7 +320,8 @@ async def test_followup_reuses_cached_fuel(
         return_value=RouteData(origin="Bangkok",
                                destination="Nonthaburi",
                                distance_km=18.0, duration_min=30,
-                               traffic_severity=2, zone="central-1"),
+                               traffic_severity=2, zone="central-1",
+                               origin_hub_id="hq-lat-krabang"),
     )
     mocker.patch.object(
         pricing_mod, "lookup_rate",
@@ -379,7 +389,8 @@ async def test_full_surcharge_query_integration(
         return_value=RouteData(origin="Bangkok",
                                destination="Nonthaburi",
                                distance_km=18.0, duration_min=30,
-                               traffic_severity=2, zone="central-1"),
+                               traffic_severity=2, zone="central-1",
+                               origin_hub_id="hq-lat-krabang"),
     )
     mocker.patch.object(
         pricing_mod, "lookup_rate",
@@ -448,12 +459,16 @@ async def test_followup_only_runs_pricing(
             baseline=29.94, delta_pct=0.0354,
         )
 
-    def count_route(origin, destination):
+    def count_route(origin_hub_id, destination):
         route_calls["n"] += 1
+        # Phase 999.9: production calls calculate_route(hub_id, destination);
+        # the returned RouteData carries the hub_id round-trip so the
+        # planner's _route_matches cache lookup compares hub_id fields.
         return RouteData(
-            origin=origin, destination=destination,
+            origin=origin_hub_id, destination=destination,
             distance_km=18.0, duration_min=30,
             traffic_severity=2, zone="central-1",
+            origin_hub_id=origin_hub_id,
         )
 
     mocker.patch.object(fuel_mod, "fetch_fuel_price", side_effect=count_fuel)
@@ -580,12 +595,16 @@ async def test_followup_param_switch_routes_through_pricing(
             baseline=29.94, delta_pct=0.0354,
         )
 
-    def count_route(origin, destination):
+    def count_route(origin_hub_id, destination):
         route_calls["n"] += 1
+        # Phase 999.9: production calls calculate_route(hub_id, destination);
+        # the returned RouteData carries the hub_id round-trip so the
+        # planner's _route_matches cache lookup compares hub_id fields.
         return RouteData(
-            origin=origin, destination=destination,
+            origin=origin_hub_id, destination=destination,
             distance_km=32.0, duration_min=45,
             traffic_severity=2, zone="central-1",
+            origin_hub_id=origin_hub_id,
         )
 
     def count_lookup(*args, **kwargs):
@@ -728,12 +747,16 @@ async def test_followup_25kg_preserves_bounce_and_nonthaburi(
             baseline=29.94, delta_pct=0.0354,
         )
 
-    def count_route(origin, destination):
+    def count_route(origin_hub_id, destination):
         route_calls["n"] += 1
+        # Phase 999.9: production calls calculate_route(hub_id, destination);
+        # the returned RouteData carries the hub_id round-trip so the
+        # planner's _route_matches cache lookup compares hub_id fields.
         return RouteData(
-            origin=origin, destination=destination,
+            origin=origin_hub_id, destination=destination,
             distance_km=19.2, duration_min=30,
             traffic_severity=1, zone="central-1",
+            origin_hub_id=origin_hub_id,
         )
 
     def count_lookup(*args, **kwargs):
@@ -1188,7 +1211,8 @@ async def test_invariant_violation_routes_to_response(monkeypatch, mocker):
         return_value=RouteData(origin="Bangkok",
                                destination="Nonthaburi",
                                distance_km=18.0, duration_min=30,
-                               traffic_severity=2, zone="central-1"),
+                               traffic_severity=2, zone="central-1",
+                               origin_hub_id="hq-lat-krabang"),
     )
     mocker.patch.object(
         pricing_mod, "lookup_rate",

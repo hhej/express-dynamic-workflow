@@ -8,6 +8,16 @@ An Agentic AI product that dynamically calculates fuel surcharges for Express lo
 
 The agent must transparently reason through fuel price, route, and shipping data to produce an accurate, explainable surcharge recommendation — visible reasoning is what makes this agentic, not just automated.
 
+## Current Milestone: v1.1 Real-World Routing & Demo Hardening
+
+**Goal:** Move from synthetic origin-destination pairs to a real Express hub network, tighten the agent against adversarial inputs, and ensure fuel data stays fresh — making the v1.0 demo bulletproof for W6 grading.
+
+**Target features:**
+- HQ/branch origin model — sender picks hub via dropdown or prose; single-leg routing from chosen hub to destination (Phase 9 / 999.9)
+- Unified refusal copy on planner bypass paths — `out_of_scope` and `parse_failed` render the same locked `REFUSAL_COPY` as guard_input trips (Phase 10 / 999.10)
+- Live SSE hang root-cause fix on legit baseline diesel-price query — demo-gating for W6 (Phase 11 / 999.11)
+- Already shipped this milestone (retroactive): dark cosmic glass UI theme, cold-start fuel refresh, pricing-agent reasoning bullets with volatility flag, two-layer adversarial guardrails, EPPO scraper rewrite, 90-day Bangchak backfill, resume-flow duplicate-message fix
+
 ## Requirements
 
 ### Validated
@@ -36,9 +46,22 @@ The agent must transparently reason through fuel price, route, and shipping data
 - [x] FastAPI backend with POST /api/chat (SSE), GET /api/conversations, GET /api/fuel-prices, POST /api/feedback — Validated in Phase 3/5/7 (API-01..05)
 - [x] Langfuse observability — per-turn callback handler, formula_accuracy auto-eval, user_feedback Score forwarding — Validated in Phase 5/7 (OBS-01/02/03)
 
+<!-- v1.1 retroactively-validated work (shipped before formal milestone declaration) -->
+- [x] Dark cosmic glass-morphism UI theme across 23 view components (Tailwind v4 @theme tokens + glass-surface/glass-panel/brand-gradient utilities) — Validated in v1.1: Quick task 260509-e0p
+- [x] Cold-start fuel-price refresh on FastAPI lifespan — `is_csv_stale` + `refresh_csv` with timezone-aware (Asia/Bangkok) staleness predicate; D-03 log-and-continue on failure — Validated in v1.1: Quick task 260509-eum
+- [x] Pricing Agent emits 3-5 visible reasoning bullets with 7-day fuel-volatility flag (low/normal/high); deterministic-fallback bullet shape preserved — Validated in v1.1: Quick task 260509-uwb
+- [x] Two-layer adversarial guardrails: SECURITY_PREAMBLE on all agent prompts, guard_input rules-first regex classifier, guard_output SurchargeResult-invariant validator, per-turn `tool_call_count` cap (=6) via `Annotated[int, operator.add]` reducer, branded refusal copy + adversarial_pack.txt (15 attacks) — Validated in v1.1: Quick task 260509-utd
+- [x] EPPO fuel-price scraper rewritten after EPPO site URL + Excel structure restructure — Validated in v1.1: Debug 999.6
+- [x] 90-day daily fuel-price history backfilled via Bangchak historical scraper — Validated in v1.1: Debug 999.7
+- [x] Resume flow no longer appends duplicate assistant message on conversation reload — Validated in v1.1: Debug 999.5
+
 ### Active
 
-(None — v1.0 shipped; next milestone TBD)
+<!-- v1.1 in-flight requirements — formalized in REQUIREMENTS.md -->
+
+- [ ] HQ/branch origin model: 10-hub network (1 HQ + 9 branches), HubPicker UI, single-leg routing, 135-row origin×destination rate matrix (Phase 9 / 999.9)
+- [ ] Unified refusal copy on planner bypass paths — `out_of_scope` LLM-tagged + `parse_failed` exhaustion both set `guard_decision` and route to `response_node` refusal branch (Phase 10 / 999.10)
+- [ ] Live SSE hang on legit baseline diesel-price query — investigate AND fix root cause (cold-start vs reducer vs SSE termination); 5-fresh-uvicorn-runs verification bar (Phase 11 / 999.11)
 
 ### Out of Scope
 
@@ -129,4 +152,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-05-05 after v1.0 MVP milestone completion — 8 phases shipped, 43/43 v1 requirements validated, all 4 E2E flows wired, Langfuse user_feedback Score live-confirmed.*
+*Last updated: 2026-05-10 — milestone v1.1 declared. 7 retroactively-validated work items moved to Validated (4 quick tasks + 3 debug fixes shipped post-v1.0); 3 in-flight phases (999.9 / 999.10 / 999.11) added to Active.*

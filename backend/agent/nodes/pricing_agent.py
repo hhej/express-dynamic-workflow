@@ -186,24 +186,41 @@ def _build_bullets(
     shipping_type: str,
     volatility_flag: str,
     search_context: Optional[dict],
+    origin_hub_was_unspecified: bool = False,
+    origin_hub_id: str = "hq-lat-krabang",
 ) -> list[str]:
-    """Build the deterministic bullet list (3-5 items).
+    """Build the deterministic bullet list (3-6 items).
 
-    Rules per plan Task 1 action step 3:
-    - Bullet 1 (always): base rate + tier + zone + shipping_type.
+    Rules per plan Task 1 action step 3 (and Phase 999.9 D-09 prepend):
+    - Bullet 0 (Phase 999.9 D-09; only when origin_hub_was_unspecified):
+      "Origin unspecified — defaulted to HQ Lat Krabang." landed FIRST
+      so the user sees the assumption before the rate explanation.
+    - Bullet 1 (always): base rate + tier + origin hub label + origin
+      zone + destination zone + shipping_type. Phase 999.9 narration-
+      coherence fix: surfaces the origin so the user can tell why the
+      base rate differs across hubs.
     - Bullet 2 (always): diesel price vs baseline + delta_pct + volatility flag.
     - Bullet 3 (bounce only): traffic severity contribution.
     - Bullet 4 (only when search_context has non-empty summary): market context.
     - Bullet 5 (always, last): final surcharge_pct + total + cap/floor note.
-
-    The bullets are filtered (predicates) so the final list length is 3, 4,
-    or 5 — never less, never more.
     """
+    from backend.agent.tools.hubs import hub_label_for, origin_zone_for
+
     bullets: list[str] = []
 
+    # Phase 999.9 D-09: silent-default narration MUST land first so the
+    # user sees the assumption before the rate explanation.
+    if origin_hub_was_unspecified:
+        bullets.append(
+            "Origin unspecified — defaulted to HQ Lat Krabang."
+        )
+
+    hub_label = hub_label_for(origin_hub_id)
+    origin_zone = origin_zone_for(origin_hub_id)
     bullets.append(
         f"Base rate {rate.base_rate:.2f} THB ({rate.rate_tier} tier, "
-        f"zone {route_data['zone']}, {shipping_type})."
+        f"from {hub_label} ({origin_zone}) to zone {route_data['zone']}, "
+        f"{shipping_type})."
     )
 
     bullets.append(
@@ -252,12 +269,19 @@ def _deterministic_narration(
     shipping_type: str,
     volatility_flag: str,
     search_context: Optional[dict],
+    origin_hub_was_unspecified: bool = False,
+    origin_hub_id: str = "hq-lat-krabang",
 ) -> str:
     """D-11 fallback narration when Gemini parsing fails.
 
     Quick 260509-uwb (D-02): now emits the SAME bullet shape as the LLM
     happy path (3-5 newline-joined ``- bullet`` lines), not a single
     sentence. Trace status='ok' invariant preserved.
+
+    Phase 999.9 D-09: prepends an "Origin unspecified" bullet when
+    ``origin_hub_was_unspecified`` is True (silent-default narration).
+    Phase 999.9 narration-coherence fix: ``origin_hub_id`` threads to
+    bullet 1 so the user sees the origin hub explicitly.
     """
     bullets = _build_bullets(
         rate,
@@ -267,6 +291,8 @@ def _deterministic_narration(
         shipping_type,
         volatility_flag,
         search_context,
+        origin_hub_was_unspecified=origin_hub_was_unspecified,
+        origin_hub_id=origin_hub_id,
     )
     return _join_bullets(bullets)
 
@@ -294,6 +320,8 @@ def _narrate_with_llm(
     shipping_type: str,
     volatility_flag: str,
     search_context: Optional[dict],
+    origin_hub_was_unspecified: bool = False,
+    origin_hub_id: str = "hq-lat-krabang",
 ) -> str:
     """Call Gemini; fall back to deterministic bullet narration on any failure (D-11).
 
@@ -301,6 +329,11 @@ def _narrate_with_llm(
     the LLM as part of the user-message JSON payload, and prefer the LLM's
     bullets when valid (3-5 items) — otherwise use the deterministic seed.
     Always returns a newline-joined ``- bullet`` markdown string.
+
+    Phase 999.9 D-09: when ``origin_hub_was_unspecified`` is True, the
+    seed bullets prepend an "Origin unspecified" bullet. If the LLM's
+    bullets win, we still re-prepend the D-09 bullet so the assumption
+    is never lost across the LLM hop.
     """
     seed_bullets = _build_bullets(
         rate,
@@ -310,6 +343,8 @@ def _narrate_with_llm(
         shipping_type,
         volatility_flag,
         search_context,
+        origin_hub_was_unspecified=origin_hub_was_unspecified,
+        origin_hub_id=origin_hub_id,
     )
 
     try:
@@ -318,6 +353,7 @@ def _narrate_with_llm(
         # Per plan Task 1 action step 5: pass an augmented JSON payload to
         # the LLM (rate, surcharge, fuel, route, shipping_type, volatility,
         # search_context summary, seed bullets the node already built).
+        from backend.agent.tools.hubs import hub_label_for, origin_zone_for
         payload = {
             "rate": rate.model_dump(),
             "surcharge": surcharge.model_dump(),
@@ -328,6 +364,14 @@ def _narrate_with_llm(
             "search_context_summary": (
                 (search_context or {}).get("summary") if search_context else None
             ),
+            # Phase 999.9 narration-coherence: surface origin hub so the
+            # LLM can keep the "from {origin} to zone {dest}" framing
+            # when it rephrases seed_bullets[0/1].
+            "origin": {
+                "hub_id": origin_hub_id,
+                "label": hub_label_for(origin_hub_id),
+                "zone": origin_zone_for(origin_hub_id),
+            },
             "seed_bullets": seed_bullets,
         }
 
@@ -345,6 +389,14 @@ def _narrate_with_llm(
         # Prefer LLM bullets when they look reasonable (3-5 non-empty items).
         llm_bullets = [b for b in (out.bullets or []) if b and b.strip()]
         if 3 <= len(llm_bullets) <= 5:
+            # Phase 999.9 D-09: re-prepend the silent-default bullet on
+            # the LLM-wins branch so the assumption survives the LLM
+            # hop (the LLM cannot hallucinate the prepend on its own).
+            d09_bullet = "Origin unspecified — defaulted to HQ Lat Krabang."
+            if origin_hub_was_unspecified and (
+                not llm_bullets or llm_bullets[0] != d09_bullet
+            ):
+                llm_bullets = [d09_bullet] + llm_bullets
             return _join_bullets(llm_bullets)
 
         # LLM emitted a backward-compat {"summary": ...} only (no bullets) —
@@ -450,14 +502,27 @@ def pricing_agent_node(
             "tool_call_count": 1,
         }
 
+    # Phase 999.9 D-05/D-09: resolve origin hub -> origin_zone and detect
+    # silent default for the narration bullet. raw_origin_hub_id captures
+    # the value at entry so we know whether the D-09 narration bullet
+    # should fire even after we apply the default.
+    from backend.agent.tools.hubs import origin_zone_for
+
+    raw_origin_hub_id = state.get("origin_hub_id")
+    origin_hub_was_unspecified = raw_origin_hub_id is None
+    origin_hub_id = raw_origin_hub_id or "hq-lat-krabang"  # D-09 default
+    origin_zone = origin_zone_for(origin_hub_id)
+
     shipping_type = state["shipping_type"]
     weight_kg = state["weight_kg"]
-    zone = state["route_data"]["zone"]
+    dest_zone = state["route_data"]["zone"]
     current_diesel_price = state["fuel_data"]["price"]
     traffic_severity = state["route_data"]["traffic_severity"]
 
     # D-09: let ValueError from lookup_rate propagate (no swallowing).
-    rate = lookup_rate(shipping_type, zone, weight_kg)
+    # Phase 999.9 D-05: 4-arg signature (shipping_type, origin_zone,
+    # dest_zone, weight_kg).
+    rate = lookup_rate(shipping_type, origin_zone, dest_zone, weight_kg)
 
     surcharge_input = SurchargeInput(
         base_rate=rate.base_rate,
@@ -492,6 +557,8 @@ def pricing_agent_node(
         shipping_type,
         volatility_flag,
         search_context,
+        origin_hub_was_unspecified=origin_hub_was_unspecified,
+        origin_hub_id=origin_hub_id,
     )
 
     prior_steps = len(state.get("reasoning_trace") or [])

@@ -127,7 +127,7 @@ export function useChatStream() {
     threadIdRef.current = state.threadId;
   }, [state.threadId]);
 
-  const send = useCallback(async (message: string) => {
+  const send = useCallback(async (message: string, originHubId?: string) => {
     // Pitfall 7: abort any in-flight stream before starting a new one.
     abortRef.current?.abort();
     const controller = new AbortController();
@@ -138,7 +138,13 @@ export function useChatStream() {
 
     try {
       const response = await api.postChat(
-        { message, thread_id: threadIdRef.current ?? undefined },
+        {
+          message,
+          thread_id: threadIdRef.current ?? undefined,
+          // Phase 999.9 D-08: forward originHubId when provided.
+          // Undefined = backend API boundary defaults to 'hq-lat-krabang' (Pitfall 1).
+          origin_hub_id: originHubId,
+        },
         controller.signal,
       );
       if (!response.ok) {

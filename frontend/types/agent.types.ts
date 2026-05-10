@@ -87,3 +87,15 @@ export type SSEEvent =
   | { type: 'error'; payload: { message: string; retryable: boolean } }
   | { type: 'done'; payload: Record<string, never> }
   | { type: 'approval_required'; payload: ApprovalPayload };
+
+/**
+ * Phase 999.9 D-01 — Hub object shape mirroring data/raw/hubs.json.
+ * Frontend uses static-import from frontend/data/hubs.json (mirror of
+ * data/raw/hubs.json) per UI-SPEC §Open Discretion resolution.
+ */
+export interface Hub {
+  hub_id: string;
+  name: string;
+  address: string;
+  zone: 'central-1' | 'central-2' | 'central-3';
+}

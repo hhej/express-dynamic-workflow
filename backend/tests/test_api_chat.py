@@ -659,3 +659,187 @@ def test_answer_message_id_matches_feedback_regex(app_with_mocks):
     assert m.group(1) == "t-regex"
     assert m.group(2) == "0"
 
+
+# ---------------------------------------------------------------------------
+# Phase 999.9 D-08 — ChatRequest.origin_hub_id flows through to AgentState
+# ---------------------------------------------------------------------------
+#
+# Plan: .planning/phases/999.9-hq-branch-origin-model-real-world-hub-to-
+#       destination-shipping/999.9-02-PLAN.md (Task 3)
+#
+# These tests assert the API-boundary contract:
+#   1. ChatRequest accepts origin_hub_id and seeds AgentState
+#   2. Default 'hq-lat-krabang' applied when origin_hub_id is None/missing
+#   3. Invalid hub_id falls back to default (allowlist validation)
+#   4. End-to-end: explicit hub_id flows through the agent graph and
+#      pricing_agent computes against the resolved origin_zone
+
+
+def _capture_initial_state(app):
+    """Wrap app.state.graph so the FIRST astream_events call captures the
+    payload (initial_state dict). Returns the captured holder dict.
+    """
+    captured: dict = {"payload": None}
+    original_graph = app.state.graph
+    original_astream = original_graph.astream_events
+
+    async def spy_astream(payload, *args, **kwargs):
+        if captured["payload"] is None:
+            captured["payload"] = payload
+        async for ev in original_astream(payload, *args, **kwargs):
+            yield ev
+
+    original_graph.astream_events = spy_astream
+    return captured
+
+
+def test_chat_request_accepts_origin_hub_id(app_with_mocks):
+    """POST /api/chat with origin_hub_id="branch-bang-na" → initial_state
+    seeds origin_hub_id='branch-bang-na'.
+    """
+    with TestClient(app_with_mocks) as client:
+        captured = _capture_initial_state(app_with_mocks)
+        with client.stream(
+            "POST", "/api/chat",
+            json={
+                "message": "Surcharge for 5kg Bounce to Nonthaburi",
+                "thread_id": "t-hub-bangna",
+                "origin_hub_id": "branch-bang-na",
+            },
+        ) as r:
+            assert r.status_code == 200
+            for _ in r.iter_text():
+                pass
+
+    assert captured["payload"] is not None
+    assert isinstance(captured["payload"], dict)
+    assert captured["payload"].get("origin_hub_id") == "branch-bang-na"
+
+
+def test_chat_request_origin_hub_id_default_seeds_hq(app_with_mocks):
+    """POST /api/chat WITHOUT origin_hub_id → initial_state defaults to
+    'hq-lat-krabang' (Pitfall 1: API-boundary default).
+    """
+    with TestClient(app_with_mocks) as client:
+        captured = _capture_initial_state(app_with_mocks)
+        with client.stream(
+            "POST", "/api/chat",
+            json={
+                "message": "Surcharge for 5kg Bounce to Nonthaburi",
+                "thread_id": "t-hub-default",
+            },
+        ) as r:
+            assert r.status_code == 200
+            for _ in r.iter_text():
+                pass
+
+    assert captured["payload"] is not None
+    assert captured["payload"].get("origin_hub_id") == "hq-lat-krabang"
+
+
+def test_chat_request_origin_hub_id_invalid_falls_back_to_hq(app_with_mocks):
+    """Allowlist validation: invalid origin_hub_id is logged + defaults to HQ.
+
+    Pitfall 1 mitigation — the agent layer never sees the bogus value.
+    """
+    with TestClient(app_with_mocks) as client:
+        captured = _capture_initial_state(app_with_mocks)
+        with client.stream(
+            "POST", "/api/chat",
+            json={
+                "message": "Surcharge for 5kg Bounce to Nonthaburi",
+                "thread_id": "t-hub-invalid",
+                "origin_hub_id": "fake-hub-9001",
+            },
+        ) as r:
+            assert r.status_code == 200
+            for _ in r.iter_text():
+                pass
+
+    assert captured["payload"] is not None
+    # Invalid → defaulted to HQ (NOT the bogus fake-hub-9001 value).
+    assert captured["payload"].get("origin_hub_id") == "hq-lat-krabang"
+
+
+def test_chat_request_origin_hub_id_explicit_seeds_state(app_with_mocks):
+    """End-to-end: ChatRequest with origin_hub_id='branch-ayutthaya'
+    flows through the graph and the pricing_agent computes against
+    origin_zone='central-2'. We cannot easily assert the trace's
+    internal origin_zone value (the rendered narration is built by the
+    LLM stub), but we CAN verify:
+      - initial_state seeded the explicit hub_id
+      - the chat returned a successful answer with surcharge_result
+      - the trace contains an entry from the pricing_agent
+    """
+    with TestClient(app_with_mocks) as client:
+        captured = _capture_initial_state(app_with_mocks)
+        with client.stream(
+            "POST", "/api/chat",
+            json={
+                "message": "Surcharge for 5kg Bounce to Nonthaburi",
+                "thread_id": "t-hub-ayutthaya",
+                "origin_hub_id": "branch-ayutthaya",
+            },
+        ) as r:
+            assert r.status_code == 200
+            body = "".join(chunk for chunk in r.iter_text())
+
+    assert captured["payload"]["origin_hub_id"] == "branch-ayutthaya"
+
+    events = _parse_sse_events(body)
+    types = [e["type"] for e in events]
+    assert types[-1] == "done"
+    assert "answer" in types
+    answer = next(e for e in events if e["type"] == "answer")
+    assert answer["payload"]["status"] == "ok"
+    assert answer["payload"]["surcharge_result"] is not None
+
+    # pricing_agent emitted a trace step.
+    pricing_traces = [
+        e for e in events
+        if e["type"] == "trace"
+        and (e["payload"] or {}).get("agent") == "pricing_agent"
+    ]
+    assert len(pricing_traces) >= 1
+
+
+def test_chat_request_no_hub_default_narration(app_with_mocks):
+    """API-boundary default mitigates the D-09 narration bullet at the
+    integration level (Pitfall 1).
+
+    When ChatRequest sends NO origin_hub_id and no prose hub mention,
+    the API boundary defaults to 'hq-lat-krabang' so by the time
+    pricing_agent runs, state.origin_hub_id is non-None at entry → the
+    "Origin unspecified" bullet does NOT fire. (The bullet only fires
+    in direct unit calls to pricing_agent_node — see test_pricing_agent.py
+    for that coverage.)
+
+    This test asserts the defense-in-depth: the bullet is suppressed at
+    the API integration layer because the boundary default lands first.
+    """
+    with TestClient(app_with_mocks) as client:
+        with client.stream(
+            "POST", "/api/chat",
+            json={
+                "message": "Surcharge for 5kg Bounce from Bangkok to Nonthaburi",
+                "thread_id": "t-no-hub",
+            },
+        ) as r:
+            assert r.status_code == 200
+            body = "".join(chunk for chunk in r.iter_text())
+
+    events = _parse_sse_events(body)
+    # The pricing_agent trace narration should NOT contain the D-09
+    # silent-default bullet — Pitfall 1 in effect.
+    pricing_traces = [
+        e for e in events
+        if e["type"] == "trace"
+        and (e["payload"] or {}).get("agent") == "pricing_agent"
+    ]
+    assert len(pricing_traces) >= 1
+    for tr in pricing_traces:
+        reasoning = (tr["payload"] or {}).get("reasoning") or ""
+        assert "Origin unspecified" not in reasoning, (
+            f"D-09 narration bullet leaked at API integration layer: {reasoning!r}"
+        )
+

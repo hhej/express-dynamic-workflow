@@ -73,6 +73,43 @@ describe('useChatStream', () => {
     expect(result.current.error?.retryable).toBe(true);
   });
 
+  it('Phase 999.9 D-08: send(message, originHubId) forwards origin_hub_id in POST body', async () => {
+    let capturedBody: { message?: string; origin_hub_id?: string; thread_id?: string } | null = null;
+    server.use(
+      http.post('http://localhost:8000/api/chat', async ({ request }) => {
+        capturedBody = (await request.json()) as typeof capturedBody;
+        return sseResponse();
+      }),
+    );
+    const { result } = renderHook(() => useChatStream());
+    await act(async () => {
+      await result.current.send('hello', 'branch-bang-na');
+    });
+    await waitFor(() => expect(result.current.status).toBe('done'));
+    expect(capturedBody).not.toBeNull();
+    expect(capturedBody!.message).toBe('hello');
+    expect(capturedBody!.origin_hub_id).toBe('branch-bang-na');
+  });
+
+  it('Phase 999.9 D-08: send(message) without originHubId omits origin_hub_id (Pitfall 1 — backend boundary defaults)', async () => {
+    let capturedBody: Record<string, unknown> | null = null;
+    server.use(
+      http.post('http://localhost:8000/api/chat', async ({ request }) => {
+        capturedBody = (await request.json()) as Record<string, unknown>;
+        return sseResponse();
+      }),
+    );
+    const { result } = renderHook(() => useChatStream());
+    await act(async () => {
+      await result.current.send('hello');
+    });
+    await waitFor(() => expect(result.current.status).toBe('done'));
+    expect(capturedBody).not.toBeNull();
+    expect(capturedBody!.message).toBe('hello');
+    // Either omitted from JSON or present-but-undefined (post-stringify, undefined keys are dropped).
+    expect(capturedBody!.origin_hub_id).toBeUndefined();
+  });
+
   it('a second send() aborts the first — D-08 single-turn invariant', async () => {
     server.use(
       http.post('http://localhost:8000/api/chat', async ({ request }) => {

@@ -99,8 +99,27 @@ def _render_table(surcharge_result: dict) -> str:
     )
 
 
+def _pricing_reasoning_bullets(state: dict) -> str:
+    """Return the most recent pricing_agent reasoning (already a newline-
+    joined ``- bullet`` markdown string) or empty string if none.
+
+    Phase 999.9 narration-coherence: surfaces the deterministic pricing
+    bullets into the user-facing answer markdown, so the explanation
+    isn't trapped in the side trace panel.
+    """
+    for entry in reversed(state.get("reasoning_trace") or []):
+        if isinstance(entry, dict) and entry.get("agent") == "pricing_agent":
+            text = (entry.get("reasoning") or "").strip()
+            if text.startswith("- "):
+                return text
+            return ""
+    return ""
+
+
 def _render_prose_ok(state: dict) -> str:
     """Deterministic prose summary for the happy path."""
+    from backend.agent.tools.hubs import hub_label_for
+
     fd = state.get("fuel_data") or {}
     rd = state.get("route_data") or {}
     sr = state.get("surcharge_result") or {}
@@ -111,6 +130,15 @@ def _render_prose_ok(state: dict) -> str:
     zone = rd.get("zone")
     shipping_type = state.get("shipping_type")
     capped = bool(sr.get("capped"))
+
+    # Phase 999.9 narration-coherence: include the origin hub in the
+    # route phrase so the user sees "from {origin} to zone {dest}",
+    # matching the origin x destination rate matrix that drives base_rate.
+    origin_hub_id = state.get("origin_hub_id") or "hq-lat-krabang"
+    try:
+        origin_label = hub_label_for(origin_hub_id)
+    except ValueError:
+        origin_label = None
 
     # Direction phrase relative to baseline (if both numbers present).
     if isinstance(price, (int, float)) and isinstance(baseline, (int, float)):
@@ -124,8 +152,15 @@ def _render_prose_ok(state: dict) -> str:
     else:
         diesel_phrase = "Current diesel B7 price unavailable"
 
-    if isinstance(distance_km, (int, float)) and zone:
+    if isinstance(distance_km, (int, float)) and zone and origin_label:
+        route_phrase = (
+            f"on a {distance_km:.1f} km route from {origin_label} "
+            f"to zone {zone}"
+        )
+    elif isinstance(distance_km, (int, float)) and zone:
         route_phrase = f"on a {distance_km:.1f} km {zone} route"
+    elif zone and origin_label:
+        route_phrase = f"on a route from {origin_label} to zone {zone}"
     elif zone:
         route_phrase = f"on a {zone} route"
     else:
@@ -140,7 +175,15 @@ def _render_prose_ok(state: dict) -> str:
     # Squash any double spaces from the optional ship_phrase.
     while "  " in prose:
         prose = prose.replace("  ", " ")
-    return f"{prose}\n\n{_FOOTER}"
+
+    # Phase 999.9 narration-coherence: render the deterministic pricing
+    # bullets inline between prose and the trace footer so the agentic
+    # reasoning is visible directly in the chat answer (per the project's
+    # core value: "visible reasoning is what makes this agentic").
+    bullets = _pricing_reasoning_bullets(state)
+    bullets_block = f"\n\n**Reasoning:**\n\n{bullets}" if bullets else ""
+
+    return f"{prose}{bullets_block}\n\n{_FOOTER}"
 
 
 def _render_prose_clarify(state: dict) -> str:

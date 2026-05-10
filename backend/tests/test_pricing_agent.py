@@ -52,6 +52,9 @@ def _full_state() -> dict:
         "next_step": "",
         "origin": "Bangkok",
         "destination": "Nonthaburi",
+        # Phase 999.9: default to HQ so existing tests don't trigger the
+        # D-09 silent-default narration path unintentionally.
+        "origin_hub_id": "hq-lat-krabang",
         "user_intent": "surcharge_query",
         "missing_fields": [],
         "clarification_reason": None,
@@ -416,3 +419,205 @@ def test_bullet_shaped_deterministic_fallback(mocker, monkeypatch):
     assert "normal" in reasoning.lower()
     # Surcharge total numerically present.
     assert f"{surcharge['total']:.2f}" in reasoning
+
+
+# ---------------------------------------------------------------------------
+# Phase 999.9 D-05/D-09 — origin_hub_id resolution + silent-default narration
+# ---------------------------------------------------------------------------
+#
+# Plan: .planning/phases/999.9-hq-branch-origin-model-real-world-hub-to-
+#       destination-shipping/999.9-02-PLAN.md
+#
+# These four tests cover Plan 999.9-02 Task 1 D-05/D-09 contract:
+#   1. test_pricing_agent_resolves_hub_id_to_origin_zone — origin_hub_id
+#      drives origin_zone via origin_zone_for; lookup_rate receives the
+#      4-arg form
+#   2. test_pricing_agent_default_to_hq_when_none — D-09 narration bullet
+#      fires when state.origin_hub_id is None at entry
+#   3. test_pricing_agent_no_default_bullet_when_hub_provided — D-09
+#      bullet does NOT fire when caller supplied a hub_id
+#   4. test_pricing_agent_unknown_hub_raises — origin_zone_for ValueError
+#      propagates per D-09 lookup-miss precedent (no swallowing)
+
+
+def test_pricing_agent_resolves_hub_id_to_origin_zone(
+    mocker, monkeypatch, mock_hubs_json
+):
+    """state.origin_hub_id='branch-ayutthaya' (central-2) + dest_zone=central-1
+    → lookup_rate must receive origin_zone='central-2' as 2nd positional arg.
+    """
+    monkeypatch.setattr(
+        mod, "_compute_volatility_flag", lambda *a, **kw: "normal"
+    )
+
+    spy = mocker.patch.object(
+        mod,
+        "lookup_rate",
+        return_value=RateResult(
+            base_rate=106.0, currency="THB", rate_tier="5-10kg"
+        ),
+    )
+
+    class _BrokenLLM:
+        def invoke(self, *a, **kw):
+            raise RuntimeError("simulated Gemini failure")
+
+    monkeypatch.setattr(mod, "get_chat_model", lambda **_: _BrokenLLM())
+
+    state = _full_state()
+    state["origin_hub_id"] = "branch-ayutthaya"  # central-2 per mock_hubs_json
+    state["weight_kg"] = 5.0
+
+    result = pricing_agent_node(state)
+
+    # lookup_rate was called with the 4-arg signature; origin_zone was
+    # derived via origin_zone_for("branch-ayutthaya") = "central-2".
+    spy.assert_called_once()
+    call_args = spy.call_args
+    # Support either positional or keyword form; assert positional.
+    assert call_args.args == ("bounce", "central-2", "central-1", 5.0), (
+        f"unexpected lookup_rate call: {call_args}"
+    )
+
+    # Surcharge result is computed against the returned 106.0 base_rate.
+    assert result["surcharge_result"] is not None
+    # No D-09 bullet because origin_hub_id was provided (not None at entry).
+    reasoning = result["reasoning_trace"][0]["reasoning"]
+    assert "Origin unspecified" not in reasoning
+
+
+def test_pricing_agent_default_to_hq_when_none(mocker, monkeypatch):
+    """D-09: state omits origin_hub_id (None at entry); the trace narration
+    contains the literal "Origin unspecified — defaulted to HQ Lat Krabang."
+    """
+    mocker.patch.object(
+        mod,
+        "lookup_rate",
+        return_value=RateResult(
+            base_rate=120.0, currency="THB", rate_tier="11-25kg"
+        ),
+    )
+    monkeypatch.setattr(
+        mod, "_compute_volatility_flag", lambda *a, **kw: "normal"
+    )
+
+    class _BrokenLLM:
+        def invoke(self, *a, **kw):
+            raise RuntimeError("simulated Gemini failure")
+
+    monkeypatch.setattr(mod, "get_chat_model", lambda **_: _BrokenLLM())
+
+    state = _full_state()
+    state["origin_hub_id"] = None  # explicit None (D-09 trigger)
+
+    result = pricing_agent_node(state)
+
+    reasoning = result["reasoning_trace"][0]["reasoning"]
+    assert "Origin unspecified — defaulted to HQ Lat Krabang." in reasoning, (
+        f"D-09 bullet missing from trace narration: {reasoning!r}"
+    )
+
+
+def test_pricing_agent_no_default_bullet_when_hub_provided(
+    mocker, monkeypatch
+):
+    """D-09 inverse: state provides origin_hub_id → no "Origin unspecified" bullet."""
+    mocker.patch.object(
+        mod,
+        "lookup_rate",
+        return_value=RateResult(
+            base_rate=120.0, currency="THB", rate_tier="11-25kg"
+        ),
+    )
+    monkeypatch.setattr(
+        mod, "_compute_volatility_flag", lambda *a, **kw: "normal"
+    )
+
+    class _BrokenLLM:
+        def invoke(self, *a, **kw):
+            raise RuntimeError("simulated Gemini failure")
+
+    monkeypatch.setattr(mod, "get_chat_model", lambda **_: _BrokenLLM())
+
+    state = _full_state()
+    state["origin_hub_id"] = "branch-bang-na"  # explicit non-None
+
+    result = pricing_agent_node(state)
+
+    reasoning = result["reasoning_trace"][0]["reasoning"]
+    assert "Origin unspecified" not in reasoning, (
+        f"D-09 bullet should NOT fire when hub_id provided: {reasoning!r}"
+    )
+
+
+def test_bullet_one_includes_origin_hub_label_and_zone(
+    mocker, monkeypatch, mock_hubs_json
+):
+    """Phase 999.9 narration-coherence: bullet 1 must mention the origin
+    hub label + origin zone + destination zone, so the user can see why
+    the base rate differs across hubs.
+    """
+    monkeypatch.setattr(
+        mod, "_compute_volatility_flag", lambda *a, **kw: "normal"
+    )
+    mocker.patch.object(
+        mod,
+        "lookup_rate",
+        return_value=RateResult(
+            base_rate=106.0, currency="THB", rate_tier="5-10kg"
+        ),
+    )
+
+    class _BrokenLLM:
+        def invoke(self, *a, **kw):
+            raise RuntimeError("simulated Gemini failure")
+
+    monkeypatch.setattr(mod, "get_chat_model", lambda **_: _BrokenLLM())
+
+    state = _full_state()
+    state["origin_hub_id"] = "branch-ayutthaya"  # central-2 per mock_hubs_json
+    state["weight_kg"] = 5.0
+
+    result = pricing_agent_node(state)
+
+    reasoning = result["reasoning_trace"][0]["reasoning"]
+    # Bullet 1 must contain the hub label and BOTH origin + destination zones.
+    assert "Phra Nakhon Si Ayutthaya" in reasoning, (
+        f"missing origin hub label in narration: {reasoning!r}"
+    )
+    assert "central-2" in reasoning, (
+        f"missing origin zone in narration: {reasoning!r}"
+    )
+    assert "zone central-1" in reasoning, (
+        f"missing destination zone framing: {reasoning!r}"
+    )
+
+
+def test_pricing_agent_unknown_hub_raises(mocker, monkeypatch):
+    """D-09 lookup-miss precedent: origin_zone_for raises ValueError on an
+    invalid hub_id; pricing_agent_node does NOT swallow it (matches the
+    lookup_rate ValueError contract).
+    """
+    # We expect the ValueError to surface BEFORE lookup_rate runs, but
+    # install a stub anyway so a stray call would fail loudly.
+    mocker.patch.object(
+        mod,
+        "lookup_rate",
+        return_value=RateResult(
+            base_rate=120.0, currency="THB", rate_tier="11-25kg"
+        ),
+    )
+    monkeypatch.setattr(
+        mod, "_compute_volatility_flag", lambda *a, **kw: "normal"
+    )
+    monkeypatch.setattr(
+        mod,
+        "get_chat_model",
+        lambda **_: _scripted_llm('{"summary": "n/a"}'),
+    )
+
+    state = _full_state()
+    state["origin_hub_id"] = "definitely-not-a-real-hub"
+
+    with pytest.raises(ValueError, match="unknown hub_id"):
+        pricing_agent_node(state)

@@ -21,6 +21,30 @@ from langgraph.checkpoint.sqlite.aio import AsyncSqliteSaver
 _FIXTURES_DIR = Path(__file__).parent / "fixtures"
 
 
+@pytest.fixture(autouse=True)
+def _pin_baseline_diesel_price(monkeypatch):
+    """Pin BASELINE_DIESEL_PRICE to the historical 29.94 anchor for all
+    tests.
+
+    Phase 999.9 calibration fix: backend.config now computes a rolling
+    90-day mean from the EPPO CSV at import time, so the prod baseline
+    drifts as fuel data updates. The hand-calculated formula tests in
+    test_surcharge.py and the synthetic-state fixtures across the suite
+    were authored against the old static 29.94. This fixture pins the
+    constant in every module that imports the symbol so existing test
+    math stays valid; tests that want to exercise the dynamic baseline
+    can override locally with their own monkeypatch.
+    """
+    from backend.agent.tools import calculate_surcharge as _cs
+
+    monkeypatch.setattr(_cs, "BASELINE_DIESEL_PRICE", 29.94)
+    # Note: deliberately not patching fetch_fuel_price.BASELINE_DIESEL_PRICE
+    # — those tests assert tautologies (result.baseline == BASELINE_DIESEL_PRICE
+    # imported from config), which pass regardless of the actual numeric value.
+    # Patching only there but not the test module's local import would break
+    # the tautology.
+
+
 @pytest.fixture
 def sample_agent_state() -> dict:
     """A minimal valid AgentState dict for node tests (ORCH-02, ORCH-03)."""
@@ -33,6 +57,9 @@ def sample_agent_state() -> dict:
         "surcharge_result": None,
         "reasoning_trace": [],
         "next_step": "",
+        # Phase 999.9: default to HQ for backwards-compat with existing tests
+        # (so old tests don't accidentally exercise the D-09 narration path).
+        "origin_hub_id": "hq-lat-krabang",
     }
 
 
@@ -182,3 +209,37 @@ def mock_pricing_high():
         "total": 715.0,  # above the 500 default threshold
         "capped": False,
     }
+
+
+# ----- Phase 999.9 fixtures -----
+
+
+@pytest.fixture
+def mock_hubs_json(monkeypatch):
+    """Test fixture: monkeypatch _HUB_INDEX to a minimal 3-hub set
+    covering all three zones for downstream agent tests.
+
+    Lets Wave 2 tests (planner, pricing_agent, route_agent) isolate from
+    the prod hubs.json without re-loading from disk.
+    """
+    from backend.agent.tools import hubs as hubs_module
+
+    test_hubs = {
+        "hq-lat-krabang": {
+            "name": "Express HQ — Lat Krabang Industrial Estate, Bangkok",
+            "address": "Lat Krabang Industrial Estate, Bangkok",
+            "zone": "central-1",
+        },
+        "branch-bang-na": {
+            "name": "Express Branch — Bang Na, Bangkok",
+            "address": "Bang Na, Bangkok",
+            "zone": "central-1",
+        },
+        "branch-ayutthaya": {
+            "name": "Express Branch — Phra Nakhon Si Ayutthaya",
+            "address": "Phra Nakhon Si Ayutthaya, Ayutthaya",
+            "zone": "central-2",
+        },
+    }
+    monkeypatch.setattr(hubs_module, "_HUB_INDEX", test_hubs)
+    return test_hubs

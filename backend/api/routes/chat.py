@@ -26,11 +26,19 @@ reusing the SAME ``_make_config`` helper so Langfuse session continuity
 is preserved across the pause (Pitfall 1). The fresh path checks for an
 interrupt at the end of the stream and emits a sixth ``approval_required``
 SSE event when paused.
+
+Phase 999.9 (Plan 999.9-02 / D-08): ChatRequest accepts an optional
+``origin_hub_id``. The chat handler resolves the API-boundary default
+``hq-lat-krabang`` BEFORE seeding the agent's initial_state (Pitfall 1
+mitigation), validates against ``_HUB_INDEX``, and seeds the resolved
+hub_id into ``initial_state["origin_hub_id"]`` so the planner / route /
+pricing layers always see a non-None hub_id at entry.
 """
 from __future__ import annotations
 
 import logging
 import uuid
+from typing import Optional
 
 from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import StreamingResponse
@@ -199,10 +207,17 @@ async def chat(req: ChatRequest, request: Request):
             detail="message is required for fresh turns",
         )
 
-    return await _fresh_stream(graph, thread_id, req.message)
+    return await _fresh_stream(
+        graph, thread_id, req.message, req.origin_hub_id
+    )
 
 
-async def _fresh_stream(graph, thread_id: str, message: str):
+async def _fresh_stream(
+    graph,
+    thread_id: str,
+    message: str,
+    origin_hub_id: Optional[str] = None,
+):
     """Fresh-turn SSE stream with HITL interrupt detection (Pitfall 2).
 
     After the underlying ``astream_events`` generator exhausts, we call
@@ -211,9 +226,26 @@ async def _fresh_stream(graph, thread_id: str, message: str):
     case we emit a sixth ``approval_required`` event and CLOSE the
     stream WITHOUT a trailing ``done`` so the FE keeps the Approve/Deny
     buttons live until the resume POST arrives.
+
+    Phase 999.9 D-08: optional ``origin_hub_id`` from ChatRequest.
+    Defaults to 'hq-lat-krabang' at the API boundary (Pitfall 1) so
+    AgentState.origin_hub_id is always non-None at planner entry. The
+    Planner may still override via prose extraction.
     """
     turn_idx = await _next_turn_idx(graph, thread_id)
     config = _make_config(thread_id, turn_idx)
+
+    # Phase 999.9 / Pitfall 1: validate against _HUB_INDEX, default to HQ.
+    # The default lands BEFORE initial_state construction so the planner /
+    # agent layer never sees None at entry.
+    from backend.agent.tools.hubs import _HUB_INDEX
+    if origin_hub_id and origin_hub_id not in _HUB_INDEX:
+        logger.warning(
+            "ChatRequest sent invalid origin_hub_id=%r; defaulting to HQ",
+            origin_hub_id,
+        )
+        origin_hub_id = None
+    resolved_hub_id = origin_hub_id or "hq-lat-krabang"
 
     async def stream():
         # D-19: emit meta first so client can persist the thread_id.
@@ -222,6 +254,9 @@ async def _fresh_stream(graph, thread_id: str, message: str):
         try:
             initial_state = {
                 "messages": [{"role": "user", "content": message}],
+                # Phase 999.9 D-08: API-boundary default ensures the
+                # planner / agent layer always sees a non-None hub_id.
+                "origin_hub_id": resolved_hub_id,
             }
             async for kind, payload in _drain_events(
                 graph, initial_state, config,

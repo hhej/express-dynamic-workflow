@@ -5,10 +5,25 @@
   },
   "central-2": {
     "name": "Greater Central",
-    "provinces": ["Ayutthaya", "Ang Thong", "Saraburi", "Nakhon Pathom", "Samut Sakhon"]
+    "provinces": [
+      "Ayutthaya",
+      "Phra Nakhon Si Ayutthaya",
+      "Ang Thong",
+      "Saraburi",
+      "Nakhon Pathom",
+      "Samut Sakhon"
+    ]
   },
   "central-3": {
     "name": "Extended Central",
-    "provinces": ["Lop Buri", "Sing Buri", "Chai Nat", "Suphan Buri", "Kanchanaburi", "Ratchaburi"]
+    "provinces": [
+      "Lop Buri",
+      "Lopburi",
+      "Sing Buri",
+      "Chai Nat",
+      "Suphan Buri",
+      "Kanchanaburi",
+      "Ratchaburi"
+    ]
   }
 }

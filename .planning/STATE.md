@@ -1,36 +1,36 @@
 ---
 gsd_state_version: 1.0
-milestone: v1.0
-milestone_name: MVP
-status: shipped
-stopped_at: v1.0 MVP milestone complete (8 phases, 36 plans, 87 tasks)
-last_updated: "2026-05-09T15:30:00.000Z"
-last_activity: 2026-05-09
+milestone: v1.1
+milestone_name: — Real-World Routing & Demo Hardening
+status: executing
+stopped_at: "Completed 999.9-03-PLAN.md (Wave 3: frontend HubPicker UI -- 10-hub dropdown with glass-morphism + sessionStorage persistence + post-hydration seeding (Pitfall 6) + chat.send forwards origin_hub_id; 145/145 frontend vitest green; type-check + build clean)"
+last_updated: "2026-05-10T04:41:49.111Z"
+last_activity: 2026-05-10
 progress:
-  total_phases: 8
-  completed_phases: 8
-  total_plans: 36
-  completed_plans: 36
-  percent: 100
+  total_phases: 4
+  completed_phases: 0
+  total_plans: 0
+  completed_plans: 0
+  percent: 0
 ---
 
 # Project State
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-05-05 after v1.0 milestone completion)
+See: .planning/PROJECT.md (updated 2026-05-10 — milestone v1.1 declared)
 
 **Core value:** The agent must transparently reason through fuel price, route, and shipping data to produce an accurate, explainable surcharge recommendation.
-**Current focus:** Planning next milestone
+**Current focus:** Phase 999.9 — HQ/Branch Origin Model
 
 ## Current Position
 
-Phase: — (v1.0 shipped)
-Plan: —
-Status: Awaiting next milestone
-Last activity: 2026-05-09 - Completed quick task 260509-utd: guardrail hardening against adversarial classmate testing
+Phase: 999.9 (HQ/Branch Origin Model) — EXECUTING
+Plan: 4 of 4
+Status: Ready to execute
+Last activity: 2026-05-10
 
-Progress: [██████████] 100% (v1.0 MVP)
+Progress: [░░░░░░░░░░] 0% (v1.1)
 
 ## Performance Metrics
 
@@ -86,6 +86,9 @@ Progress: [██████████] 100% (v1.0 MVP)
 | Phase 07 P02 | 7min | 3 tasks | 7 files |
 | Phase 07 P03 | 2 min | 3 tasks | 2 files |
 | Phase 08 P02 | 6min | 3 tasks | 6 files |
+| Phase 999.9 P01 | 9min | 3 tasks | 9 files |
+| Phase 999.9 P02 | 17min | 3 tasks | 14 files |
+| Phase 999.9 P03 | 9min | 3 tasks tasks | 12 files files |
 
 ## Accumulated Context
 
@@ -243,6 +246,16 @@ Recent decisions affecting current work:
 - [Phase 08]: Plan 08-02: useMemo on context value AND narrowed useEffect deps from [conversations] to [conversations.refresh] — defense-in-depth against unbounded refetch loop where every items update would re-create the value object and refire the post-done effect (Pitfall 3)
 - [Phase 08]: Plan 08-02: D-14 integration test scopes sidebar assertion to Resume button aria-label (/Resume Surcharge for 15kg Bounce/) — chat-answer markdown also contains preview text so getByText collides; aria-label scoping disambiguates (Rule 1 fix discovered during test execution)
 - [Phase 08]: Plan 08-02: ConversationSidebar.test.tsx and SurchargeHistoryChart.test.tsx gained renderWithProvider helpers — Rule 1 fix because provider migration broke standalone component renders; in-scope because direct consumers of useConversations broken by THIS task's changes
+- [Phase 999.9]: Plan 01: ORIGIN_DEST_MULTIPLIER 3x3 symmetric matrix replaces legacy single-zone multipliers; diagonal=1.0 preserves v1.0 byte-for-byte (Pitfall 3); off-diagonals 1.25 / 1.45 / 1.70 calibrated by zone-distance
+- [Phase 999.9]: Plan 01: hubs.py mirrors _ZONE_INDEX pattern -- _HUB_INDEX built once at module import time; uvicorn restart required to pick up hubs.json edits (matches Phase 2 D-08 baseline cache philosophy)
+- [Phase 999.9]: Plan 01: lookup_rate signature change is breaking in arity (3 -> 4); pricing_agent.py:460 still on 3-arg form -- documented inter-wave breakage that Wave 2 Plan 999.9-02 Task 1 closes FIRST so test suite returns to all-green within one merge window
+- [Phase 999.9]: Plan 01: hub display strings (the 'name' field in hubs.json) are FULL strings from UI-SPEC -- frontend renders verbatim with zero concatenation; UI-SPEC locks these literals
+- [Phase 999.9]: Plan 02: Pitfall 1 — API-boundary default 'hq-lat-krabang' lands in _fresh_stream BEFORE initial_state construction; the agent layer never sees None at planner entry. Consequence: D-09 narration bullet only fires on direct unit calls to pricing_agent_node, not at the API integration layer.
+- [Phase 999.9]: Plan 02: _route_matches in planner.py compares state.origin_hub_id == route_data.origin_hub_id when both sides have hub_id information; falls back to legacy free-text origin compare only for pre-999.9 RouteData payloads. Without this, follow-up turns missed the route cache (test_graph.py:test_followup_only_runs_pricing surfaced this — Rule 3 fix in scope of Task 1).
+- [Phase 999.9]: Plan 02: D-08 follow-up token-detection extended to origin_hub_id with bare-province expansion. The address 'Mueang Nonthaburi, Nonthaburi' yields tokens [mueang nonthaburi, nonthaburi] PLUS bare 'nonthaburi' (Mueang prefix stripped) so prose like 'What about from Nonthaburi?' is detected. Initial implementation only checked the first comma-split chunk and missed bare-province mentions.
+- [Phase 999.9]: Plan 03: Static-import frontend/data/hubs.json over runtime fetch (UI-SPEC §Open Discretion resolution) — simpler, build-time stable, no new endpoint; trade-off is duplication with data/raw/hubs.json that future phase can centralize
+- [Phase 999.9]: Plan 03: HubPicker renders ABOVE ChatInput in flex-col wrapper (UI-SPEC §Spacing Scale locked); border-t lifted from ChatInput <form> to wrapper so visual border draws above HubPicker; ChatInput retains p-4 for standalone-test compatibility
+- [Phase 999.9]: Plan 03: post-hydration sessionStorage seeding via useEffect([]) avoids SSR mismatch (Pitfall 6); allowlist-guard silently falls back to DEFAULT_HUB_ID on invalid stored values; resume + new-conversation paths preserve originHubId per UI-SPEC §Interaction Contracts
 
 ### Pending Todos
 
@@ -269,7 +282,7 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-05-09T15:30:00.000Z
-Stopped at: Quick task 260509-utd complete — two-layer guardrails (hardened prompts + guard_input/guard_output nodes) + per-turn tool counter + adversarial_pack.txt landed; 295/295 backend tests green (UWB pricing-bullets work also landed via PR #15 prior to this rebase)
+Last session: 2026-05-10T04:41:49.107Z
+Stopped at: Completed 999.9-03-PLAN.md (Wave 3: frontend HubPicker UI -- 10-hub dropdown with glass-morphism + sessionStorage persistence + post-hydration seeding (Pitfall 6) + chat.send forwards origin_hub_id; 145/145 frontend vitest green; type-check + build clean)
 Resume file: None
 Next: Restart uvicorn, then run the 15 attacks in backend/tests/adversarial_pack.txt through /api/chat to confirm refusal-and-redirect behavior end-to-end; review Langfuse traces for guard activations. Also: inspect TraceStep expanded view to confirm UWB bullet markdown renders cleanly.

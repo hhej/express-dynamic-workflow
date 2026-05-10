@@ -99,6 +99,11 @@ class RouteData(BaseModel):
         duration_min: Estimated travel duration in minutes.
         traffic_severity: Traffic severity on a 1-5 scale.
         zone: Zone identifier (central-1, central-2, or central-3).
+        origin_hub_id: Phase 999.9 D-04 origin hub identifier
+            (e.g., 'hq-lat-krabang', 'branch-bang-na'). Optional /
+            None permitted for tests + cached pre-999.9 entries;
+            production code always supplies a hub_id (calculate_route
+            fills it from its argument).
     """
 
     origin: str
@@ -108,6 +113,14 @@ class RouteData(BaseModel):
     traffic_severity: int = Field(ge=1, le=5)
     zone: str = Field(
         description="central-1, central-2, or central-3"
+    )
+
+    # Phase 999.9 D-04: hub_id used for the route. None permitted for
+    # tests + cached pre-999.9 entries; production code always supplies
+    # a hub_id (calculate_route fills it from its argument).
+    origin_hub_id: Optional[str] = Field(
+        default=None,
+        description="Phase 999.9 D-04: origin hub identifier",
     )
 
 
