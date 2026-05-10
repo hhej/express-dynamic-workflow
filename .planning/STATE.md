@@ -3,8 +3,8 @@ gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: — Real-World Routing & Demo Hardening
 status: executing
-stopped_at: "Completed 999.9-02-PLAN.md (Wave 2: backend agent wiring -- AgentState/RouteData/calculate_route/planner/pricing_agent/ChatRequest all hub_id-aware; D-09 bullet via Pitfall 1 only fires on unit-test path; 341/341 backend pytest green)"
-last_updated: "2026-05-10T04:26:49.325Z"
+stopped_at: "Completed 999.9-03-PLAN.md (Wave 3: frontend HubPicker UI -- 10-hub dropdown with glass-morphism + sessionStorage persistence + post-hydration seeding (Pitfall 6) + chat.send forwards origin_hub_id; 145/145 frontend vitest green; type-check + build clean)"
+last_updated: "2026-05-10T04:41:49.111Z"
 last_activity: 2026-05-10
 progress:
   total_phases: 4
@@ -26,7 +26,7 @@ See: .planning/PROJECT.md (updated 2026-05-10 — milestone v1.1 declared)
 ## Current Position
 
 Phase: 999.9 (HQ/Branch Origin Model) — EXECUTING
-Plan: 3 of 4
+Plan: 4 of 4
 Status: Ready to execute
 Last activity: 2026-05-10
 
@@ -88,6 +88,7 @@ Progress: [░░░░░░░░░░] 0% (v1.1)
 | Phase 08 P02 | 6min | 3 tasks | 6 files |
 | Phase 999.9 P01 | 9min | 3 tasks | 9 files |
 | Phase 999.9 P02 | 17min | 3 tasks | 14 files |
+| Phase 999.9 P03 | 9min | 3 tasks tasks | 12 files files |
 
 ## Accumulated Context
 
@@ -252,6 +253,9 @@ Recent decisions affecting current work:
 - [Phase 999.9]: Plan 02: Pitfall 1 — API-boundary default 'hq-lat-krabang' lands in _fresh_stream BEFORE initial_state construction; the agent layer never sees None at planner entry. Consequence: D-09 narration bullet only fires on direct unit calls to pricing_agent_node, not at the API integration layer.
 - [Phase 999.9]: Plan 02: _route_matches in planner.py compares state.origin_hub_id == route_data.origin_hub_id when both sides have hub_id information; falls back to legacy free-text origin compare only for pre-999.9 RouteData payloads. Without this, follow-up turns missed the route cache (test_graph.py:test_followup_only_runs_pricing surfaced this — Rule 3 fix in scope of Task 1).
 - [Phase 999.9]: Plan 02: D-08 follow-up token-detection extended to origin_hub_id with bare-province expansion. The address 'Mueang Nonthaburi, Nonthaburi' yields tokens [mueang nonthaburi, nonthaburi] PLUS bare 'nonthaburi' (Mueang prefix stripped) so prose like 'What about from Nonthaburi?' is detected. Initial implementation only checked the first comma-split chunk and missed bare-province mentions.
+- [Phase 999.9]: Plan 03: Static-import frontend/data/hubs.json over runtime fetch (UI-SPEC §Open Discretion resolution) — simpler, build-time stable, no new endpoint; trade-off is duplication with data/raw/hubs.json that future phase can centralize
+- [Phase 999.9]: Plan 03: HubPicker renders ABOVE ChatInput in flex-col wrapper (UI-SPEC §Spacing Scale locked); border-t lifted from ChatInput <form> to wrapper so visual border draws above HubPicker; ChatInput retains p-4 for standalone-test compatibility
+- [Phase 999.9]: Plan 03: post-hydration sessionStorage seeding via useEffect([]) avoids SSR mismatch (Pitfall 6); allowlist-guard silently falls back to DEFAULT_HUB_ID on invalid stored values; resume + new-conversation paths preserve originHubId per UI-SPEC §Interaction Contracts
 
 ### Pending Todos
 
@@ -278,7 +282,7 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-05-10T04:26:49.321Z
-Stopped at: Completed 999.9-02-PLAN.md (Wave 2: backend agent wiring -- AgentState/RouteData/calculate_route/planner/pricing_agent/ChatRequest all hub_id-aware; D-09 bullet via Pitfall 1 only fires on unit-test path; 341/341 backend pytest green)
+Last session: 2026-05-10T04:41:49.107Z
+Stopped at: Completed 999.9-03-PLAN.md (Wave 3: frontend HubPicker UI -- 10-hub dropdown with glass-morphism + sessionStorage persistence + post-hydration seeding (Pitfall 6) + chat.send forwards origin_hub_id; 145/145 frontend vitest green; type-check + build clean)
 Resume file: None
 Next: Restart uvicorn, then run the 15 attacks in backend/tests/adversarial_pack.txt through /api/chat to confirm refusal-and-redirect behavior end-to-end; review Langfuse traces for guard activations. Also: inspect TraceStep expanded view to confirm UWB bullet markdown renders cleanly.
