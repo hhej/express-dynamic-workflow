@@ -63,6 +63,11 @@ class PlannerOutput(BaseModel):
     weight_kg: Optional[float] = None
     origin: Optional[str] = None
     destination: Optional[str] = None
+    # Phase 999.9 D-10: structured hub identifier extracted from prose
+    # ("ship from Bang Na to Nonthaburi" -> "branch-bang-na"). Null when
+    # the user did not mention a hub; the post-processor falls back to
+    # the dropdown / API-boundary default.
+    origin_hub_id: Optional[str] = None
     missing_fields: List[str] = Field(default_factory=list)
     next_step: Literal[
         "fetch_fuel",
@@ -257,6 +262,20 @@ def planner_node(state: dict) -> dict:
 
     assert parsed is not None  # for type checkers; loop break/return covers all paths
 
+    # Phase 999.9 D-10 / RESEARCH Pattern 2: validate origin_hub_id against
+    # the _HUB_INDEX allowlist. On invalid, set to None so the 999.1 merge
+    # falls through to state.get("origin_hub_id"), then to the API-boundary
+    # default 'hq-lat-krabang' if the chat handler did not seed one.
+    if parsed.origin_hub_id is not None:
+        from backend.agent.tools.hubs import _HUB_INDEX
+        if parsed.origin_hub_id not in _HUB_INDEX:
+            logger.warning(
+                "planner emitted invalid origin_hub_id=%r; allowed=%s; "
+                "discarding (will fall back via 999.1 merge)",
+                parsed.origin_hub_id, sorted(_HUB_INDEX),
+            )
+            parsed.origin_hub_id = None
+
     # gap-1 fix (2026-05-03): null-out hallucinated extraction fields on
     # followup_query turns BEFORE the 999.1 merge picks them up. The 999.1
     # merge is a null-only coalesce (`parsed.X or state.get("X")`); if the
@@ -311,6 +330,40 @@ def planner_node(state: dict) -> dict:
             and not any(c.isdigit() for c in last_user_text)
         ):
             parsed.weight_kg = None
+        # Phase 999.9 / Pitfall 2: origin_hub_id follow-up inheritance. If
+        # parsed.origin_hub_id is non-null but the user message doesn't
+        # contain any of the 10 hub-address tokens AND prior state has a
+        # different hub_id, null out the parsed value so the prior wins
+        # via the 999.1 merge below. Mirrors the shipping_type / origin /
+        # destination patterns above (D-08 token-detection allow-list).
+        prior_hub = state.get("origin_hub_id")
+        if (
+            parsed.origin_hub_id
+            and prior_hub
+            and prior_hub != parsed.origin_hub_id
+        ):
+            from backend.agent.tools.hubs import _HUB_INDEX
+            hub_mentioned = False
+            for h_data in _HUB_INDEX.values():
+                # Check ALL comma-separated address tokens (e.g.,
+                # "Mueang Nonthaburi, Nonthaburi" yields "mueang nonthaburi"
+                # AND "nonthaburi"). Users typically refer to the province
+                # rather than the muang prefix.
+                addr_lower = h_data["address"].lower()
+                tokens = [
+                    tok.strip() for tok in addr_lower.split(",") if tok.strip()
+                ]
+                # Also include the bare province (e.g., "nonthaburi") split
+                # off the leading "mueang " prefix.
+                expanded = list(tokens)
+                for tok in tokens:
+                    if tok.startswith("mueang "):
+                        expanded.append(tok[len("mueang "):].strip())
+                if any(tok and tok in last_user_text for tok in expanded):
+                    hub_mentioned = True
+                    break
+            if not hub_mentioned:
+                parsed.origin_hub_id = None
 
     # 999.1 fix: merge parsed (latest user message) with prior state values
     # BEFORE deciding next_step. The LLM only sees the latest user message,
@@ -325,6 +378,10 @@ def planner_node(state: dict) -> dict:
     )
     merged_origin = parsed.origin or state.get("origin")
     merged_destination = parsed.destination or state.get("destination")
+    # Phase 999.9 D-10 / Pitfall 2: 999.1 null-only merge for origin_hub_id.
+    # The API boundary seeds 'hq-lat-krabang' as a default, so the merged
+    # value is almost always non-None at planner exit (Pitfall 1).
+    merged_origin_hub_id = parsed.origin_hub_id or state.get("origin_hub_id")
 
     # 999.1 fix: recompute missing_fields from merged values, not from the
     # LLM's per-message emission.
@@ -395,6 +452,9 @@ def planner_node(state: dict) -> dict:
         "weight_kg": merged_weight,
         "origin": merged_origin,
         "destination": merged_destination,
+        # Phase 999.9 D-10: surface the merged hub_id so downstream
+        # agents (route_agent, pricing_agent) read the consistent value.
+        "origin_hub_id": merged_origin_hub_id,
         "missing_fields": missing,
         "clarification_reason": parsed.clarification_reason,
         "next_step": next_step,
@@ -413,6 +473,7 @@ def planner_node(state: dict) -> dict:
                     "weight_kg": merged_weight,
                     "origin": merged_origin,
                     "destination": merged_destination,
+                    "origin_hub_id": merged_origin_hub_id,  # Phase 999.9
                     "missing_fields": missing,
                     "next_step": next_step,
                     "clarification_reason": parsed.clarification_reason,

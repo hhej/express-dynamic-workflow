@@ -885,3 +885,200 @@ def test_planner_does_not_short_circuit_for_surcharge_query_with_search_context(
     assert result["shipping_type"] == "bounce"
     assert result["weight_kg"] == 15
     assert "user_intent" in result
+
+
+# ---------------------------------------------------------------------------
+# Phase 999.9 D-10 — Planner extracts origin_hub_id from prose, validates
+# against allowlist, inherits across follow-up turns
+# ---------------------------------------------------------------------------
+#
+# Plan: .planning/phases/999.9-hq-branch-origin-model-real-world-hub-to-
+#       destination-shipping/999.9-02-PLAN.md (Task 2)
+#
+# These six tests cover D-10 prose extraction, allowlist validation
+# (Pattern 2), 999.1 merge for origin_hub_id, and the D-08 follow-up
+# token-detection clause (Pitfall 2).
+
+
+def test_planner_includes_hub_shortlist_in_prompt():
+    """SYSTEM_PROMPT must contain all 10 hub_ids so the LLM can extract them."""
+    from backend.agent.prompts.planner import SYSTEM_PROMPT
+
+    expected_hubs = [
+        "hq-lat-krabang",
+        "branch-bang-na",
+        "branch-nonthaburi",
+        "branch-pathum-thani",
+        "branch-samut-prakan",
+        "branch-ayutthaya",
+        "branch-nakhon-pathom",
+        "branch-samut-sakhon",
+        "branch-ratchaburi",
+        "branch-lop-buri",
+    ]
+    for hub_id in expected_hubs:
+        assert hub_id in SYSTEM_PROMPT, (
+            f"hub_id {hub_id!r} missing from SYSTEM_PROMPT"
+        )
+    # Also assert the section header is present.
+    assert "Origin hub extraction (Phase 999.9 D-10)" in SYSTEM_PROMPT
+
+
+def test_planner_extracts_origin_hub_id_from_prose(monkeypatch):
+    """Happy path: LLM emits a valid origin_hub_id; planner_node returns it."""
+    state = _user_state("Surcharge for 5kg Bounce from Bang Na to Nonthaburi")
+    monkeypatch.setattr(
+        mod,
+        "get_chat_model",
+        lambda **_: _scripted_llm(
+            '{"user_intent": "surcharge_query", '
+            '"shipping_type": "bounce", "weight_kg": 5, '
+            '"origin": "Bang Na", "destination": "Nonthaburi", '
+            '"origin_hub_id": "branch-bang-na", '
+            '"missing_fields": [], '
+            '"next_step": "fetch_fuel", '
+            '"clarification_reason": null}'
+        ),
+    )
+
+    result = planner_node(state)
+
+    assert result["origin_hub_id"] == "branch-bang-na"
+    # Trace tool_output mirrors the merged value.
+    trace_output = result["reasoning_trace"][0]["tool_output"]
+    assert trace_output["origin_hub_id"] == "branch-bang-na"
+
+
+def test_planner_invalid_hub_id_falls_back_to_none(monkeypatch, caplog):
+    """Allowlist validation: invalid hub_id is discarded with a warning;
+    falls through to merge → state.origin_hub_id (None here).
+    """
+    import logging
+
+    state = _user_state("Ship 5kg Bounce to Nonthaburi")
+    monkeypatch.setattr(
+        mod,
+        "get_chat_model",
+        lambda **_: _scripted_llm(
+            '{"user_intent": "surcharge_query", '
+            '"shipping_type": "bounce", "weight_kg": 5, '
+            '"origin": "Bangkok", "destination": "Nonthaburi", '
+            '"origin_hub_id": "fake-hub-9001", '
+            '"missing_fields": [], '
+            '"next_step": "fetch_fuel", '
+            '"clarification_reason": null}'
+        ),
+    )
+
+    with caplog.at_level(logging.WARNING, logger="backend.agent.nodes.planner"):
+        result = planner_node(state)
+
+    assert result["origin_hub_id"] is None, (
+        f"invalid hub_id should be discarded; got {result['origin_hub_id']!r}"
+    )
+    # A warning was logged about the invalid hub_id.
+    assert any(
+        "invalid origin_hub_id" in rec.message for rec in caplog.records
+    ), f"expected invalid-hub warning in logs, got: {[r.message for r in caplog.records]}"
+
+
+def test_planner_followup_inherits_origin_hub_id(monkeypatch):
+    """Pitfall 2 / 999.1 merge: follow-up turn with null origin_hub_id
+    inherits from prior state.
+    """
+    state = _user_state(
+        "What about 25kg?",
+        shipping_type="bounce",
+        weight_kg=15.0,
+        origin="Bangkok",
+        destination="Nonthaburi",
+        origin_hub_id="branch-bang-na",
+        # Cache fuel + route so 999.1 merge cascade reaches calculate_price
+        # (otherwise we get fanout_fuel_route which is fine but less direct).
+    )
+    monkeypatch.setattr(
+        mod,
+        "get_chat_model",
+        lambda **_: _scripted_llm(
+            '{"user_intent": "followup_query", '
+            '"shipping_type": null, "weight_kg": 25, '
+            '"origin": null, "destination": null, '
+            '"origin_hub_id": null, '
+            '"missing_fields": [], '
+            '"next_step": "calculate_price", '
+            '"clarification_reason": null}'
+        ),
+    )
+
+    result = planner_node(state)
+
+    # 999.1 merge: hub_id inherited from prior state.
+    assert result["origin_hub_id"] == "branch-bang-na"
+    assert result["weight_kg"] == 25  # explicit override from LLM
+
+
+def test_planner_followup_explicit_hub_in_prose_wins(monkeypatch):
+    """Pitfall 2: when the user explicitly mentions a different hub in prose,
+    parsed.origin_hub_id wins over prior state.
+    """
+    state = _user_state(
+        "What about from Nonthaburi?",
+        shipping_type="bounce",
+        weight_kg=15.0,
+        origin="Bangkok",
+        destination="Nonthaburi",
+        origin_hub_id="branch-bang-na",
+    )
+    monkeypatch.setattr(
+        mod,
+        "get_chat_model",
+        lambda **_: _scripted_llm(
+            '{"user_intent": "followup_query", '
+            '"shipping_type": null, "weight_kg": null, '
+            '"origin": null, "destination": null, '
+            '"origin_hub_id": "branch-nonthaburi", '
+            '"missing_fields": [], '
+            '"next_step": "fetch_route", '
+            '"clarification_reason": null}'
+        ),
+    )
+
+    result = planner_node(state)
+
+    # Explicit prose override wins (user mentioned "Nonthaburi", which is
+    # in the address tokens for branch-nonthaburi).
+    assert result["origin_hub_id"] == "branch-nonthaburi"
+
+
+def test_planner_followup_unmentioned_hub_nulled_out(monkeypatch):
+    """D-08 token detection: LLM hallucinates an origin_hub_id that the user
+    did NOT mention in prose; the D-08 clause nulls it out so prior wins.
+    """
+    state = _user_state(
+        "What about 25kg?",  # No hub mention in user message.
+        shipping_type="bounce",
+        weight_kg=15.0,
+        origin="Bangkok",
+        destination="Nonthaburi",
+        origin_hub_id="branch-bang-na",
+    )
+    monkeypatch.setattr(
+        mod,
+        "get_chat_model",
+        lambda **_: _scripted_llm(
+            '{"user_intent": "followup_query", '
+            '"shipping_type": null, "weight_kg": 25, '
+            '"origin": null, "destination": null, '
+            # LLM hallucinates a different hub — but user message has
+            # no hub-address token (only "25kg").
+            '"origin_hub_id": "branch-ratchaburi", '
+            '"missing_fields": [], '
+            '"next_step": "calculate_price", '
+            '"clarification_reason": null}'
+        ),
+    )
+
+    result = planner_node(state)
+
+    # D-08 token-detection nulled the hallucinated value; prior wins via merge.
+    assert result["origin_hub_id"] == "branch-bang-na"
