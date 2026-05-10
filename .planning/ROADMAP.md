@@ -73,7 +73,7 @@
 
 Plans:
 - [x] 999.9-01-PLAN.md — Hub data + 135-row rate matrix (data + seeding) [Wave 1]
-- [ ] 999.9-02-PLAN.md — Backend agent integration: state + tools + planner + chat handler [Wave 2]
+- [x] 999.9-02-PLAN.md — Backend agent integration: state + tools + planner + chat handler [Wave 2]
 - [ ] 999.9-03-PLAN.md — Frontend HubPicker UI + sessionStorage + ChatRequest forwarding [Wave 3]
 - [ ] 999.9-04-PLAN.md — Documentation + end-to-end human-verify checkpoint [Wave 4]
 

@@ -3,8 +3,8 @@ gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: — Real-World Routing & Demo Hardening
 status: executing
-stopped_at: "Completed 999.9-01-PLAN.md (Wave 1: data foundation -- hubs.json + 135-row matrix + lookup_rate v2 signature)"
-last_updated: "2026-05-10T04:02:16.502Z"
+stopped_at: "Completed 999.9-02-PLAN.md (Wave 2: backend agent wiring -- AgentState/RouteData/calculate_route/planner/pricing_agent/ChatRequest all hub_id-aware; D-09 bullet via Pitfall 1 only fires on unit-test path; 341/341 backend pytest green)"
+last_updated: "2026-05-10T04:26:49.325Z"
 last_activity: 2026-05-10
 progress:
   total_phases: 4
@@ -26,7 +26,7 @@ See: .planning/PROJECT.md (updated 2026-05-10 — milestone v1.1 declared)
 ## Current Position
 
 Phase: 999.9 (HQ/Branch Origin Model) — EXECUTING
-Plan: 2 of 4
+Plan: 3 of 4
 Status: Ready to execute
 Last activity: 2026-05-10
 
@@ -87,6 +87,7 @@ Progress: [░░░░░░░░░░] 0% (v1.1)
 | Phase 07 P03 | 2 min | 3 tasks | 2 files |
 | Phase 08 P02 | 6min | 3 tasks | 6 files |
 | Phase 999.9 P01 | 9min | 3 tasks | 9 files |
+| Phase 999.9 P02 | 17min | 3 tasks | 14 files |
 
 ## Accumulated Context
 
@@ -248,6 +249,9 @@ Recent decisions affecting current work:
 - [Phase 999.9]: Plan 01: hubs.py mirrors _ZONE_INDEX pattern -- _HUB_INDEX built once at module import time; uvicorn restart required to pick up hubs.json edits (matches Phase 2 D-08 baseline cache philosophy)
 - [Phase 999.9]: Plan 01: lookup_rate signature change is breaking in arity (3 -> 4); pricing_agent.py:460 still on 3-arg form -- documented inter-wave breakage that Wave 2 Plan 999.9-02 Task 1 closes FIRST so test suite returns to all-green within one merge window
 - [Phase 999.9]: Plan 01: hub display strings (the 'name' field in hubs.json) are FULL strings from UI-SPEC -- frontend renders verbatim with zero concatenation; UI-SPEC locks these literals
+- [Phase 999.9]: Plan 02: Pitfall 1 — API-boundary default 'hq-lat-krabang' lands in _fresh_stream BEFORE initial_state construction; the agent layer never sees None at planner entry. Consequence: D-09 narration bullet only fires on direct unit calls to pricing_agent_node, not at the API integration layer.
+- [Phase 999.9]: Plan 02: _route_matches in planner.py compares state.origin_hub_id == route_data.origin_hub_id when both sides have hub_id information; falls back to legacy free-text origin compare only for pre-999.9 RouteData payloads. Without this, follow-up turns missed the route cache (test_graph.py:test_followup_only_runs_pricing surfaced this — Rule 3 fix in scope of Task 1).
+- [Phase 999.9]: Plan 02: D-08 follow-up token-detection extended to origin_hub_id with bare-province expansion. The address 'Mueang Nonthaburi, Nonthaburi' yields tokens [mueang nonthaburi, nonthaburi] PLUS bare 'nonthaburi' (Mueang prefix stripped) so prose like 'What about from Nonthaburi?' is detected. Initial implementation only checked the first comma-split chunk and missed bare-province mentions.
 
 ### Pending Todos
 
@@ -274,7 +278,7 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-05-10T04:02:16.499Z
-Stopped at: Completed 999.9-01-PLAN.md (Wave 1: data foundation -- hubs.json + 135-row matrix + lookup_rate v2 signature)
+Last session: 2026-05-10T04:26:49.321Z
+Stopped at: Completed 999.9-02-PLAN.md (Wave 2: backend agent wiring -- AgentState/RouteData/calculate_route/planner/pricing_agent/ChatRequest all hub_id-aware; D-09 bullet via Pitfall 1 only fires on unit-test path; 341/341 backend pytest green)
 Resume file: None
 Next: Restart uvicorn, then run the 15 attacks in backend/tests/adversarial_pack.txt through /api/chat to confirm refusal-and-redirect behavior end-to-end; review Langfuse traces for guard activations. Also: inspect TraceStep expanded view to confirm UWB bullet markdown renders cleanly.
