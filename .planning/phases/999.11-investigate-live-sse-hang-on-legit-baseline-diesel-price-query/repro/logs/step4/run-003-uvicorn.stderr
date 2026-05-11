@@ -1,0 +1,66 @@
+INFO:     Started server process [1747]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://127.0.0.1:8765 (Press CTRL+C to quit)
+fuel: level 1 attempt 1 failed: scrape selectors: capture live HTML first
+fuel: level 1 attempt 2 failed: scrape selectors: capture live HTML first
+fuel: level 1 attempt 3 failed: scrape selectors: capture live HTML first
+Chat stream failed
+Traceback (most recent call last):
+  File "/Users/pollot/Desktop/express-dynamic-workflow/backend/api/routes/chat.py", line 261, in stream
+    async for kind, payload in _drain_events(
+  File "/Users/pollot/Desktop/express-dynamic-workflow/backend/api/routes/chat.py", line 163, in _drain_events
+    async for event in graph.astream_events(payload, config=config, version="v2"):
+  File "/Users/pollot/Desktop/express-dynamic-workflow/.venv/lib/python3.11/site-packages/langchain_core/runnables/base.py", line 1543, in astream_events
+    async for event in event_stream:
+  File "/Users/pollot/Desktop/express-dynamic-workflow/.venv/lib/python3.11/site-packages/langchain_core/tracers/event_stream.py", line 1037, in _astream_events_implementation_v2
+    await task
+  File "/Users/pollot/Desktop/express-dynamic-workflow/.venv/lib/python3.11/site-packages/langchain_core/tracers/event_stream.py", line 992, in consume_astream
+    async for _ in event_streamer.tap_output_aiter(run_id, stream):
+  File "/Users/pollot/Desktop/express-dynamic-workflow/.venv/lib/python3.11/site-packages/langchain_core/tracers/event_stream.py", line 214, in tap_output_aiter
+    async for chunk in output:
+  File "/Users/pollot/Desktop/express-dynamic-workflow/.venv/lib/python3.11/site-packages/langgraph/pregel/main.py", line 2993, in astream
+    async for _ in runner.atick(
+  File "/Users/pollot/Desktop/express-dynamic-workflow/.venv/lib/python3.11/site-packages/langgraph/pregel/_runner.py", line 295, in atick
+    await arun_with_retry(
+  File "/Users/pollot/Desktop/express-dynamic-workflow/.venv/lib/python3.11/site-packages/langgraph/pregel/_retry.py", line 132, in arun_with_retry
+    async for _ in task.proc.astream(task.input, config):
+  File "/Users/pollot/Desktop/express-dynamic-workflow/.venv/lib/python3.11/site-packages/langgraph/_internal/_runnable.py", line 840, in astream
+    output = await asyncio.create_task(
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/pollot/Desktop/express-dynamic-workflow/.venv/lib/python3.11/site-packages/langgraph/_internal/_runnable.py", line 905, in _consume_aiter
+    async for chunk in it:
+  File "/Users/pollot/Desktop/express-dynamic-workflow/.venv/lib/python3.11/site-packages/langchain_core/tracers/event_stream.py", line 191, in tap_output_aiter
+    first = await py_anext(output, default=sentinel)
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/pollot/Desktop/express-dynamic-workflow/.venv/lib/python3.11/site-packages/langchain_core/utils/aiter.py", line 78, in anext_impl
+    return await __anext__(iterator)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/pollot/Desktop/express-dynamic-workflow/.venv/lib/python3.11/site-packages/langchain_core/runnables/base.py", line 1616, in atransform
+    async for ichunk in input:
+  File "/Users/pollot/Desktop/express-dynamic-workflow/.venv/lib/python3.11/site-packages/langchain_core/runnables/base.py", line 1176, in astream
+    yield await self.ainvoke(input, config, **kwargs)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/pollot/Desktop/express-dynamic-workflow/.venv/lib/python3.11/site-packages/langgraph/_internal/_runnable.py", line 474, in ainvoke
+    ret = await self.afunc(*args, **kwargs)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/pollot/Desktop/express-dynamic-workflow/.venv/lib/python3.11/site-packages/langchain_core/runnables/config.py", line 611, in run_in_executor
+    return await asyncio.get_running_loop().run_in_executor(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/homebrew/Cellar/python@3.11/3.11.15_1/Frameworks/Python.framework/Versions/3.11/lib/python3.11/concurrent/futures/thread.py", line 58, in run
+    result = self.fn(*self.args, **self.kwargs)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/pollot/Desktop/express-dynamic-workflow/.venv/lib/python3.11/site-packages/langchain_core/runnables/config.py", line 602, in wrapper
+    return func(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/pollot/Desktop/express-dynamic-workflow/backend/agent/graph.py", line 105, in _wrapped
+    result = node_fn(state)
+             ^^^^^^^^^^^^^^
+  File "/Users/pollot/Desktop/express-dynamic-workflow/backend/agent/nodes/route_agent.py", line 120, in route_agent_node
+    raise ValueError(
+ValueError: route_agent_node requires 'destination' in state; got destination=None
+During task with name 'route_agent' and id '906deb07-14ab-bb5f-e8b3-cd27280bb7e1'
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [1747]

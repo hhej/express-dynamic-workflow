@@ -1,0 +1,105 @@
+[
+  {
+    "wall_clock": "2026-05-11T15:12:42.747Z",
+    "elapsed_ms": 101,
+    "type": "meta",
+    "payload": {
+      "thread_id": "probe-3c8d3fb982894fd1bd3ba54f25fe1178"
+    }
+  },
+  {
+    "wall_clock": "2026-05-11T15:12:44.924Z",
+    "elapsed_ms": 2279,
+    "type": "trace",
+    "payload": {
+      "step": 1,
+      "agent": "planner",
+      "tool": null,
+      "tool_input": {},
+      "tool_output": {
+        "user_intent": "surcharge_query",
+        "shipping_type": null,
+        "weight_kg": null,
+        "origin": null,
+        "destination": null,
+        "origin_hub_id": "hq-lat-krabang",
+        "missing_fields": [
+          "shipping_type",
+          "weight_kg",
+          "destination"
+        ],
+        "next_step": "fetch_fuel",
+        "clarification_reason": null
+      },
+      "reasoning": "Intent=surcharge_query; routing to fetch_fuel",
+      "timestamp": "2026-05-11T15:12:44.920482Z",
+      "status": "ok"
+    }
+  },
+  {
+    "wall_clock": "2026-05-11T15:12:50.786Z",
+    "elapsed_ms": 8140,
+    "type": "trace",
+    "payload": {
+      "step": 2,
+      "agent": "fuel_agent",
+      "tool": "fetch_fuel_price",
+      "tool_input": {},
+      "tool_output": {
+        "price": 39.95,
+        "date": "2026-05-11",
+        "unit": "THB/L",
+        "source": "eppo_cached_csv",
+        "baseline": 36.31,
+        "delta_pct": 0.1002
+      },
+      "reasoning": "The current diesel B7 price of 39.95 THB/L is 10.02% above the 36.31 THB/L baseline. (trend=above_baseline)",
+      "timestamp": "2026-05-11T15:12:50.784908Z",
+      "status": "ok"
+    }
+  },
+  {
+    "wall_clock": "2026-05-11T15:12:53.092Z",
+    "elapsed_ms": 10446,
+    "type": "trace",
+    "payload": {
+      "step": 3,
+      "agent": "planner",
+      "tool": null,
+      "tool_input": {},
+      "tool_output": {
+        "user_intent": "surcharge_query",
+        "shipping_type": null,
+        "weight_kg": null,
+        "origin": null,
+        "destination": null,
+        "origin_hub_id": "hq-lat-krabang",
+        "missing_fields": [
+          "shipping_type",
+          "weight_kg",
+          "destination"
+        ],
+        "next_step": "fetch_route",
+        "clarification_reason": null
+      },
+      "reasoning": "Intent=surcharge_query; routing to fetch_route",
+      "timestamp": "2026-05-11T15:12:53.087271Z",
+      "status": "ok"
+    }
+  },
+  {
+    "wall_clock": "2026-05-11T15:12:53.109Z",
+    "elapsed_ms": 10463,
+    "type": "error",
+    "payload": {
+      "message": "route_agent_node requires 'destination' in state; got destination=None",
+      "retryable": false
+    }
+  },
+  {
+    "wall_clock": "2026-05-11T15:12:53.109Z",
+    "elapsed_ms": 10463,
+    "type": "done",
+    "payload": {}
+  }
+]

@@ -30,11 +30,15 @@ for i in 001 002 003 004 005; do
   echo "=== Run ${i} ==="
   SSE_OUT="${LOGS_DIR}/run-${i}-sse.log"
   STDERR_OUT="${LOGS_DIR}/run-${i}-uvicorn.stderr"
+  # Note: ${EXTRA_ARGS[@]+"${EXTRA_ARGS[@]}"} is the bash incantation for
+  # "expand the array if defined, expand to nothing otherwise" — required
+  # under `set -u` because plain "${EXTRA_ARGS[@]}" trips unbound-variable
+  # when zero extra args were passed (Step-1 baseline case).
   python "${REPRO_DIR}/probe_legit_baseline.py" \
     --run-id "${i}" \
     --sse-out "${SSE_OUT}" \
     --stderr-out "${STDERR_OUT}" \
-    "${EXTRA_ARGS[@]}" \
+    ${EXTRA_ARGS[@]+"${EXTRA_ARGS[@]}"} \
     | tee -a "${SUMMARY}"
   echo "---"
 done
