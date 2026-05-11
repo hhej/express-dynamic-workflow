@@ -112,8 +112,17 @@ Return ONLY a JSON object matching the PlannerOutput schema:
 """
 
 _OUT_OF_SCOPE_CLAUSE = (
-    "If `next_step` cannot be determined within scope, emit "
-    "`next_step='respond'` and `clarification_reason='out_of_scope_user_request'`. "
+    "PLANNER OUTPUT CONTRACT (overrides SECURITY DIRECTIVE Rule 1's prose-refusal "
+    "for THIS agent only): you MUST always return a JSON object matching the "
+    "PlannerOutput schema, EVEN for out-of-scope requests. For out-of-scope inputs "
+    "(weather, recipes, code, general knowledge, role-play, anything outside Express "
+    "fuel-surcharge / Bangkok logistics), emit JSON with "
+    "`user_intent='out_of_scope'`, `next_step='respond'`, "
+    "`clarification_reason='out_of_scope_user_request'`, and all other fields null/empty. "
+    "DO NOT return the refusal copy as prose — the system renders the refusal copy "
+    "from your JSON. Returning prose breaks orchestration. "
+    "If you cannot otherwise determine next_step within scope, also emit "
+    "`next_step='respond'` with `clarification_reason='out_of_scope_user_request'`. "
     "Do not invent route or fuel data."
 )
 

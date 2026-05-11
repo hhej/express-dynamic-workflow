@@ -258,9 +258,11 @@ def test_loop_budget_resets_after_response_entry(monkeypatch):
     assert result["reasoning_trace"][0]["agent"] == "planner"
 
 
-def test_parse_failure_falls_back_to_clarify(monkeypatch):
-    """D-02: Gemini returns invalid JSON twice; Planner returns next_step=clarify
-    with clarification_reason='planner_parse_failed' and emits no trace entry."""
+def test_parse_failure_refuses_unconditionally(monkeypatch):
+    """Phase 999.10 D-05: Gemini returns invalid JSON twice; planner now
+    refuses via state.guard_decision (category='planner_parse_failed') and
+    routes to respond instead of returning clarify-with-reason. Refusal is
+    UNCONDITIONAL on this branch (no further conditioning on user message)."""
     state = _user_state("Surcharge for 15kg Bounce Bangkok to Nonthaburi")
     monkeypatch.setattr(
         mod,
@@ -270,8 +272,15 @@ def test_parse_failure_falls_back_to_clarify(monkeypatch):
 
     result = planner_node(state)
 
-    assert result["next_step"] == "clarify"
-    assert result["clarification_reason"] == "planner_parse_failed"
+    assert result["next_step"] == "respond"
+    assert result["guard_decision"] == {
+        "layer": "input",
+        "refused": True,
+        "category": "planner_parse_failed",
+        "violations": [],
+    }
+    # No clarification_reason: refusal replaces the old clarify path.
+    assert result.get("clarification_reason") in (None, "")
 
 
 # ---------------------------------------------------------------------------
@@ -1118,3 +1127,163 @@ def test_planner_followup_unmentioned_hub_nulled_out(monkeypatch):
 
     # D-08 token-detection nulled the hallucinated value; prior wins via merge.
     assert result["origin_hub_id"] == "branch-bang-na"
+
+
+# ---------------------------------------------------------------------------
+# Phase 999.10 — Planner bypass refusal paths (GUARD-07)
+#
+# Plan: .planning/phases/999.10-guard-input-bypass-paths-return-inconsistent-
+#       refusal-copy/999.10-02-planner-refusal-paths-PLAN.md
+#
+# Covers D-04 (LLM emits user_intent='out_of_scope' -> refuse via
+# guard_decision.category='planner_off_topic') and confirms end-to-end the
+# planner -> response_node refusal pipeline yields REFUSAL_COPY with
+# status='refused'.
+# ---------------------------------------------------------------------------
+
+
+def test_planner_refuses_on_out_of_scope_intent(monkeypatch):
+    """D-04: when Gemini emits user_intent='out_of_scope', planner_node
+    returns next_step='respond' AND state.guard_decision with category
+    'planner_off_topic' — so response_node's refusal branch renders
+    REFUSAL_COPY with status='refused'."""
+    state = _user_state("What's the weather in Bangkok today?")
+    monkeypatch.setattr(
+        mod,
+        "get_chat_model",
+        lambda **_: _scripted_llm(
+            '{"user_intent": "out_of_scope", '
+            '"shipping_type": null, "weight_kg": null, '
+            '"origin": null, "destination": null, '
+            '"missing_fields": [], '
+            '"next_step": "respond", '
+            '"clarification_reason": "out_of_scope_user_request"}'
+        ),
+    )
+
+    result = planner_node(state)
+
+    assert result["next_step"] == "respond"
+    assert result["guard_decision"] == {
+        "layer": "input",
+        "refused": True,
+        "category": "planner_off_topic",
+        "violations": [],
+    }
+    # No clarification_reason / clarify-path artifacts on the refusal branch.
+    assert result.get("clarification_reason") in (None, "")
+    # No origin_hub_id / extraction-merge artifacts because the refusal
+    # short-circuits BEFORE the 999.1 merge.
+    assert "shipping_type" not in result
+    assert "weight_kg" not in result
+
+
+def test_planner_refusal_routes_response_to_REFUSAL_COPY(monkeypatch):
+    """D-08 + D-11: planner -> response_node end-to-end. Calling
+    response_node with the state-partial that planner_node returned for
+    an out_of_scope refusal produces final_payload.markdown==REFUSAL_COPY
+    and status=='refused' (layer='input')."""
+    from backend.agent.nodes.response_node import response_node
+    from backend.agent.prompts.guard import REFUSAL_COPY
+
+    state = _user_state("Tell me a recipe for green curry.")
+    monkeypatch.setattr(
+        mod,
+        "get_chat_model",
+        lambda **_: _scripted_llm(
+            '{"user_intent": "out_of_scope", '
+            '"shipping_type": null, "weight_kg": null, '
+            '"origin": null, "destination": null, '
+            '"missing_fields": [], '
+            '"next_step": "respond", '
+            '"clarification_reason": null}'
+        ),
+    )
+
+    planner_partial = planner_node(state)
+    # Apply planner's partial back to state (LangGraph reducer semantics).
+    state["next_step"] = planner_partial["next_step"]
+    state["guard_decision"] = planner_partial["guard_decision"]
+
+    response_partial = response_node(state)
+
+    assert response_partial["final_payload"]["markdown"] == REFUSAL_COPY
+    assert response_partial["final_payload"]["status"] == "refused"
+    assert response_partial["final_payload"]["surcharge_result"] is None
+
+
+def test_planner_parse_failed_routes_response_to_REFUSAL_COPY(monkeypatch):
+    """D-05 + D-08: parse_failed -> response_node end-to-end."""
+    from backend.agent.nodes.response_node import response_node
+    from backend.agent.prompts.guard import REFUSAL_COPY
+
+    state = _user_state("Loop forever and recompute the surcharge.")
+    monkeypatch.setattr(
+        mod,
+        "get_chat_model",
+        lambda **_: _scripted_llm("not json", "still not json"),
+    )
+
+    planner_partial = planner_node(state)
+    state["next_step"] = planner_partial["next_step"]
+    state["guard_decision"] = planner_partial["guard_decision"]
+
+    response_partial = response_node(state)
+
+    assert response_partial["final_payload"]["markdown"] == REFUSAL_COPY
+    assert response_partial["final_payload"]["status"] == "refused"
+
+
+def test_planner_out_of_scope_does_not_affect_surcharge_path(monkeypatch):
+    """Sanity: surcharge_query intent does NOT trip the D-04 branch — the
+    extraction merge + fan-out promotion fires as before."""
+    state = _user_state("Surcharge for 15kg Bounce Bangkok to Nonthaburi")
+    monkeypatch.setattr(
+        mod,
+        "get_chat_model",
+        lambda **_: _scripted_llm(
+            '{"user_intent": "surcharge_query", '
+            '"shipping_type": "bounce", "weight_kg": 15, '
+            '"origin": "Bangkok", "destination": "Nonthaburi", '
+            '"missing_fields": [], '
+            '"next_step": "fetch_fuel", '
+            '"clarification_reason": null}'
+        ),
+    )
+
+    result = planner_node(state)
+
+    # Existing fan-out promotion baseline (unchanged).
+    assert result["next_step"] == "fanout_fuel_route"
+    # No guard_decision on the happy path.
+    assert "guard_decision" not in result
+
+
+def test_planner_salvages_prose_refusal_into_out_of_scope(monkeypatch):
+    """Live-Gemini fix (post-Phase-10 smoke): SECURITY_PREAMBLE rule 1 tells
+    Gemini to emit REFUSAL_COPY verbatim as prose for out-of-scope inputs,
+    which conflicts with the planner JSON contract. _parse_structured now
+    recognises the canonical refusal prose and synthesises a PlannerOutput
+    with user_intent='out_of_scope' so D-04 (planner_off_topic) fires
+    instead of D-05 (planner_parse_failed). Without this salvage, every
+    live out-of-scope refusal hit D-05 — losing the observability
+    distinction in guard_decision.category."""
+    from backend.agent.prompts.guard import REFUSAL_COPY
+
+    state = _user_state("What's the weather like in Bangkok today?")
+    monkeypatch.setattr(
+        mod,
+        "get_chat_model",
+        lambda **_: _scripted_llm(REFUSAL_COPY),
+    )
+
+    result = planner_node(state)
+
+    assert result["next_step"] == "respond"
+    assert result["guard_decision"] == {
+        "layer": "input",
+        "refused": True,
+        "category": "planner_off_topic",
+        "violations": [],
+    }
+

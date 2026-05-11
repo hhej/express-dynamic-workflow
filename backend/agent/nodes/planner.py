@@ -35,6 +35,7 @@ from langchain_core.messages import HumanMessage, SystemMessage
 from pydantic import BaseModel, Field, ValidationError
 
 from backend.agent.llm import get_chat_model
+from backend.agent.prompts.guard import REFUSAL_COPY
 from backend.agent.prompts.planner import SYSTEM_PROMPT
 from backend.config import FUEL_DATA_TTL_SECONDS, PLANNER_MAX_ITERATIONS
 
@@ -149,11 +150,48 @@ def _loop_budget_exhausted(state: dict) -> bool:
     return planner_count >= PLANNER_MAX_ITERATIONS - 1
 
 
+def _set_guard_refusal(category: str) -> dict:
+    """Phase 999.10 D-01/D-09/D-10: build the guard_decision dict that the
+    planner emits on its two new refusal triggers (out_of_scope user_intent
+    and parse_failed retry exhaustion).
+
+    Returns the state-partial dict to merge into the planner's return value.
+    The shape MUST match guard_input_node's verdict shape (guard_input.py
+    lines 218-223) so response_node's existing refusal branch (response_node
+    .py:243) renders REFUSAL_COPY with status='refused' (layer='input').
+
+    D-10: layer stays 'input' for planner-tripped refusals too — category
+    is the differentiator, not layer.
+    """
+    return {
+        "next_step": "respond",
+        "guard_decision": {
+            "layer": "input",
+            "refused": True,
+            "category": category,
+            "violations": [],
+        },
+    }
+
+
+_REFUSAL_PROSE_PREFIX = REFUSAL_COPY.split("?")[0][:48].strip()
+
+
 def _parse_structured(raw: str) -> PlannerOutput:
     """Parse a JSON string into PlannerOutput.
 
     Strips Markdown code fences Gemini sometimes emits (```json ... ```).
     Mirrors the helper in fuel_agent for consistency.
+
+    Phase 999.10 prose-refusal salvage: SECURITY_PREAMBLE rule 1 tells
+    Gemini to return REFUSAL_COPY verbatim as prose for out-of-scope
+    inputs. The planner SYSTEM_PROMPT contract (D-01) requires JSON.
+    When Gemini obeys the higher-priority security rule over the schema
+    contract, this helper recognises the canonical refusal prose and
+    synthesises an out_of_scope PlannerOutput so D-04 (planner_off_topic)
+    fires instead of D-05 (planner_parse_failed). The user-facing
+    contract is identical either way; this preserves observability
+    granularity in guard_decision.category.
     """
     text = raw.strip()
     if text.startswith("```"):
@@ -162,6 +200,12 @@ def _parse_structured(raw: str) -> PlannerOutput:
         if lines and lines[-1].strip().startswith("```"):
             lines = lines[:-1]
         text = "\n".join(lines).strip()
+    if text.startswith(_REFUSAL_PROSE_PREFIX):
+        return PlannerOutput(
+            user_intent="out_of_scope",
+            next_step="respond",
+            clarification_reason="out_of_scope_user_request",
+        )
     return PlannerOutput.model_validate(json.loads(text))
 
 
@@ -255,12 +299,29 @@ def planner_node(state: dict) -> dict:
                 "planner parse attempt %d failed: %s", attempt, exc
             )
             if attempt == 2:
-                return {
-                    "next_step": "clarify",
-                    "clarification_reason": "planner_parse_failed",
-                }
+                # Phase 999.10 D-05: parse_failed exhaustion now refuses
+                # (unconditionally on this branch) instead of clarifying.
+                # Refusal is rendered by response_node via state.guard_decision.
+                logger.info(
+                    "planner refusing on parse_failed exhaustion"
+                )
+                return _set_guard_refusal("planner_parse_failed")
 
     assert parsed is not None  # for type checkers; loop break/return covers all paths
+
+    # Phase 999.10 D-04: when the LLM classified the message as out_of_scope,
+    # short-circuit to the response_node refusal branch via guard_decision.
+    # This replaces the pre-999.10 fall-through where out_of_scope ran the
+    # full 999.1 merge + 999.3 trace emission and surfaced as
+    # next_step='clarify' (the generic clarify copy).
+    # D-11: planner emits NO refusal trace entry of its own — response_node
+    # emits the refusal trace tagged agent='response' (mirrors existing
+    # guard_input -> response_node refusal flow).
+    if parsed.user_intent == "out_of_scope":
+        logger.info(
+            "planner refusing on user_intent=out_of_scope"
+        )
+        return _set_guard_refusal("planner_off_topic")
 
     # Phase 999.9 D-10 / RESEARCH Pattern 2: validate origin_hub_id against
     # the _HUB_INDEX allowlist. On invalid, set to None so the 999.1 merge

@@ -30,7 +30,7 @@ Requirements for milestone v1.1. Each maps to exactly one roadmap phase. Items a
 - [x] **GUARD-04**: Per-turn `tool_call_count` cap (`MAX_TOOL_CALLS_PER_TURN=6`) via `Annotated[int, operator.add]` reducer that survives Phase 5 D-01 parallel fan-out — Validated in v1.1: Quick task 260509-utd
 - [x] **GUARD-05**: `guard_input` refusals render locked `REFUSAL_COPY` verbatim with `status='refused'` — Validated in v1.1: Quick task 260509-utd
 - [x] **GUARD-06**: Adversarial pack (15 attacks: 5 injection / 5 off-topic / 5 cost-bombing) lives in `backend/tests/adversarial_pack.txt` — Validated in v1.1: Quick task 260509-utd
-- [ ] **GUARD-07**: Planner bypass paths render same `REFUSAL_COPY` + `status='refused'` as guard_input — `out_of_scope` LLM emission and `parse_failed` exhaustion both set `state.guard_decision` and route to `response_node` refusal branch (Phase 10 / 999.10)
+- [x] **GUARD-07**: Planner bypass paths render same `REFUSAL_COPY` + `status='refused'` as guard_input — `out_of_scope` LLM emission and `parse_failed` exhaustion both set `state.guard_decision` and route to `response_node` refusal branch (Phase 10 / 999.10)
 
 ### Pricing Reasoning (PRICE) — retroactive (260509-uwb)
 
@@ -114,7 +114,7 @@ Which phases cover which v1.1 requirements. Updated by roadmapper.
 | GUARD-04 | (retroactive: Quick 260509-utd) | Complete |
 | GUARD-05 | (retroactive: Quick 260509-utd) | Complete |
 | GUARD-06 | (retroactive: Quick 260509-utd) | Complete |
-| GUARD-07 | Phase 10 | Pending |
+| GUARD-07 | Phase 10 | Complete |
 | PRICE-01 | (retroactive: Quick 260509-uwb) | Complete |
 | PRICE-02 | (retroactive: Quick 260509-uwb) | Complete |
 | THEME-01 | (retroactive: Quick 260509-e0p) | Complete |

@@ -82,14 +82,19 @@ Plans:
 **Depends on**: Phase 9 (executes after Phase 9 completes; touches planner.py + guard_input.py — disjoint from HUB scope)
 **Requirements**: GUARD-07
 **Phase directory**: `.planning/phases/999.10-guard-input-bypass-paths-return-inconsistent-refusal-copy/`
-**Status**: Context-ready (CONTEXT.md drafted with D-01..D-15; awaiting `/gsd:plan-phase` to produce PLAN docs)
+**Status**: Planned (3 PLAN docs drafted 2026-05-11; awaiting `/gsd:execute-phase 10`)
 **Success Criteria** (what must be TRUE):
   1. When `planner_node` parses a Gemini emission with `user_intent='out_of_scope'`, it sets `state.guard_decision = {layer: 'input', refused: True, category: 'planner_off_topic', violations: []}` and returns `next_step='respond'`; `response_node`'s existing refusal branch then renders `REFUSAL_COPY` verbatim with `status='refused'` (D-04, D-08, D-09)
   2. When the D-02 retry loop exhausts (`planner parse attempt 2 failed`), planner_node sets `state.guard_decision` (category `'planner_parse_failed'`) and routes to `response_node` refusal branch — no longer returns the generic clarify copy (D-05, D-09)
   3. `GuardCategory` Literal in `backend/agent/nodes/guard_input.py` is extended additively with `'planner_off_topic' | 'planner_parse_failed'`; `state.guard_decision.layer` stays `'input'` so `response_node`'s `status = 'refused' if layer == 'input' else 'guard_failed'` predicate continues to work (D-09, D-10)
   4. Re-run of `backend/tests/adversarial_pack.txt` produces identical `status='refused'` + `REFUSAL_COPY` output for cases 2 and 4 (previously `status='clarify'`); cases 1 and 3 remain `status='refused'` unchanged (D-13)
   5. New focused pytest in `test_planner.py` (or `test_planner_refusal_paths.py`) covers both new categories with deterministic mocked-LLM fixtures; total backend test count increases by ≥2 with zero regressions
-**Plans**: TBD — to be produced by `/gsd:plan-phase 10`
+**Plans**: 3 plans (drafted 2026-05-11)
+
+Plans:
+- [x] 999.10-01-extend-guardcategory-literal-PLAN.md — Additive `GuardCategory` Literal extension (`planner_off_topic`, `planner_parse_failed`) [Wave 1]
+- [x] 999.10-02-planner-refusal-paths-PLAN.md — `planner_node` D-04 (out_of_scope) + D-05 (parse_failed) refusal branches + 4 new unit tests [Wave 2]
+- [x] 999.10-03-adversarial-pack-regression-PLAN.md — CI regression test pinning all 4 representative adversarial-pack cases to `status='refused'` + REFUSAL_COPY [Wave 3]
 
 ### Phase 11: Live SSE Hang Root-Cause Fix
 **Goal**: Diagnose AND fix the live `POST /api/chat` hang observed on the legit baseline query "What's the current diesel price in Bangkok?" during the 260509-utd live probe. Symptom: trace stream emits `planner -> fuel_agent -> planner` (3 steps) then no `answer` SSE event arrives before the urlopen 60s timeout closes the client; response body is 0 bytes. **Demo-gating for W6** — 4/5 cases in the live probe completed cleanly; only the legit baseline hung. Three candidate root causes tested sequentially per D-05: (c) cold-start latency → (b) `tool_call_count` reducer interaction with parallel fan-out → (a) SSE termination bug.
@@ -121,7 +126,7 @@ Plans:
 | 7. Feedback Contract Alignment | v1.0 | 3/3 | Complete | 2026-05-04 |
 | 8. Search Context + Sidebar Polish | v1.0 | 2/2 | Complete | 2026-05-05 |
 | 9. HQ/Branch Origin Model | v1.1 | 4/4 | Complete | 2026-05-10 |
-| 10. Unify Refusal Copy on Planner Bypass Paths | v1.1 | 0/? | Context-ready (PLAN docs pending) | - |
+| 10. Unify Refusal Copy on Planner Bypass Paths | v1.1 | 0/3 | Planned (awaiting execute) | - |
 | 11. Live SSE Hang Root-Cause Fix | v1.1 | 0/? | Context-ready (PLAN docs pending) — **DEMO GATE** | - |
 
 ## Backlog

@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: — Real-World Routing & Demo Hardening
 status: ready
-stopped_at: "Completed Phase 999.9 (Phase 9 / v1.1 — HQ/Branch Origin Model). All 4 plans + 5 Wave 4 calibration fixes (planner origin gate, hub-aware narration, dynamic 90d rolling baseline, geocode aliases, demo prompt refresh, screenshot refresh) landed. PR #17 open against develop. Backend 345/345 pytest green; frontend 145/145 vitest green; production build clean. Next: Phase 10 — Unify Refusal Copy on Planner Bypass Paths."
-last_updated: "2026-05-10T06:30:00.000Z"
-last_activity: 2026-05-10
+stopped_at: "Completed Phase 999.10 (Phase 10 / v1.1 — Unify Refusal Copy on Planner Bypass Paths). All 3 plans landed: 999.10-01 (GuardCategory Literal extension), 999.10-02 (planner D-04/D-05 refusal branches + 4 unit tests), 999.10-03 (adversarial-pack regression test + false-positive guard). Backend pytest 345 → 354 green (+9 net new). Frontend vitest 145/145 green. Phase verification passed 5/5 must-haves. GUARD-07 marked complete in REQUIREMENTS.md. Branch: feature/guard-input-bypass-paths (linear ahead of develop, ready for PR). Next: Phase 11 (live SSE hang investigation — Context-ready, awaiting /gsd:plan-phase 11)."
+last_updated: "2026-05-11T13:06:51.456Z"
+last_activity: 2026-05-11
 progress:
-  total_phases: 3
-  completed_phases: 1
-  total_plans: 4
-  completed_plans: 4
+  total_phases: 4
+  completed_phases: 0
+  total_plans: 0
+  completed_plans: 0
   percent: 33
 ---
 
@@ -21,16 +21,17 @@ progress:
 See: .planning/PROJECT.md (updated 2026-05-10 — milestone v1.1 declared)
 
 **Core value:** The agent must transparently reason through fuel price, route, and shipping data to produce an accurate, explainable surcharge recommendation.
-**Current focus:** Phase 10 — Unify Refusal Copy on Planner Bypass Paths (Phase 9 complete; PR #17 open against develop)
+**Current focus:** Phase 11 — Live SSE Hang Root-Cause Fix (Phase 10 complete; Phase 11 Context-ready, awaiting /gsd:plan-phase 11)
 
 ## Current Position
 
-Phase: 999.10 (Phase 10 / v1.1) — Ready to plan
-Last completed: Phase 999.9 (Phase 9 / v1.1) — HQ/Branch Origin Model — 2026-05-10
-Status: Ready (Phase 9 PR #17 open; awaiting merge or directly proceed to Phase 10 planning)
-Last activity: 2026-05-10
+Phase: 999.10 (Phase 10 / v1.1) — COMPLETE
+Plan: 3 of 3 complete
+Last completed: Phase 999.10 (Unify Refusal Copy on Planner Bypass Paths) — 2026-05-11
+Status: Complete; ready for Phase 11
+Last activity: 2026-05-11
 
-Progress: [███░░░░░░░] 33% (v1.1 — 1 of 3 phases complete)
+Progress: [██████░░░░] 67% (v1.1 — 2 of 3 phases complete)
 
 ## Performance Metrics
 
@@ -89,6 +90,8 @@ Progress: [███░░░░░░░] 33% (v1.1 — 1 of 3 phases complete)
 | Phase 999.9 P01 | 9min | 3 tasks | 9 files |
 | Phase 999.9 P02 | 17min | 3 tasks | 14 files |
 | Phase 999.9 P03 | 9min | 3 tasks tasks | 12 files files |
+| Phase 999.10 P01 | 2min | 1 tasks | 1 files |
+| Phase 999.10 P02 | 3min | 1 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -256,6 +259,15 @@ Recent decisions affecting current work:
 - [Phase 999.9]: Plan 03: Static-import frontend/data/hubs.json over runtime fetch (UI-SPEC §Open Discretion resolution) — simpler, build-time stable, no new endpoint; trade-off is duplication with data/raw/hubs.json that future phase can centralize
 - [Phase 999.9]: Plan 03: HubPicker renders ABOVE ChatInput in flex-col wrapper (UI-SPEC §Spacing Scale locked); border-t lifted from ChatInput <form> to wrapper so visual border draws above HubPicker; ChatInput retains p-4 for standalone-test compatibility
 - [Phase 999.9]: Plan 03: post-hydration sessionStorage seeding via useEffect([]) avoids SSR mismatch (Pitfall 6); allowlist-guard silently falls back to DEFAULT_HUB_ID on invalid stored values; resume + new-conversation paths preserve originHubId per UI-SPEC §Interaction Contracts
+- [Phase 999.10]: Plan 01: GuardCategory Literal extended additively from 5 to 7 members (planner_off_topic, planner_parse_failed appended in stable order); doc comment names which node emits which subset (guard_input_node: first 5; planner_node Plan 02: last 2); zero logic change in guard_input.py — _classify/_DOMAIN_ALLOW_PATTERNS/_llm_fallback/guard_input_node byte-identical otherwise; 345/345 backend pytest green; Wave 1 type-system gate opens for Plan 02 emission edits.
+- [Phase 999.10]: Plan 02: _set_guard_refusal helper centralizes the verdict-dict shape (layer='input', refused=True, violations=[]) shared by both planner-tripped refusal branches; placed at module level adjacent to other helpers (between _loop_budget_exhausted and _parse_structured). Both call sites stay declarative ('refuse with this category, route to respond').
+- [Phase 999.10]: Plan 02: D-04 (out_of_scope) refusal branch placed IMMEDIATELY after the parse-success assert and BEFORE the origin_hub_id allowlist validation + 999.1 merge — an out_of_scope user message must never reach those downstream blocks because their semantics (logistics extraction, hub lookup, follow-up null-out, fan-out promotion) do not apply to refused messages. Keeps the refusal return shape minimal: just next_step + guard_decision.
+- [Phase 999.10]: Plan 02: D-05 (parse_failed) refusal is UNCONDITIONAL inside the D-02 retry loop's attempt==2 block — no further conditioning on user message content (D-06/D-07 invariant). The trigger is the parse exhaustion itself; adding a second-pass classifier would duplicate guard_input's work and risk false-clarifies on legit messages that happen to crash JSON parsing.
+- [Phase 999.10]: Plan 02: D-11 trace ownership stays with response_node — planner emits NO refusal trace entry of its own. The existing response_node refusal branch already emits an agent='response' trace entry; adding a planner-tagged refusal trace would either duplicate that entry (poor signal) or split the refusal across two trace nodes (split observability). Matches the existing guard_input -> response_node refusal flow.
+- [Phase 999.10]: Plan 03: backend/tests/test_adversarial_pack_regression.py parametrises 4 representative adversarial-pack cases + 1 false-positive guard. CI-deterministic substitute for ROADMAP success criterion 4's manual live re-run; verbatim coupling to adversarial_pack.txt strings means a pack edit forces a test edit (caught at code review). 354/354 backend pytest green (349 baseline + 5 new).
+- [Phase 999.10]: Plan 03: PLAN's <action> specified a defensive monkeypatch on `guard_input.get_chat_model` but that attribute doesn't exist at module level (imported lazily inside _llm_fallback at line 134). Removed the monkeypatch and module import; defensive guard was non-load-bearing because GUARD_INPUT_USE_LLM_FALLBACK defaults False and the regex catches the four cases. Layer differentiation still proven by per-case guard_decision.category assertion (injection/off_topic for guard_input cases; planner_off_topic/planner_parse_failed for planner cases).
+- [Phase 999.10]: Plan 03: test_legit_baseline_does_not_refuse invokes planner_node directly (not the full graph) — the legit-vs-refusal fork happens entirely inside planner_node, so unit-level assertion is the correct scope. Avoids requiring fuel/route/pricing specialist-agent network mocks for the false-positive regression guard.
+- [Phase 999.10]: Plan 03 deviation: executor agent timed out (stream idle) after the RED-stub commit (9a8613a); orchestrator inherited the work via workflow's spot-check fallback rule, wrote the full GREEN test content per the PLAN <action> block, ran pytest (5 pass), committed GREEN (d1156a6), then landed SUMMARY + STATE + ROADMAP + GUARD-07 completion. The RED-stub strategy gave a clear, grep-able marker of exactly where the agent stalled — recovery was mechanical.
 
 ### Pending Todos
 
@@ -282,7 +294,7 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-05-10T04:41:49.107Z
-Stopped at: Completed 999.9-03-PLAN.md (Wave 3: frontend HubPicker UI -- 10-hub dropdown with glass-morphism + sessionStorage persistence + post-hydration seeding (Pitfall 6) + chat.send forwards origin_hub_id; 145/145 frontend vitest green; type-check + build clean)
+Last session: 2026-05-11T08:59:42.053Z
+Stopped at: Completed 999.10-02-PLAN.md (Wave 2: planner D-04 out_of_scope + D-05 parse_failed refusal branches wired via _set_guard_refusal helper; emits guard_decision={layer:'input', refused:True, category:'planner_off_topic'|'planner_parse_failed', violations:[]} + next_step='respond'; response_node refusal branch renders REFUSAL_COPY with status='refused' uniformly; 349/349 backend pytest green; ready for Wave 3 Plan 03 adversarial-pack regression)
 Resume file: None
 Next: Restart uvicorn, then run the 15 attacks in backend/tests/adversarial_pack.txt through /api/chat to confirm refusal-and-redirect behavior end-to-end; review Langfuse traces for guard activations. Also: inspect TraceStep expanded view to confirm UWB bullet markdown renders cleanly.
