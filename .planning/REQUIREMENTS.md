@@ -50,7 +50,7 @@ Requirements for milestone v1.1. Each maps to exactly one roadmap phase. Items a
 ### Reliability Fixes (FIX) — Phase 11 / 999.11 + retroactive (999.5)
 
 - [x] **FIX-01**: Resume flow no longer appends duplicate assistant message on conversation reload — Validated in v1.1: Debug 999.5
-- [x] **FIX-02**: Live `POST /api/chat` no longer hangs on legit baseline diesel-price query — root cause investigated and fixed (cold-start vs reducer vs SSE termination); 5 fresh-uvicorn runs each produce `answer` SSE event within 30 seconds; one regression pytest pinning the confirmed root cause (Phase 11 / 999.11)
+- [x] **FIX-02**: Live `POST /api/chat` no longer hangs on legit baseline diesel-price query — root cause investigated and fixed (cold-start vs reducer vs SSE termination); 5 fresh-uvicorn runs each produce `answer` SSE event within 30 seconds; one regression pytest pinning the confirmed root cause (Phase 11 / 999.11) — Validated in v1.1: Phase 11
 
 ## v2 Requirements
 
@@ -122,7 +122,7 @@ Which phases cover which v1.1 requirements. Updated by roadmapper.
 | DATA-07 | (retroactive: Debug 999.6) | Complete |
 | DATA-08 | (retroactive: Debug 999.7) | Complete |
 | FIX-01 | (retroactive: Debug 999.5) | Complete |
-| FIX-02 | Phase 11 | Complete |
+| FIX-02 | Phase 11 | Complete (Phase 11) |
 
 **Coverage:**
 
@@ -133,4 +133,4 @@ Which phases cover which v1.1 requirements. Updated by roadmapper.
 
 ---
 *Requirements defined: 2026-05-10*
-*Last updated: 2026-05-10 — milestone v1.1 roadmap created. Traceability confirmed: 10 active reqs mapped (HUB-01..08 → Phase 9, GUARD-07 → Phase 10, FIX-02 → Phase 11), 12 already Complete via retroactive references, 0 unmapped.*
+*Last updated: 2026-05-11 — Phase 11 / 999.11 (Live SSE Hang Root-Cause Fix, FIX-02) completed; traceability row updated to `Complete (Phase 11)` with "Validated in v1.1: Phase 11" suffix on the FIX-02 bullet. v1.1 milestone progresses to 22/22 requirements satisfied (all 10 active reqs Complete; 12 retroactive remain Complete). Phase 999.11 closed end-to-end; no v999.12 escalation.*

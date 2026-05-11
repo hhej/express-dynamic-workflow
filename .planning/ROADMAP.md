@@ -38,7 +38,7 @@
 
 - [x] **Phase 9: HQ/Branch Origin Model** (4/4 plans) — completed 2026-05-10 — Replace implicit-origin model with hub-based origin selection (HQ + 9 branches), 135-row origin×destination rate matrix, HubPicker UI
 - [ ] **Phase 10: Unify Refusal Copy on Planner Bypass Paths** — `out_of_scope` LLM emission and `parse_failed` exhaustion both render the locked `REFUSAL_COPY` + `status='refused'` (not the generic clarify copy)
-- [ ] **Phase 11: Live SSE Hang Root-Cause Fix** — Diagnose AND fix the live `POST /api/chat` hang on the legit baseline diesel-price query; demo-gating for W6
+- [x] **Phase 11: Live SSE Hang Root-Cause Fix** — Diagnose AND fix the live `POST /api/chat` hang on the legit baseline diesel-price query; demo-gating for W6 (completed 2026-05-11)
 
 **Already shipped this milestone (retroactively validated):**
 
@@ -101,22 +101,22 @@ Plans:
 **Depends on**: Phase 10 (executes after Phase 10; investigation can begin in parallel with Phase 10 PLAN drafting if scheduling demands, but commits land sequentially)
 **Requirements**: FIX-02
 **Phase directory**: `.planning/phases/999.11-investigate-live-sse-hang-on-legit-baseline-diesel-price-query/`
-**Status**: Planned (5 PLAN docs drafted 2026-05-11; awaiting `/gsd:execute-phase 11`)
-**Demo gate**: This phase blocks W6 demo confidence. Must complete before final demo recording.
+**Status**: Complete — completed 2026-05-11
+**Demo gate**: This phase blocks W6 demo confidence. Must complete before final demo recording. **CLEARED** — 5/5 fresh-uvicorn runs PASS_UNDER_30S at ~7.6-7.9s on the legit baseline diesel-price query.
 **Success Criteria** (what must be TRUE):
   1. Repro harness (`.planning/phases/999.11/repro/`) deterministically reproduces the hang against a fresh-uvicorn run with 180s client timeout; per-run artifacts are exactly two: full SSE event stream with wall-clock+elapsed-ms timestamps, and full uvicorn stderr (D-03, D-04)
   2. Investigation rules out (c), then (b), then (a) sequentially per D-05; the confirmed root cause is documented in the phase SUMMARY.md with evidence — no diagnosis-by-mitigation; D-02 prefers root-cause fix over runbook workaround
   3. **Live verification bar:** 5 fresh-uvicorn runs of the legit baseline `"What's the current diesel price in Bangkok?"` each produce an `answer` SSE event within 30 seconds; uvicorn restarted between each run (D-09)
   4. ONE permanent regression pytest pinning the confirmed root cause: if (b) reducer → unit test asserting `tool_call_count` reducer behavior on parallel fan-out; if (a) SSE → integration test asserting `answer` event arrives on a normal happy path; if (c) cold-start → smoke test asserting lifespan warmup completes deterministically. CI-friendly, no live network, zero new flakes (D-10)
   5. Backend test suite remains ≥295/295 green (current baseline post-260509-utd) plus the new regression test; frontend tests unaffected
-**Plans**: 5 plans (drafted 2026-05-11)
+**Plans**: 5 plans
 
 Plans:
 - [x] 999.11-01-repro-harness-PLAN.md — Python httpx fresh-uvicorn probe + 5-run orchestrator + dual-capture harness (D-03/D-04) [Wave 1]
 - [x] 999.11-02-hypothesis-c-cold-start-PLAN.md — D-06 cold-start latency rule-out / lifespan warmup fix if confirmed [Wave 2]
 - [x] 999.11-03-hypothesis-b-planner-reloop-PLAN.md — D-07 planner re-loop rule-out / destination-less short-circuit if confirmed + reducer-pin defense-in-depth [Wave 3]
 - [x] 999.11-04-hypothesis-a-sse-termination-PLAN.md — D-08 SSE termination rule-out / variant-specific fix if confirmed + legit-baseline integration guard [Wave 4]
-- [ ] 999.11-05-summary-and-live-bar-PLAN.md — D-09 5-run live verification bar + phase SUMMARY.md + REQUIREMENTS/ROADMAP/STATE updates [Wave 5]
+- [x] 999.11-05-summary-and-live-bar-PLAN.md — D-09 5-run live verification bar + phase SUMMARY.md + REQUIREMENTS/ROADMAP/STATE updates [Wave 5]
 
 ## Progress
 
@@ -134,7 +134,7 @@ Plans:
 | 8. Search Context + Sidebar Polish | v1.0 | 2/2 | Complete | 2026-05-05 |
 | 9. HQ/Branch Origin Model | v1.1 | 4/4 | Complete | 2026-05-10 |
 | 10. Unify Refusal Copy on Planner Bypass Paths | v1.1 | 0/3 | Planned (awaiting execute) | - |
-| 11. Live SSE Hang Root-Cause Fix | v1.1 | 3/5 | In Progress (hyp-(b) CONFIRMED + FIXED; 5/5 fresh-uvicorn runs PASS_UNDER_30S; Plan 04 NO-OP) — **DEMO GATE CLEARED** | - |
+| 11. Live SSE Hang Root-Cause Fix | v1.1 | 5/5 | Complete | 2026-05-11 |
 
 ## Backlog
 

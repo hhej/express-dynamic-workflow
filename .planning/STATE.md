@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: — Real-World Routing & Demo Hardening
-status: executing
-stopped_at: "Completed 999.11-04-hypothesis-a-sse-termination-PLAN.md (Wave 4: hypothesis (a) RULED OUT via static analysis trio + app_with_mocks integration probe; defense-in-depth integration guard test_legit_baseline_diesel_price_query_completes landed in test_api_chat.py with defense-in-depth marker (NO D-10 marker per phase-wide invariant); 358/358 backend pytest GREEN (+1 over baseline); zero backend production code modified per RULED OUT contract; commits 268c030 + 91cd4ae + 6131fa5 + SUMMARY/STATE/ROADMAP metadata; Phase 11 root cause CLOSED — all 3 candidate hypotheses now disposed; Plan 05 advances to live-bar gate + REQUIREMENTS stamp)"
-last_updated: "2026-05-11T17:00:15.368Z"
+status: completed
+stopped_at: "Completed Phase 999.11 (Phase 11 / v1.1 — Live SSE Hang Root-Cause Fix). Root cause: hypothesis (b) planner re-loop CONFIRMED + FIXED at commit e550256 (destination-less short-circuit in planner_node); hypotheses (c) cold-start and (a) SSE termination cleanly RULED OUT. Backend pytest 355 -> 358 (+3: D-10 pin + 2 defense-in-depth). 5/5 live-bar runs PASS_UNDER_30S at ~7.6-7.9s (D-09 demo gate cleared). FIX-02 marked Complete (Phase 11) in REQUIREMENTS.md with 'Validated in v1.1: Phase 11' suffix. Branch: develop. Next: v1.1 milestone closure (run /gsd:complete-milestone) or W6 demo recording."
+last_updated: "2026-05-11T17:13:28.846Z"
 last_activity: 2026-05-11
 progress:
   total_phases: 4
   completed_phases: 0
   total_plans: 0
   completed_plans: 0
-  percent: 67
+  percent: 100
 ---
 
 # Project State
@@ -25,13 +25,13 @@ See: .planning/PROJECT.md (updated 2026-05-10 — milestone v1.1 declared)
 
 ## Current Position
 
-Phase: 999.11 (investigate-live-sse-hang-on-legit-baseline-diesel-price-query) — EXECUTING
-Plan: 5 of 5
-Last completed: Phase 999.10 (Unify Refusal Copy on Planner Bypass Paths) — 2026-05-11
-Status: Ready to execute
+Phase: 999.11 (Phase 11 / v1.1) — COMPLETE
+Plan: 5 of 5 complete
+Last completed: Phase 999.11 (Live SSE Hang Root-Cause Fix) — 2026-05-11
+Status: Complete; v1.1 ready for closure or demo recording
 Last activity: 2026-05-11
 
-Progress: [██████░░░░] 67% (v1.1 — 2 of 3 phases complete)
+Progress: [██████████] 100% (v1.1 — 3 of 3 phases complete)
 
 ## Performance Metrics
 
@@ -96,6 +96,7 @@ Progress: [██████░░░░] 67% (v1.1 — 2 of 3 phases complete)
 | Phase 999.11 P02 | 44min | 2 tasks | 53 files |
 | Phase 999.11 P03 | 25min | 2 tasks | 4 files |
 | Phase 999.11 P04 | ~15min | 2 tasks | 3 files |
+| Phase 999.11 P05 | ~8min | 3 tasks | 4 files (999.11-SUMMARY.md + REQUIREMENTS.md + ROADMAP.md + STATE.md) |
 
 ## Accumulated Context
 
@@ -282,6 +283,7 @@ Recent decisions affecting current work:
 - [Phase 999.11]: Plan 04 (a) SSE termination RULED OUT — static analysis trio (response_node returns all carry final_payload; _fresh_stream only intentional approval_required early-return; graph response→END is the only terminal edge) + integration probe via app_with_mocks emitted meta→trace×6→answer→done cleanly with answer.status='ok'. All 3 variants structurally impossible. Defense-in-depth test landed in test_api_chat.py with 'defense-in-depth invariant: Phase 11 / FIX-02 — additive coverage, not the D-10 pin' marker (NO D-10 marker; phase-wide invariant: single D-10 pin lives on Plan 03's test_planner.py:1319).
 - [Phase 999.11]: Plan 04 no backend production code modified — chat.py, response_node.py, graph.py, planner.py untouched per must_haves.truths.3 'If RULED OUT: no backend code changes land'. Only files changed: backend/tests/test_api_chat.py (+89 lines test), 999.11-04-EVIDENCE.md (+58 lines closure note), 999.11-04-SUMMARY.md (new). Full backend pytest 358/358 GREEN (+1 over 357 baseline, zero regressions, zero flakes).
 - [Phase 999.11]: Plan 04 escalation NOT APPLICABLE — Phase 11 root cause is SINGULAR (hypothesis (b) planner re-loop CONFIRMED + FIXED at commit e550256 in Plan 03), CLOSED before Plan 04 ran. EVIDENCE.md 'Escalation: all three hypotheses RULED OUT' section header present for plan acceptance-criterion compliance, but marked NOT APPLICABLE inline. D-04 escalation clause (Langfuse traces + AgentState snapshots) NOT invoked. No Phase 999.12 follow-up needed. Plan 05 closes the phase with REQUIREMENTS stamp + live-bar gate.
+- [Phase 999.11]: Plan 05 Phase 11 closure — FIX-02 stamped Complete (Phase 11) in REQUIREMENTS.md (line 53 + traceability table line 125); ROADMAP.md Phase 11 detail block flipped Status to Complete (2026-05-11), active-phases checklist + Progress table row reflect 5/5 complete; STATE.md Current Position advanced to Phase 999.11 COMPLETE with v1.1 progress 3/3 phases (100%). D-09 live-bar gate honored via Plan 03's post-fix-baseline/summary.jsonl archive per user verdict (no backend code changed between e550256 and HEAD; archive remains representative). Phase-level 999.11-SUMMARY.md is the canonical wrap-up per plan output spec — no per-plan 999.11-05-SUMMARY.md authored. v1.1 milestone now ready for closure via /gsd:complete-milestone. (FIX-02)
 
 ### Pending Todos
 
@@ -308,7 +310,7 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-05-11T17:00:15.364Z
-Stopped at: Completed 999.11-04-hypothesis-a-sse-termination-PLAN.md (Wave 4: hypothesis (a) RULED OUT via static analysis trio + app_with_mocks integration probe; defense-in-depth integration guard test_legit_baseline_diesel_price_query_completes landed in test_api_chat.py with defense-in-depth marker (NO D-10 marker per phase-wide invariant); 358/358 backend pytest GREEN (+1 over baseline); zero backend production code modified per RULED OUT contract; commits 268c030 + 91cd4ae + 6131fa5 + SUMMARY/STATE/ROADMAP metadata; Phase 11 root cause CLOSED — all 3 candidate hypotheses now disposed; Plan 05 advances to live-bar gate + REQUIREMENTS stamp)
+Last session: 2026-05-11T17:30:00.000Z
+Stopped at: Completed Phase 999.11 (Phase 11 / v1.1 — Live SSE Hang Root-Cause Fix). Root cause: hypothesis (b) planner re-loop CONFIRMED + FIXED at commit e550256 (destination-less short-circuit in planner_node); hypotheses (c) cold-start and (a) SSE termination cleanly RULED OUT. Backend pytest 355 -> 358 (+3: D-10 pin + 2 defense-in-depth). 5/5 live-bar runs PASS_UNDER_30S at ~7.6-7.9s (D-09 demo gate cleared). FIX-02 marked Complete (Phase 11) in REQUIREMENTS.md with 'Validated in v1.1: Phase 11' suffix. Branch: develop. Next: v1.1 milestone closure (run /gsd:complete-milestone) or W6 demo recording.
 Resume file: None
-Next: Restart uvicorn, then run the 15 attacks in backend/tests/adversarial_pack.txt through /api/chat to confirm refusal-and-redirect behavior end-to-end; review Langfuse traces for guard activations. Also: inspect TraceStep expanded view to confirm UWB bullet markdown renders cleanly.
+Next: Demo recording (W6); or close v1.1 milestone with milestone audit via /gsd:complete-milestone. Pre-existing ROADMAP.md drift on Phase 10 active-checklist + Progress table row logged to .planning/phases/999.11-.../deferred-items.md (out of scope for Plan 05; fix in housekeeping commit or milestone audit).
