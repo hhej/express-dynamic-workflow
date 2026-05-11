@@ -94,7 +94,7 @@ Plans:
 Plans:
 - [x] 999.10-01-extend-guardcategory-literal-PLAN.md — Additive `GuardCategory` Literal extension (`planner_off_topic`, `planner_parse_failed`) [Wave 1]
 - [x] 999.10-02-planner-refusal-paths-PLAN.md — `planner_node` D-04 (out_of_scope) + D-05 (parse_failed) refusal branches + 4 new unit tests [Wave 2]
-- [ ] 999.10-03-adversarial-pack-regression-PLAN.md — CI regression test pinning all 4 representative adversarial-pack cases to `status='refused'` + REFUSAL_COPY [Wave 3]
+- [x] 999.10-03-adversarial-pack-regression-PLAN.md — CI regression test pinning all 4 representative adversarial-pack cases to `status='refused'` + REFUSAL_COPY [Wave 3]
 
 ### Phase 11: Live SSE Hang Root-Cause Fix
 **Goal**: Diagnose AND fix the live `POST /api/chat` hang observed on the legit baseline query "What's the current diesel price in Bangkok?" during the 260509-utd live probe. Symptom: trace stream emits `planner -> fuel_agent -> planner` (3 steps) then no `answer` SSE event arrives before the urlopen 60s timeout closes the client; response body is 0 bytes. **Demo-gating for W6** — 4/5 cases in the live probe completed cleanly; only the legit baseline hung. Three candidate root causes tested sequentially per D-05: (c) cold-start latency → (b) `tool_call_count` reducer interaction with parallel fan-out → (a) SSE termination bug.

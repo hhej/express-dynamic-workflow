@@ -3,8 +3,8 @@ gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: — Real-World Routing & Demo Hardening
 status: executing
-stopped_at: "Completed 999.10-02-PLAN.md (Wave 2: planner D-04 out_of_scope + D-05 parse_failed refusal branches wired via _set_guard_refusal helper; emits guard_decision={layer:'input', refused:True, category:'planner_off_topic'|'planner_parse_failed', violations:[]} + next_step='respond'; response_node refusal branch renders REFUSAL_COPY with status='refused' uniformly; 349/349 backend pytest green; ready for Wave 3 Plan 03 adversarial-pack regression)"
-last_updated: "2026-05-11T08:59:42.057Z"
+stopped_at: "Completed 999.10-03-PLAN.md (Wave 3: adversarial-pack regression test; 4 parametrised refusal cases + 1 legit-baseline guard; 354/354 backend pytest green; GUARD-07 marked complete; all 3 plans of Phase 999.10 / Phase 10 complete — proceeding to regression gate + phase verification)"
+last_updated: "2026-05-11T09:10:00.000Z"
 last_activity: 2026-05-11
 progress:
   total_phases: 4
@@ -25,10 +25,10 @@ See: .planning/PROJECT.md (updated 2026-05-10 — milestone v1.1 declared)
 
 ## Current Position
 
-Phase: 999.10 (guard-input-bypass-paths-return-inconsistent-refusal-copy) — EXECUTING
-Plan: 3 of 3
-Last completed: Phase 999.9 (Phase 9 / v1.1) — HQ/Branch Origin Model — 2026-05-10
-Status: Ready to execute
+Phase: 999.10 (Phase 10 / v1.1 — Unify Refusal Copy on Planner Bypass Paths) — All 3 plans complete; awaiting regression gate + phase verification
+Plan: 3 of 3 (complete)
+Last completed: Phase 999.10 Plan 03 (Adversarial-pack regression test) — 2026-05-11
+Status: Plans done; phase verification pending
 Last activity: 2026-05-11
 
 Progress: [███░░░░░░░] 33% (v1.1 — 1 of 3 phases complete)
@@ -264,6 +264,10 @@ Recent decisions affecting current work:
 - [Phase 999.10]: Plan 02: D-04 (out_of_scope) refusal branch placed IMMEDIATELY after the parse-success assert and BEFORE the origin_hub_id allowlist validation + 999.1 merge — an out_of_scope user message must never reach those downstream blocks because their semantics (logistics extraction, hub lookup, follow-up null-out, fan-out promotion) do not apply to refused messages. Keeps the refusal return shape minimal: just next_step + guard_decision.
 - [Phase 999.10]: Plan 02: D-05 (parse_failed) refusal is UNCONDITIONAL inside the D-02 retry loop's attempt==2 block — no further conditioning on user message content (D-06/D-07 invariant). The trigger is the parse exhaustion itself; adding a second-pass classifier would duplicate guard_input's work and risk false-clarifies on legit messages that happen to crash JSON parsing.
 - [Phase 999.10]: Plan 02: D-11 trace ownership stays with response_node — planner emits NO refusal trace entry of its own. The existing response_node refusal branch already emits an agent='response' trace entry; adding a planner-tagged refusal trace would either duplicate that entry (poor signal) or split the refusal across two trace nodes (split observability). Matches the existing guard_input -> response_node refusal flow.
+- [Phase 999.10]: Plan 03: backend/tests/test_adversarial_pack_regression.py parametrises 4 representative adversarial-pack cases + 1 false-positive guard. CI-deterministic substitute for ROADMAP success criterion 4's manual live re-run; verbatim coupling to adversarial_pack.txt strings means a pack edit forces a test edit (caught at code review). 354/354 backend pytest green (349 baseline + 5 new).
+- [Phase 999.10]: Plan 03: PLAN's <action> specified a defensive monkeypatch on `guard_input.get_chat_model` but that attribute doesn't exist at module level (imported lazily inside _llm_fallback at line 134). Removed the monkeypatch and module import; defensive guard was non-load-bearing because GUARD_INPUT_USE_LLM_FALLBACK defaults False and the regex catches the four cases. Layer differentiation still proven by per-case guard_decision.category assertion (injection/off_topic for guard_input cases; planner_off_topic/planner_parse_failed for planner cases).
+- [Phase 999.10]: Plan 03: test_legit_baseline_does_not_refuse invokes planner_node directly (not the full graph) — the legit-vs-refusal fork happens entirely inside planner_node, so unit-level assertion is the correct scope. Avoids requiring fuel/route/pricing specialist-agent network mocks for the false-positive regression guard.
+- [Phase 999.10]: Plan 03 deviation: executor agent timed out (stream idle) after the RED-stub commit (9a8613a); orchestrator inherited the work via workflow's spot-check fallback rule, wrote the full GREEN test content per the PLAN <action> block, ran pytest (5 pass), committed GREEN (d1156a6), then landed SUMMARY + STATE + ROADMAP + GUARD-07 completion. The RED-stub strategy gave a clear, grep-able marker of exactly where the agent stalled — recovery was mechanical.
 
 ### Pending Todos
 
