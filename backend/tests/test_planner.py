@@ -1257,3 +1257,33 @@ def test_planner_out_of_scope_does_not_affect_surcharge_path(monkeypatch):
     assert result["next_step"] == "fanout_fuel_route"
     # No guard_decision on the happy path.
     assert "guard_decision" not in result
+
+
+def test_planner_salvages_prose_refusal_into_out_of_scope(monkeypatch):
+    """Live-Gemini fix (post-Phase-10 smoke): SECURITY_PREAMBLE rule 1 tells
+    Gemini to emit REFUSAL_COPY verbatim as prose for out-of-scope inputs,
+    which conflicts with the planner JSON contract. _parse_structured now
+    recognises the canonical refusal prose and synthesises a PlannerOutput
+    with user_intent='out_of_scope' so D-04 (planner_off_topic) fires
+    instead of D-05 (planner_parse_failed). Without this salvage, every
+    live out-of-scope refusal hit D-05 — losing the observability
+    distinction in guard_decision.category."""
+    from backend.agent.prompts.guard import REFUSAL_COPY
+
+    state = _user_state("What's the weather like in Bangkok today?")
+    monkeypatch.setattr(
+        mod,
+        "get_chat_model",
+        lambda **_: _scripted_llm(REFUSAL_COPY),
+    )
+
+    result = planner_node(state)
+
+    assert result["next_step"] == "respond"
+    assert result["guard_decision"] == {
+        "layer": "input",
+        "refused": True,
+        "category": "planner_off_topic",
+        "violations": [],
+    }
+

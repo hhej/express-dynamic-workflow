@@ -35,6 +35,7 @@ from langchain_core.messages import HumanMessage, SystemMessage
 from pydantic import BaseModel, Field, ValidationError
 
 from backend.agent.llm import get_chat_model
+from backend.agent.prompts.guard import REFUSAL_COPY
 from backend.agent.prompts.planner import SYSTEM_PROMPT
 from backend.config import FUEL_DATA_TTL_SECONDS, PLANNER_MAX_ITERATIONS
 
@@ -173,11 +174,24 @@ def _set_guard_refusal(category: str) -> dict:
     }
 
 
+_REFUSAL_PROSE_PREFIX = REFUSAL_COPY.split("?")[0][:48].strip()
+
+
 def _parse_structured(raw: str) -> PlannerOutput:
     """Parse a JSON string into PlannerOutput.
 
     Strips Markdown code fences Gemini sometimes emits (```json ... ```).
     Mirrors the helper in fuel_agent for consistency.
+
+    Phase 999.10 prose-refusal salvage: SECURITY_PREAMBLE rule 1 tells
+    Gemini to return REFUSAL_COPY verbatim as prose for out-of-scope
+    inputs. The planner SYSTEM_PROMPT contract (D-01) requires JSON.
+    When Gemini obeys the higher-priority security rule over the schema
+    contract, this helper recognises the canonical refusal prose and
+    synthesises an out_of_scope PlannerOutput so D-04 (planner_off_topic)
+    fires instead of D-05 (planner_parse_failed). The user-facing
+    contract is identical either way; this preserves observability
+    granularity in guard_decision.category.
     """
     text = raw.strip()
     if text.startswith("```"):
@@ -186,6 +200,12 @@ def _parse_structured(raw: str) -> PlannerOutput:
         if lines and lines[-1].strip().startswith("```"):
             lines = lines[:-1]
         text = "\n".join(lines).strip()
+    if text.startswith(_REFUSAL_PROSE_PREFIX):
+        return PlannerOutput(
+            user_intent="out_of_scope",
+            next_step="respond",
+            clarification_reason="out_of_scope_user_request",
+        )
     return PlannerOutput.model_validate(json.loads(text))
 
 
