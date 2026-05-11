@@ -89,7 +89,16 @@ def test_routes_to_fetch_fuel_on_fresh_query(monkeypatch):
 
 def test_skips_fetch_when_fuel_fresh(monkeypatch):
     """D-12: state.fuel_data has fresh fetched_at; LLM says fetch_fuel but
-    Planner OVERRIDES to fetch_route (because route_data is missing)."""
+    Planner OVERRIDES to fetch_route (because route_data is missing).
+
+    Phase 11 / FIX-02: state must carry at least one prior logistics
+    field (here: shipping_type='bounce' from a prior follow-up turn)
+    so the destination-less short-circuit (added in 999.11-03) does
+    NOT fire. The legit-baseline bug fix only short-circuits when
+    state has NO logistics fields — a follow-up surcharge with a
+    prior shipping_type extracted must still flow into the cache-aware
+    override + fetch_route routing exercised by this test.
+    """
     state = _user_state(
         "Surcharge for 15kg Bounce Bangkok to Nonthaburi",
         fuel_data={
@@ -101,6 +110,7 @@ def test_skips_fetch_when_fuel_fresh(monkeypatch):
             "source": "eppo_cached_csv",
             "fetched_at": _now_iso_z(),
         },
+        shipping_type="bounce",  # FIX-02: prior logistics field present
     )
     monkeypatch.setattr(
         mod,
@@ -382,7 +392,12 @@ def test_followup_with_full_cache_routes_calculate_price(monkeypatch):
 def test_trace_tool_output_reflects_post_override_next_step(monkeypatch):
     """999.3: D-12 overrides LLM-emitted fetch_fuel to fetch_route (route not
     cached, fuel fresh); the trace tool_output MUST reflect the post-override
-    next_step ('fetch_route'), not the raw LLM emission ('fetch_fuel')."""
+    next_step ('fetch_route'), not the raw LLM emission ('fetch_fuel').
+
+    Phase 11 / FIX-02: state pre-populates shipping_type='bounce' so the
+    destination-less short-circuit does NOT fire (a true follow-up
+    surcharge always carries >= 1 prior logistics field).
+    """
     state = _user_state(
         "Surcharge for 15kg Bounce Bangkok to Nonthaburi",
         fuel_data={
@@ -394,6 +409,7 @@ def test_trace_tool_output_reflects_post_override_next_step(monkeypatch):
             "source": "eppo_live",
             "fetched_at": _now_iso_z(),
         },
+        shipping_type="bounce",  # FIX-02: prior logistics field present
     )
     monkeypatch.setattr(
         mod,
@@ -492,7 +508,12 @@ def test_planner_fanout_when_both_stale(monkeypatch):
 
 
 def test_planner_no_fanout_when_fuel_fresh(monkeypatch):
-    """D-12: fresh fuel_data -> next_step='fetch_route' (sequential, no fan-out)."""
+    """D-12: fresh fuel_data -> next_step='fetch_route' (sequential, no fan-out).
+
+    Phase 11 / FIX-02: state pre-populates shipping_type='bounce' so the
+    destination-less short-circuit does NOT fire — this test models a
+    follow-up surcharge with cached fuel + prior shipping_type extracted.
+    """
     # Fresh fuel_data; fetched_at is now -> not stale per FUEL_DATA_TTL_SECONDS=3600.
     state = _user_state(
         "calc",
@@ -505,6 +526,7 @@ def test_planner_no_fanout_when_fuel_fresh(monkeypatch):
             "source": "eppo_live",
             "fetched_at": _now_iso_z(),
         },
+        shipping_type="bounce",  # FIX-02: prior logistics field present
     )
     monkeypatch.setattr(
         mod,
