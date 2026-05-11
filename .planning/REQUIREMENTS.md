@@ -50,7 +50,7 @@ Requirements for milestone v1.1. Each maps to exactly one roadmap phase. Items a
 ### Reliability Fixes (FIX) — Phase 11 / 999.11 + retroactive (999.5)
 
 - [x] **FIX-01**: Resume flow no longer appends duplicate assistant message on conversation reload — Validated in v1.1: Debug 999.5
-- [ ] **FIX-02**: Live `POST /api/chat` no longer hangs on legit baseline diesel-price query — root cause investigated and fixed (cold-start vs reducer vs SSE termination); 5 fresh-uvicorn runs each produce `answer` SSE event within 30 seconds; one regression pytest pinning the confirmed root cause (Phase 11 / 999.11)
+- [x] **FIX-02**: Live `POST /api/chat` no longer hangs on legit baseline diesel-price query — root cause investigated and fixed (cold-start vs reducer vs SSE termination); 5 fresh-uvicorn runs each produce `answer` SSE event within 30 seconds; one regression pytest pinning the confirmed root cause (Phase 11 / 999.11)
 
 ## v2 Requirements
 
@@ -122,7 +122,7 @@ Which phases cover which v1.1 requirements. Updated by roadmapper.
 | DATA-07 | (retroactive: Debug 999.6) | Complete |
 | DATA-08 | (retroactive: Debug 999.7) | Complete |
 | FIX-01 | (retroactive: Debug 999.5) | Complete |
-| FIX-02 | Phase 11 | Pending |
+| FIX-02 | Phase 11 | Complete |
 
 **Coverage:**
 

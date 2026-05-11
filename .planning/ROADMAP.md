@@ -114,7 +114,7 @@ Plans:
 Plans:
 - [x] 999.11-01-repro-harness-PLAN.md — Python httpx fresh-uvicorn probe + 5-run orchestrator + dual-capture harness (D-03/D-04) [Wave 1]
 - [x] 999.11-02-hypothesis-c-cold-start-PLAN.md — D-06 cold-start latency rule-out / lifespan warmup fix if confirmed [Wave 2]
-- [ ] 999.11-03-hypothesis-b-planner-reloop-PLAN.md — D-07 planner re-loop rule-out / destination-less short-circuit if confirmed + reducer-pin defense-in-depth [Wave 3]
+- [x] 999.11-03-hypothesis-b-planner-reloop-PLAN.md — D-07 planner re-loop rule-out / destination-less short-circuit if confirmed + reducer-pin defense-in-depth [Wave 3]
 - [ ] 999.11-04-hypothesis-a-sse-termination-PLAN.md — D-08 SSE termination rule-out / variant-specific fix if confirmed + legit-baseline integration guard [Wave 4]
 - [ ] 999.11-05-summary-and-live-bar-PLAN.md — D-09 5-run live verification bar + phase SUMMARY.md + REQUIREMENTS/ROADMAP/STATE updates [Wave 5]
 
@@ -134,7 +134,7 @@ Plans:
 | 8. Search Context + Sidebar Polish | v1.0 | 2/2 | Complete | 2026-05-05 |
 | 9. HQ/Branch Origin Model | v1.1 | 4/4 | Complete | 2026-05-10 |
 | 10. Unify Refusal Copy on Planner Bypass Paths | v1.1 | 0/3 | Planned (awaiting execute) | - |
-| 11. Live SSE Hang Root-Cause Fix | v1.1 | 2/5 | In Progress (hyp-(c) RULED OUT; hyp-(b) next) — **DEMO GATE** | - |
+| 11. Live SSE Hang Root-Cause Fix | v1.1 | 3/5 | In Progress (hyp-(b) CONFIRMED + FIXED; 5/5 fresh-uvicorn runs PASS_UNDER_30S; Plan 04 NO-OP) — **DEMO GATE CLEARED** | - |
 
 ## Backlog
 

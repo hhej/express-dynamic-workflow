@@ -3,8 +3,8 @@ gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: — Real-World Routing & Demo Hardening
 status: executing
-stopped_at: "Completed 999.11-02-hypothesis-c-cold-start-PLAN.md (Wave 2: RULED OUT — 20 fresh-uvicorn runs across 4 disambiguator steps all reproduce bit-identical ValueError; step 4 combined mitigations still fail 5/5; commit 6831be1 + SUMMARY/STATE/ROADMAP metadata; Plan 03 hypothesis-b unblocked with smoking-gun trace evidence)"
-last_updated: "2026-05-11T16:15:34.027Z"
+stopped_at: "Completed 999.11-03-hypothesis-b-planner-reloop-PLAN.md (Wave 3: hypothesis (b) CONFIRMED + FIXED — destination-less short-circuit in planner_node closes live SSE hang; 5/5 fresh-uvicorn runs PASS_UNDER_30S at ~7.8s; 357/357 backend pytest green (+2 new); D-10 + defense-in-depth markers landed; commits 9e4cf84 + e550256 + SUMMARY/EVIDENCE/STATE/ROADMAP metadata; phase root cause CLOSED, Plan 04 becomes NO-OP)"
+last_updated: "2026-05-11T16:42:30.195Z"
 last_activity: 2026-05-11
 progress:
   total_phases: 4
@@ -26,7 +26,7 @@ See: .planning/PROJECT.md (updated 2026-05-10 — milestone v1.1 declared)
 ## Current Position
 
 Phase: 999.11 (investigate-live-sse-hang-on-legit-baseline-diesel-price-query) — EXECUTING
-Plan: 3 of 5
+Plan: 4 of 5
 Last completed: Phase 999.10 (Unify Refusal Copy on Planner Bypass Paths) — 2026-05-11
 Status: Ready to execute
 Last activity: 2026-05-11
@@ -94,6 +94,7 @@ Progress: [██████░░░░] 67% (v1.1 — 2 of 3 phases complete)
 | Phase 999.10 P02 | 3min | 1 tasks | 2 files |
 | Phase 999.11 P01 | 8min | 2 tasks | 4 files |
 | Phase 999.11 P02 | 44min | 2 tasks | 53 files |
+| Phase 999.11 P03 | 25min | 2 tasks | 4 files |
 
 ## Accumulated Context
 
@@ -274,6 +275,9 @@ Recent decisions affecting current work:
 - [Phase 999.11]: Plan 02 RULED OUT (c) cold-start — step 4 combined --warmup-first --skip-coldstart-refresh still fails 5/5 with bit-identical ValueError; proceeding to Plan 03 (b) planner re-loop. Smoking gun: SSE trace planner -> fuel_agent -> planner with next_step=fetch_route despite destination=None.
 - [Phase 999.11]: Plan 02 Rule 3 fix to run_5x.sh — `${EXTRA_ARGS[@]+"${EXTRA_ARGS[@]}"}` bash safe-expansion idiom for set -u compatibility when zero extra args passed (step 1 baseline); pre-existing latent bug in Plan 01's deliverable, exposed by Plan 02's zero-arg call site.
 - [Phase 999.11]: Plan 02 symptom-shift documented: reproduction surface is fast ~10s deterministic ValueError (route_agent_node requires destination), NOT the original 60s body=0 hang from backlog. Both are critical legit-baseline failures; Plan 03 proceeds on the live signature; Plan 05 reconciles narrative.
+- [Phase 999.11]: Plan 03 Hypothesis (b) planner re-loop CONFIRMED + FIXED: destination-less short-circuit in planner_node (4 preconditions: fuel_data populated AND no destination AND no shipping_type AND no weight_kg) routes directly to respond BEFORE LLM invoke, closing the live SSE hang on legit baseline diesel-price query. 5/5 fresh-uvicorn runs PASS_UNDER_30S at ~7.8s. Phase root cause CLOSED. Plan 04 (hypothesis a) becomes NO-OP.
+- [Phase 999.11]: Plan 03 D-10 pinning test test_planner_does_not_loop_on_destination_less_baseline_query — pins Phase 11 / FIX-02 root cause (RED on pre-fix, GREEN on post-fix). Defense-in-depth pin test_tool_call_count_reducer_aggregates_parallel_writes mirrors test_parallel_fanout.py for setup, asserts final_state['tool_call_count'] >= 2 to guard the Annotated[int, operator.add] reducer under fan-out against future last-write-wins regressions (passes on current main; pins the invariant).
+- [Phase 999.11]: Plan 03 Rule 1 deviation: 3 pre-existing planner tests (test_skips_fetch_when_fuel_fresh, test_planner_no_fanout_when_fuel_fresh, test_trace_tool_output_reflects_post_override_next_step) updated with shipping_type='bounce' state pre-population — they modeled a non-production-realistic synthetic state shape (fresh state with pre-populated fuel_data but no other logistics fields). In real production, a state with cached fuel always inherits prior logistics fields from prior turns via the 999.1 merge; the test updates make them representative of realistic follow-up paths.
 
 ### Pending Todos
 
@@ -300,7 +304,7 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-05-11T16:15:33.092Z
-Stopped at: Completed 999.11-02-hypothesis-c-cold-start-PLAN.md (Wave 2: RULED OUT — 20 fresh-uvicorn runs across 4 disambiguator steps all reproduce bit-identical ValueError; step 4 combined mitigations still fail 5/5; commit 6831be1 + SUMMARY/STATE/ROADMAP metadata; Plan 03 hypothesis-b unblocked with smoking-gun trace evidence)
+Last session: 2026-05-11T16:42:30.190Z
+Stopped at: Completed 999.11-03-hypothesis-b-planner-reloop-PLAN.md (Wave 3: hypothesis (b) CONFIRMED + FIXED — destination-less short-circuit in planner_node closes live SSE hang; 5/5 fresh-uvicorn runs PASS_UNDER_30S at ~7.8s; 357/357 backend pytest green (+2 new); D-10 + defense-in-depth markers landed; commits 9e4cf84 + e550256 + SUMMARY/EVIDENCE/STATE/ROADMAP metadata; phase root cause CLOSED, Plan 04 becomes NO-OP)
 Resume file: None
 Next: Restart uvicorn, then run the 15 attacks in backend/tests/adversarial_pack.txt through /api/chat to confirm refusal-and-redirect behavior end-to-end; review Langfuse traces for guard activations. Also: inspect TraceStep expanded view to confirm UWB bullet markdown renders cleanly.
