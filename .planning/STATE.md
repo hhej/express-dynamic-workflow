@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: — Real-World Routing & Demo Hardening
-status: ready
-stopped_at: "Completed Phase 999.10 (Phase 10 / v1.1 — Unify Refusal Copy on Planner Bypass Paths). All 3 plans landed: 999.10-01 (GuardCategory Literal extension), 999.10-02 (planner D-04/D-05 refusal branches + 4 unit tests), 999.10-03 (adversarial-pack regression test + false-positive guard). Backend pytest 345 → 354 green (+9 net new). Frontend vitest 145/145 green. Phase verification passed 5/5 must-haves. GUARD-07 marked complete in REQUIREMENTS.md. Branch: feature/guard-input-bypass-paths (linear ahead of develop, ready for PR). Next: Phase 11 (live SSE hang investigation — Context-ready, awaiting /gsd:plan-phase 11)."
-last_updated: "2026-05-11T13:06:51.456Z"
+status: executing
+stopped_at: "Completed 999.11-01-repro-harness-PLAN.md (Wave 1: D-03 probe + D-09 5-run orchestrator + D-06 disambiguator toggles + README + logs/.gitkeep; surgical separation from backend code — zero backend imports, no TestClient; 2 commits da9ba87 + 93ac795; Plan 02 hypothesis-c unblocked)"
+last_updated: "2026-05-11T15:06:40.639Z"
 last_activity: 2026-05-11
 progress:
   total_phases: 4
   completed_phases: 0
   total_plans: 0
   completed_plans: 0
-  percent: 33
+  percent: 67
 ---
 
 # Project State
@@ -21,14 +21,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-05-10 — milestone v1.1 declared)
 
 **Core value:** The agent must transparently reason through fuel price, route, and shipping data to produce an accurate, explainable surcharge recommendation.
-**Current focus:** Phase 11 — Live SSE Hang Root-Cause Fix (Phase 10 complete; Phase 11 Context-ready, awaiting /gsd:plan-phase 11)
+**Current focus:** Phase 999.11 — investigate-live-sse-hang-on-legit-baseline-diesel-price-query
 
 ## Current Position
 
-Phase: 999.10 (Phase 10 / v1.1) — COMPLETE
-Plan: 3 of 3 complete
+Phase: 999.11 (investigate-live-sse-hang-on-legit-baseline-diesel-price-query) — EXECUTING
+Plan: 2 of 5
 Last completed: Phase 999.10 (Unify Refusal Copy on Planner Bypass Paths) — 2026-05-11
-Status: Complete; ready for Phase 11
+Status: Ready to execute
 Last activity: 2026-05-11
 
 Progress: [██████░░░░] 67% (v1.1 — 2 of 3 phases complete)
@@ -92,6 +92,7 @@ Progress: [██████░░░░] 67% (v1.1 — 2 of 3 phases complete)
 | Phase 999.9 P03 | 9min | 3 tasks tasks | 12 files files |
 | Phase 999.10 P01 | 2min | 1 tasks | 1 files |
 | Phase 999.10 P02 | 3min | 1 tasks | 2 files |
+| Phase 999.11 P01 | 8min | 2 tasks | 4 files |
 
 ## Accumulated Context
 
@@ -268,6 +269,7 @@ Recent decisions affecting current work:
 - [Phase 999.10]: Plan 03: PLAN's <action> specified a defensive monkeypatch on `guard_input.get_chat_model` but that attribute doesn't exist at module level (imported lazily inside _llm_fallback at line 134). Removed the monkeypatch and module import; defensive guard was non-load-bearing because GUARD_INPUT_USE_LLM_FALLBACK defaults False and the regex catches the four cases. Layer differentiation still proven by per-case guard_decision.category assertion (injection/off_topic for guard_input cases; planner_off_topic/planner_parse_failed for planner cases).
 - [Phase 999.10]: Plan 03: test_legit_baseline_does_not_refuse invokes planner_node directly (not the full graph) — the legit-vs-refusal fork happens entirely inside planner_node, so unit-level assertion is the correct scope. Avoids requiring fuel/route/pricing specialist-agent network mocks for the false-positive regression guard.
 - [Phase 999.10]: Plan 03 deviation: executor agent timed out (stream idle) after the RED-stub commit (9a8613a); orchestrator inherited the work via workflow's spot-check fallback rule, wrote the full GREEN test content per the PLAN <action> block, ran pytest (5 pass), committed GREEN (d1156a6), then landed SUMMARY + STATE + ROADMAP + GUARD-07 completion. The RED-stub strategy gave a clear, grep-able marker of exactly where the agent stalled — recovery was mechanical.
+- [Phase 999.11]: Plan 01: out-of-process repro harness (subprocess.Popen uvicorn + httpx) with dual wall-clock+elapsed-ms timestamping; D-06 toggles (--skip-coldstart-refresh, --warmup-first) wired for hypothesis (c) isolation; 5-run orchestrator exits 0 only when 5/5 PASS_UNDER_30S
 
 ### Pending Todos
 
@@ -294,7 +296,7 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-05-11T08:59:42.053Z
-Stopped at: Completed 999.10-02-PLAN.md (Wave 2: planner D-04 out_of_scope + D-05 parse_failed refusal branches wired via _set_guard_refusal helper; emits guard_decision={layer:'input', refused:True, category:'planner_off_topic'|'planner_parse_failed', violations:[]} + next_step='respond'; response_node refusal branch renders REFUSAL_COPY with status='refused' uniformly; 349/349 backend pytest green; ready for Wave 3 Plan 03 adversarial-pack regression)
+Last session: 2026-05-11T15:06:40.632Z
+Stopped at: Completed 999.11-01-repro-harness-PLAN.md (Wave 1: D-03 probe + D-09 5-run orchestrator + D-06 disambiguator toggles + README + logs/.gitkeep; surgical separation from backend code — zero backend imports, no TestClient; 2 commits da9ba87 + 93ac795; Plan 02 hypothesis-c unblocked)
 Resume file: None
 Next: Restart uvicorn, then run the 15 attacks in backend/tests/adversarial_pack.txt through /api/chat to confirm refusal-and-redirect behavior end-to-end; review Langfuse traces for guard activations. Also: inspect TraceStep expanded view to confirm UWB bullet markdown renders cleanly.

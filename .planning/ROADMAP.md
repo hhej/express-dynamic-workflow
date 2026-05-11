@@ -112,7 +112,7 @@ Plans:
 **Plans**: 5 plans (drafted 2026-05-11)
 
 Plans:
-- [ ] 999.11-01-repro-harness-PLAN.md — Python httpx fresh-uvicorn probe + 5-run orchestrator + dual-capture harness (D-03/D-04) [Wave 1]
+- [x] 999.11-01-repro-harness-PLAN.md — Python httpx fresh-uvicorn probe + 5-run orchestrator + dual-capture harness (D-03/D-04) [Wave 1]
 - [ ] 999.11-02-hypothesis-c-cold-start-PLAN.md — D-06 cold-start latency rule-out / lifespan warmup fix if confirmed [Wave 2]
 - [ ] 999.11-03-hypothesis-b-planner-reloop-PLAN.md — D-07 planner re-loop rule-out / destination-less short-circuit if confirmed + reducer-pin defense-in-depth [Wave 3]
 - [ ] 999.11-04-hypothesis-a-sse-termination-PLAN.md — D-08 SSE termination rule-out / variant-specific fix if confirmed + legit-baseline integration guard [Wave 4]
