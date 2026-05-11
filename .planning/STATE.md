@@ -2,15 +2,15 @@
 gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: — Real-World Routing & Demo Hardening
-status: ready
-stopped_at: "Completed Phase 999.9 (Phase 9 / v1.1 — HQ/Branch Origin Model). All 4 plans + 5 Wave 4 calibration fixes (planner origin gate, hub-aware narration, dynamic 90d rolling baseline, geocode aliases, demo prompt refresh, screenshot refresh) landed. PR #17 open against develop. Backend 345/345 pytest green; frontend 145/145 vitest green; production build clean. Next: Phase 10 — Unify Refusal Copy on Planner Bypass Paths."
-last_updated: "2026-05-10T06:30:00.000Z"
-last_activity: 2026-05-10
+status: executing
+stopped_at: "Completed 999.10-01-PLAN.md (Wave 1: GuardCategory Literal extended additively with planner_off_topic + planner_parse_failed; 345/345 backend pytest green; ready for Wave 2 Plan 02 planner refusal-paths edits)"
+last_updated: "2026-05-11T08:53:02.427Z"
+last_activity: 2026-05-11
 progress:
-  total_phases: 3
-  completed_phases: 1
-  total_plans: 4
-  completed_plans: 4
+  total_phases: 4
+  completed_phases: 0
+  total_plans: 0
+  completed_plans: 0
   percent: 33
 ---
 
@@ -21,14 +21,15 @@ progress:
 See: .planning/PROJECT.md (updated 2026-05-10 — milestone v1.1 declared)
 
 **Core value:** The agent must transparently reason through fuel price, route, and shipping data to produce an accurate, explainable surcharge recommendation.
-**Current focus:** Phase 10 — Unify Refusal Copy on Planner Bypass Paths (Phase 9 complete; PR #17 open against develop)
+**Current focus:** Phase 999.10 — guard-input-bypass-paths-return-inconsistent-refusal-copy
 
 ## Current Position
 
-Phase: 999.10 (Phase 10 / v1.1) — Ready to plan
+Phase: 999.10 (guard-input-bypass-paths-return-inconsistent-refusal-copy) — EXECUTING
+Plan: 2 of 3
 Last completed: Phase 999.9 (Phase 9 / v1.1) — HQ/Branch Origin Model — 2026-05-10
-Status: Ready (Phase 9 PR #17 open; awaiting merge or directly proceed to Phase 10 planning)
-Last activity: 2026-05-10
+Status: Ready to execute
+Last activity: 2026-05-11
 
 Progress: [███░░░░░░░] 33% (v1.1 — 1 of 3 phases complete)
 
@@ -89,6 +90,7 @@ Progress: [███░░░░░░░] 33% (v1.1 — 1 of 3 phases complete)
 | Phase 999.9 P01 | 9min | 3 tasks | 9 files |
 | Phase 999.9 P02 | 17min | 3 tasks | 14 files |
 | Phase 999.9 P03 | 9min | 3 tasks tasks | 12 files files |
+| Phase 999.10 P01 | 2min | 1 tasks | 1 files |
 
 ## Accumulated Context
 
@@ -256,6 +258,7 @@ Recent decisions affecting current work:
 - [Phase 999.9]: Plan 03: Static-import frontend/data/hubs.json over runtime fetch (UI-SPEC §Open Discretion resolution) — simpler, build-time stable, no new endpoint; trade-off is duplication with data/raw/hubs.json that future phase can centralize
 - [Phase 999.9]: Plan 03: HubPicker renders ABOVE ChatInput in flex-col wrapper (UI-SPEC §Spacing Scale locked); border-t lifted from ChatInput <form> to wrapper so visual border draws above HubPicker; ChatInput retains p-4 for standalone-test compatibility
 - [Phase 999.9]: Plan 03: post-hydration sessionStorage seeding via useEffect([]) avoids SSR mismatch (Pitfall 6); allowlist-guard silently falls back to DEFAULT_HUB_ID on invalid stored values; resume + new-conversation paths preserve originHubId per UI-SPEC §Interaction Contracts
+- [Phase 999.10]: Plan 01: GuardCategory Literal extended additively from 5 to 7 members (planner_off_topic, planner_parse_failed appended in stable order); doc comment names which node emits which subset (guard_input_node: first 5; planner_node Plan 02: last 2); zero logic change in guard_input.py — _classify/_DOMAIN_ALLOW_PATTERNS/_llm_fallback/guard_input_node byte-identical otherwise; 345/345 backend pytest green; Wave 1 type-system gate opens for Plan 02 emission edits.
 
 ### Pending Todos
 
@@ -282,7 +285,7 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-05-10T04:41:49.107Z
-Stopped at: Completed 999.9-03-PLAN.md (Wave 3: frontend HubPicker UI -- 10-hub dropdown with glass-morphism + sessionStorage persistence + post-hydration seeding (Pitfall 6) + chat.send forwards origin_hub_id; 145/145 frontend vitest green; type-check + build clean)
+Last session: 2026-05-11T08:53:02.424Z
+Stopped at: Completed 999.10-01-PLAN.md (Wave 1: GuardCategory Literal extended additively with planner_off_topic + planner_parse_failed; 345/345 backend pytest green; ready for Wave 2 Plan 02 planner refusal-paths edits)
 Resume file: None
 Next: Restart uvicorn, then run the 15 attacks in backend/tests/adversarial_pack.txt through /api/chat to confirm refusal-and-redirect behavior end-to-end; review Langfuse traces for guard activations. Also: inspect TraceStep expanded view to confirm UWB bullet markdown renders cleanly.

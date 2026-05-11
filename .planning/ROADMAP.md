@@ -92,7 +92,7 @@ Plans:
 **Plans**: 3 plans (drafted 2026-05-11)
 
 Plans:
-- [ ] 999.10-01-extend-guardcategory-literal-PLAN.md — Additive `GuardCategory` Literal extension (`planner_off_topic`, `planner_parse_failed`) [Wave 1]
+- [x] 999.10-01-extend-guardcategory-literal-PLAN.md — Additive `GuardCategory` Literal extension (`planner_off_topic`, `planner_parse_failed`) [Wave 1]
 - [ ] 999.10-02-planner-refusal-paths-PLAN.md — `planner_node` D-04 (out_of_scope) + D-05 (parse_failed) refusal branches + 4 new unit tests [Wave 2]
 - [ ] 999.10-03-adversarial-pack-regression-PLAN.md — CI regression test pinning all 4 representative adversarial-pack cases to `status='refused'` + REFUSAL_COPY [Wave 3]
 
