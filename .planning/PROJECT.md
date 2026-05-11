@@ -54,13 +54,13 @@ The agent must transparently reason through fuel price, route, and shipping data
 - [x] EPPO fuel-price scraper rewritten after EPPO site URL + Excel structure restructure — Validated in v1.1: Debug 999.6
 - [x] 90-day daily fuel-price history backfilled via Bangchak historical scraper — Validated in v1.1: Debug 999.7
 - [x] Resume flow no longer appends duplicate assistant message on conversation reload — Validated in v1.1: Debug 999.5
+- [x] Unified refusal copy on planner bypass paths — `out_of_scope` LLM-tagged + `parse_failed` exhaustion both set `guard_decision` and route to `response_node` refusal branch; CI-deterministic regression across 4 adversarial-pack cases — Validated in Phase 10 / 999.10 (GUARD-07)
 
 ### Active
 
 <!-- v1.1 in-flight requirements — formalized in REQUIREMENTS.md -->
 
 - [ ] HQ/branch origin model: 10-hub network (1 HQ + 9 branches), HubPicker UI, single-leg routing, 135-row origin×destination rate matrix (Phase 9 / 999.9)
-- [ ] Unified refusal copy on planner bypass paths — `out_of_scope` LLM-tagged + `parse_failed` exhaustion both set `guard_decision` and route to `response_node` refusal branch (Phase 10 / 999.10)
 - [ ] Live SSE hang on legit baseline diesel-price query — investigate AND fix root cause (cold-start vs reducer vs SSE termination); 5-fresh-uvicorn-runs verification bar (Phase 11 / 999.11)
 
 ### Out of Scope
@@ -152,4 +152,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-05-10 — milestone v1.1 declared. 7 retroactively-validated work items moved to Validated (4 quick tasks + 3 debug fixes shipped post-v1.0); 3 in-flight phases (999.9 / 999.10 / 999.11) added to Active.*
+*Last updated: 2026-05-11 — Phase 10 / 999.10 (Unify Refusal Copy on Planner Bypass Paths, GUARD-07) moved Active → Validated. Active now: HQ/branch (Phase 9 — also moved Validated separately in its own update) and Phase 11 (Live SSE Hang Root-Cause Fix).*

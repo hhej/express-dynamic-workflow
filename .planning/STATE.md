@@ -2,9 +2,9 @@
 gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: — Real-World Routing & Demo Hardening
-status: executing
-stopped_at: "Completed 999.10-03-PLAN.md (Wave 3: adversarial-pack regression test; 4 parametrised refusal cases + 1 legit-baseline guard; 354/354 backend pytest green; GUARD-07 marked complete; all 3 plans of Phase 999.10 / Phase 10 complete — proceeding to regression gate + phase verification)"
-last_updated: "2026-05-11T09:10:00.000Z"
+status: ready
+stopped_at: "Completed Phase 999.10 (Phase 10 / v1.1 — Unify Refusal Copy on Planner Bypass Paths). All 3 plans landed: 999.10-01 (GuardCategory Literal extension), 999.10-02 (planner D-04/D-05 refusal branches + 4 unit tests), 999.10-03 (adversarial-pack regression test + false-positive guard). Backend pytest 345 → 354 green (+9 net new). Frontend vitest 145/145 green. Phase verification passed 5/5 must-haves. GUARD-07 marked complete in REQUIREMENTS.md. Branch: feature/guard-input-bypass-paths (linear ahead of develop, ready for PR). Next: Phase 11 (live SSE hang investigation — Context-ready, awaiting /gsd:plan-phase 11)."
+last_updated: "2026-05-11T13:06:51.456Z"
 last_activity: 2026-05-11
 progress:
   total_phases: 4
@@ -21,17 +21,17 @@ progress:
 See: .planning/PROJECT.md (updated 2026-05-10 — milestone v1.1 declared)
 
 **Core value:** The agent must transparently reason through fuel price, route, and shipping data to produce an accurate, explainable surcharge recommendation.
-**Current focus:** Phase 999.10 — guard-input-bypass-paths-return-inconsistent-refusal-copy
+**Current focus:** Phase 11 — Live SSE Hang Root-Cause Fix (Phase 10 complete; Phase 11 Context-ready, awaiting /gsd:plan-phase 11)
 
 ## Current Position
 
-Phase: 999.10 (Phase 10 / v1.1 — Unify Refusal Copy on Planner Bypass Paths) — All 3 plans complete; awaiting regression gate + phase verification
-Plan: 3 of 3 (complete)
-Last completed: Phase 999.10 Plan 03 (Adversarial-pack regression test) — 2026-05-11
-Status: Plans done; phase verification pending
+Phase: 999.10 (Phase 10 / v1.1) — COMPLETE
+Plan: 3 of 3 complete
+Last completed: Phase 999.10 (Unify Refusal Copy on Planner Bypass Paths) — 2026-05-11
+Status: Complete; ready for Phase 11
 Last activity: 2026-05-11
 
-Progress: [███░░░░░░░] 33% (v1.1 — 1 of 3 phases complete)
+Progress: [██████░░░░] 67% (v1.1 — 2 of 3 phases complete)
 
 ## Performance Metrics
 
