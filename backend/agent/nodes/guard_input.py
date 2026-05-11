@@ -44,7 +44,21 @@ __all__ = ["guard_input_node", "_route_from_guard_input", "GuardCategory"]
 
 logger = logging.getLogger(__name__)
 
-GuardCategory = Literal["allow", "injection", "off_topic", "cost_bombing", "unclear"]
+# Existing classifications (set by guard_input_node):
+#   allow | injection | off_topic | cost_bombing | unclear
+# Phase 999.10 additions (set by planner_node, NOT by guard_input_node):
+#   planner_off_topic     -> LLM emitted user_intent='out_of_scope'
+#   planner_parse_failed  -> D-02 retry loop exhausted (two bad JSON parses)
+# In all cases, guard_decision.layer stays 'input' (D-10); the category is the differentiator.
+GuardCategory = Literal[
+    "allow",
+    "injection",
+    "off_topic",
+    "cost_bombing",
+    "unclear",
+    "planner_off_topic",
+    "planner_parse_failed",
+]
 
 
 # ---------------------------------------------------------------------------
