@@ -292,8 +292,8 @@ All 15 cases now return `status='refused'` + `REFUSAL_COPY` (pre-Phase-10, cases
 |---------|---------|--------|
 | `MAX_TOOL_CALLS_PER_TURN` | `6` | Per-turn cap for `tool_call_count` reducer; refused with category `tool_call_budget` at the cap |
 | `GUARD_INPUT_USE_LLM_FALLBACK` | `false` | When `true`, ambiguous `guard_input` classifications fall back to Gemini; default fail-open (`ALLOW`) on any error |
-| `MAX_SURCHARGE_CAP` | `0.15` | `guard_output` invariant (15% max surcharge) |
-| `MIN_SURCHARGE_FLOOR` | `-0.05` | `guard_output` invariant (5% max discount) |
+| `SURCHARGE_CAP` | `0.15` | `guard_output` invariant (15% max surcharge) |
+| `SURCHARGE_FLOOR` | `-0.05` | `guard_output` invariant (5% max discount) |
 
 ---
 
