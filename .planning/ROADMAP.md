@@ -37,7 +37,7 @@
 ### v1.1 Phases (active)
 
 - [x] **Phase 9: HQ/Branch Origin Model** (4/4 plans) — completed 2026-05-10 — Replace implicit-origin model with hub-based origin selection (HQ + 9 branches), 135-row origin×destination rate matrix, HubPicker UI
-- [ ] **Phase 10: Unify Refusal Copy on Planner Bypass Paths** — `out_of_scope` LLM emission and `parse_failed` exhaustion both render the locked `REFUSAL_COPY` + `status='refused'` (not the generic clarify copy)
+- [x] **Phase 10: Unify Refusal Copy on Planner Bypass Paths** (3/3 plans) — completed 2026-05-11
 - [x] **Phase 11: Live SSE Hang Root-Cause Fix** — Diagnose AND fix the live `POST /api/chat` hang on the legit baseline diesel-price query; demo-gating for W6 (completed 2026-05-11)
 
 **Already shipped this milestone (retroactively validated):**
@@ -133,7 +133,7 @@ Plans:
 | 7. Feedback Contract Alignment | v1.0 | 3/3 | Complete | 2026-05-04 |
 | 8. Search Context + Sidebar Polish | v1.0 | 2/2 | Complete | 2026-05-05 |
 | 9. HQ/Branch Origin Model | v1.1 | 4/4 | Complete | 2026-05-10 |
-| 10. Unify Refusal Copy on Planner Bypass Paths | v1.1 | 0/3 | Planned (awaiting execute) | - |
+| 10. Unify Refusal Copy on Planner Bypass Paths | v1.1 | 3/3 | Complete | 2026-05-11 |
 | 11. Live SSE Hang Root-Cause Fix | v1.1 | 5/5 | Complete | 2026-05-11 |
 
 ## Backlog
