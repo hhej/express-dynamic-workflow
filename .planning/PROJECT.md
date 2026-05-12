@@ -91,7 +91,7 @@ The agent must transparently reason through fuel price, route, and shipping data
 - All 6 E2E flows fully wired (v1.1): cold-start happy path + prose override + cross-zone surcharge + adversarial off-topic + adversarial parse-fail + follow-up turn `origin_hub_id` inheritance
 - W6 demo gate cleared: 5/5 fresh-uvicorn runs of legit baseline diesel-price query PASS_UNDER_30S at ~7.6–7.9 s on commit e550256
 - Live observability proven: Langfuse Cloud trace `express-surcharge-agent` carrying `formula_accuracy` + `user_feedback` Scores
-- All 6 submission screenshots landed; demo.mp4 still deferred (W6 recording window)
+- All 6 submission screenshots landed (chat-breakdown, hubpicker (v1.1 — added 2026-05-12), trace-parallel, dashboard, hitl-approval, langfuse-trace); demo.mp4 not in scope (user opted out of video recording for the submission)
 - v1.0.0 git tag pending on main merge commit; v1.1 git tag created 2026-05-12
 
 **Tech debt accepted into v1.1 (8 items across 3 phases — non-functional / documentation hygiene):**
