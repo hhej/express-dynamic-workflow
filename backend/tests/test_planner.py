@@ -1422,6 +1422,114 @@ def test_planner_does_not_loop_on_destination_less_baseline_query(monkeypatch):
     assert new_entries[0]["status"] == "ok"
 
 
+def test_planner_short_circuit_trace_surfaces_origin_hub_id(monkeypatch):
+    """v1.1 audit / observability gap — surface origin_hub_id in short-circuit trace.
+
+    The FIX-02 destination-less short-circuit emits a single reasoning_trace
+    entry to mark the routing decision. The trace entry's tool_input must be
+    a structured dict containing the trigger AND origin_hub_id, so SSE
+    consumers (frontend trace panel, Langfuse spans) can see which hub the
+    user selected during a cold-start baseline-diesel query.
+
+    Rationale: .planning/milestones/v1.1-MILESTONE-AUDIT.md flagged this as
+    the sole cross-phase observability gap (Phase 9 hub selection x Phase 11
+    short-circuit). Functional state is correct — LangGraph last-write-wins
+    preserves origin_hub_id on partial dict returns — but the trace entry
+    was opaque (bare string). This pins the structured shape.
+
+    Mirrors the D-10 pin fixture at test_planner.py:1318 line-for-line; the
+    only difference is the assertion target (tool_input inner shape vs.
+    next_step + trace-entry presence).
+    """
+    mock_factory = MagicMock()
+    mock_factory.return_value = _scripted_llm(
+        '{"user_intent": "surcharge_query", '
+        '"shipping_type": null, "weight_kg": null, '
+        '"origin": null, "destination": null, '
+        '"origin_hub_id": null, '
+        '"missing_fields": [], '
+        '"next_step": "fetch_fuel", '
+        '"clarification_reason": null}'
+    )
+    monkeypatch.setattr(mod, "get_chat_model", mock_factory)
+
+    state = _user_state(
+        "What's the current diesel price in Bangkok?",
+        fuel_data={
+            "price": 39.95,
+            "baseline": 36.31,
+            "delta_pct": 0.1002,
+            "date": "2026-05-11",
+            "unit": "THB/L",
+            "source": "eppo_cached_csv",
+            "fetched_at": _now_iso_z(),
+        },
+        route_data=None,
+        destination=None,
+        origin=None,
+        shipping_type=None,
+        weight_kg=None,
+        origin_hub_id="hq-lat-krabang",
+        reasoning_trace=[
+            {
+                "step": 1,
+                "agent": "planner",
+                "tool": None,
+                "tool_input": {},
+                "tool_output": {"next_step": "fetch_fuel"},
+                "reasoning": "Intent=surcharge_query; routing to fetch_fuel",
+                "timestamp": _now_iso_z(),
+                "status": "ok",
+            },
+            {
+                "step": 2,
+                "agent": "fuel_agent",
+                "tool": "fetch_fuel_price",
+                "tool_input": None,
+                "tool_output": {"price": 39.95, "source": "eppo_cached_csv"},
+                "reasoning": "Diesel above baseline",
+                "timestamp": _now_iso_z(),
+                "status": "ok",
+            },
+        ],
+    )
+
+    out = planner_node(state)
+
+    # Sanity: short-circuit still fires (no regression vs. D-10 pin).
+    assert out["next_step"] == "respond"
+    assert mock_factory.call_count == 0, (
+        "Short-circuit must run BEFORE the LLM is called"
+    )
+
+    # The short-circuit emits exactly one new trace entry at step=3.
+    new_entries = [
+        e for e in out.get("reasoning_trace", [])
+        if isinstance(e, dict) and e.get("step") == 3
+    ]
+    assert len(new_entries) == 1, (
+        f"expected exactly 1 short-circuit trace entry at step=3; "
+        f"got {len(new_entries)}: {new_entries!r}"
+    )
+    entry = new_entries[0]
+
+    # The load-bearing assertions — the structured tool_input shape.
+    assert isinstance(entry["tool_input"], dict), (
+        f"v1.1 audit regression: short-circuit tool_input must be a dict "
+        f"(structured trace shape), got {type(entry['tool_input']).__name__}: "
+        f"{entry['tool_input']!r}"
+    )
+    assert entry["tool_input"]["trigger"] == "fuel_data_present_no_destination", (
+        f"trigger key must preserve original sentinel string for grep-ability; "
+        f"got {entry['tool_input'].get('trigger')!r}"
+    )
+    assert entry["tool_input"]["origin_hub_id"] == "hq-lat-krabang", (
+        f"v1.1 observability gap: origin_hub_id must surface in trace so SSE "
+        f"consumers can see which hub the user chose; got "
+        f"{entry['tool_input'].get('origin_hub_id')!r}"
+    )
+
+
 # ---------------------------------------------------------------------------
 # Phase 11 / FIX-02 defense-in-depth — tool_call_count reducer invariant
 # ---------------------------------------------------------------------------

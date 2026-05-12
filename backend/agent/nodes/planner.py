@@ -313,7 +313,10 @@ def planner_node(state: dict) -> dict:
                     "step": prior_steps + 1,
                     "agent": "planner",
                     "tool": None,
-                    "tool_input": "fuel_data_present_no_destination",
+                    "tool_input": {
+                        "trigger": "fuel_data_present_no_destination",
+                        "origin_hub_id": state.get("origin_hub_id"),
+                    },
                     "tool_output": None,
                     "reasoning": (
                         "Destination-less baseline query with cached fuel — "
