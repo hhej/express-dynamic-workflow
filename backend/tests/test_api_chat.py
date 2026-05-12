@@ -194,6 +194,95 @@ def test_happy_path_sse_sequence(app_with_mocks):
     assert answer["payload"]["status"] == "ok"
 
 
+def test_legit_baseline_diesel_price_query_completes(app_with_mocks):
+    """defense-in-depth invariant: Phase 11 / FIX-02 — additive coverage, not the D-10 pin.
+
+    Permanent CI guard pinning the SSE plumbing contract on the
+    legit-baseline diesel-price query shape: the stream MUST contain an
+    ``answer`` event AND MUST close with a trailing ``done`` event.
+
+    Live regression context (closed by Plan 03 / commit ``e550256``): the
+    legit baseline ``"What's the current diesel price in Bangkok?"``
+    previously hung in the FE with no ``answer`` event and no ``done``
+    arriving before the urlopen 60s client timeout. Phase 11 root-caused
+    the hang to hypothesis (b) — a planner re-loop in
+    ``planner_node``'s cache-aware override cascade — and fixed it via
+    the destination-less short-circuit. Hypothesis (a) SSE termination
+    was independently RULED OUT (see ``999.11-04-EVIDENCE.md``) via
+    static analysis (every ``response_node`` return carries
+    ``final_payload``; ``_fresh_stream``'s only early return is the
+    intentional Pitfall-2 ``approval_required`` path; the graph wires
+    ``response → END``) AND this integration probe (the SSE plumbing
+    emits ``meta → trace × n → answer → done`` cleanly through
+    ``app_with_mocks``).
+
+    Because Phase 11's CONFIRMED-path canonical pin already landed on
+    Plan 03 (``test_planner_does_not_loop_on_destination_less_baseline_query``
+    in ``test_planner.py`` — that test carries the D-10 marker), this
+    test is defense-in-depth ONLY: it
+    pins the SSE plumbing invariant so any future regression that
+    breaks ``answer`` or ``done`` emission on the legit-baseline shape
+    is caught in CI, deterministically and offline.
+
+    The default ``app_with_mocks`` planner script
+    (``fetch_fuel → fetch_route → calculate_price → respond``) drives
+    this test, not the live destination-less short-circuit script. The
+    test is validating the SSE plumbing LAYER (``_drain_events`` +
+    ``_fresh_stream`` + ``response_node.final_payload``), NOT the
+    planner routing — the planner short-circuit itself is pinned by
+    Plan 03's D-10 test on the planner unit.
+    """
+    with TestClient(app_with_mocks) as client:
+        with client.stream(
+            "POST", "/api/chat",
+            json={
+                "message": "What's the current diesel price in Bangkok?",
+                "thread_id": "fix02-baseline",
+            },
+        ) as r:
+            assert r.status_code == 200
+            body = "".join(chunk for chunk in r.iter_text())
+
+    events = _parse_sse_events(body)
+    types = [e["type"] for e in events]
+
+    # First event MUST be meta carrying the supplied thread_id.
+    assert types[0] == "meta", f"First event must be meta; got types={types}"
+    assert events[0]["payload"]["thread_id"] == "fix02-baseline"
+
+    # Variant-1 / variant-2 guard: an answer event MUST appear in the
+    # stream. Hypothesis (a) failure modes 1 (graph completes without
+    # final_payload) and 2 (response_node returns missing final_payload)
+    # would both manifest as a missing answer event here.
+    assert "answer" in types, (
+        f"FIX-02 SSE regression: no answer event arrived. "
+        f"This signals hypothesis (a) variant 1 or 2. Types: {types}"
+    )
+
+    # Variant-3 guard: stream MUST close with done. A _fresh_stream
+    # early return bypassing the finally block would manifest as a
+    # missing or non-trailing done event here.
+    assert types[-1] == "done", (
+        f"FIX-02 SSE regression: stream closed without done. "
+        f"This signals hypothesis (a) variant 3. Last type: {types[-1]}, "
+        f"full types: {types}"
+    )
+
+    # Answer payload shape contract (D-10 / Phase 7 D-01):
+    answer = next(e for e in events if e["type"] == "answer")
+    assert answer["payload"].get("markdown"), (
+        f"answer payload missing or empty markdown: {answer}"
+    )
+    # message_id stamped by _drain_events at thread_id-turn_idx format.
+    message_id = answer["payload"].get("message_id", "")
+    assert message_id.endswith("-0"), (
+        f"message_id missing or wrong turn idx for first turn: {message_id!r}"
+    )
+    assert message_id.startswith("fix02-baseline-"), (
+        f"message_id thread_id mismatch: {message_id!r}"
+    )
+
+
 def test_server_generates_thread_id(app_with_mocks):
     """When client omits thread_id the server emits a fresh UUIDv4."""
     with TestClient(app_with_mocks) as client:

@@ -55,13 +55,13 @@ The agent must transparently reason through fuel price, route, and shipping data
 - [x] 90-day daily fuel-price history backfilled via Bangchak historical scraper — Validated in v1.1: Debug 999.7
 - [x] Resume flow no longer appends duplicate assistant message on conversation reload — Validated in v1.1: Debug 999.5
 - [x] Unified refusal copy on planner bypass paths — `out_of_scope` LLM-tagged + `parse_failed` exhaustion both set `guard_decision` and route to `response_node` refusal branch; CI-deterministic regression across 4 adversarial-pack cases — Validated in Phase 10 / 999.10 (GUARD-07)
+- [x] Live SSE hang root-cause fix on legit baseline diesel-price query — destination-less follow-up short-circuit in `planner_node` (pre-LLM, fires when `fuel_data` cached and all logistics fields null) prevents the cache-aware override at `planner.py:509` from promoting `next_step="fetch_route"` on null destination; 5/5 fresh-uvicorn runs PASS_UNDER_30S at ~7.6-7.9s with `answer + done` events — Validated in Phase 11 / 999.11 (FIX-02)
 
 ### Active
 
 <!-- v1.1 in-flight requirements — formalized in REQUIREMENTS.md -->
 
 - [ ] HQ/branch origin model: 10-hub network (1 HQ + 9 branches), HubPicker UI, single-leg routing, 135-row origin×destination rate matrix (Phase 9 / 999.9)
-- [ ] Live SSE hang on legit baseline diesel-price query — investigate AND fix root cause (cold-start vs reducer vs SSE termination); 5-fresh-uvicorn-runs verification bar (Phase 11 / 999.11)
 
 ### Out of Scope
 
@@ -152,4 +152,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-05-11 — Phase 10 / 999.10 (Unify Refusal Copy on Planner Bypass Paths, GUARD-07) moved Active → Validated. Active now: HQ/branch (Phase 9 — also moved Validated separately in its own update) and Phase 11 (Live SSE Hang Root-Cause Fix).*
+*Last updated: 2026-05-11 — Phase 11 / 999.11 (Live SSE Hang Root-Cause Fix, FIX-02) moved Active → Validated. Demo gate for W6 cleared (5/5 fresh-uvicorn PASS_UNDER_30S on legit baseline). Active now: HQ/branch (Phase 9 — Validated in its own separate update). All v1.1 active phases complete.*

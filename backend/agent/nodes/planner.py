@@ -268,6 +268,63 @@ def planner_node(state: dict) -> dict:
             "clarification_reason": "planner_loop_budget_exhausted",
         }
 
+    # Phase 11 / FIX-02 / Hypothesis (b) CONFIRMED: destination-less follow-up
+    # short-circuit. When fuel_data is already populated AND the user query has
+    # no logistics fields (no destination, no shipping_type, no weight_kg),
+    # there is nothing left for the agent to do besides respond.
+    #
+    # Without this guard, the cache-aware override cascade below (lines
+    # ~500-509) would unconditionally promote next_step to 'fetch_route'
+    # because _fuel_fresh(state) is True and _route_matches(state, ..., None)
+    # returns False for any destination=None. route_agent_node would then
+    # ValueError on the missing destination, the D-24 error sink emits a
+    # `done` event with errors[] populated, and the SSE client times out
+    # at 60s with a 0-byte body — the live bug captured in
+    # .planning/phases/999.11-.../999.11-03-EVIDENCE.md row 4.
+    #
+    # The four pre-conditions (fuel_data populated AND not destination AND
+    # not shipping_type AND not weight_kg) describe the legit-baseline
+    # shape EXACTLY — "What's the current diesel price in Bangkok?" with
+    # turn-1 fuel already fetched. They never hold for a real surcharge
+    # query (which always carries >= 1 logistics field), so this branch
+    # is surgical: closes the hang without affecting surcharge paths.
+    #
+    # Placed AFTER the _loop_budget_exhausted guard (which still applies on
+    # pathological loop conditions) and BEFORE the messages extraction +
+    # LLM invoke (skipping the LLM is the entire point — avoid wasting a
+    # Gemini call that would route nowhere useful).
+    if (
+        state.get("fuel_data") is not None
+        and not state.get("destination")
+        and not state.get("shipping_type")
+        and not state.get("weight_kg")
+    ):
+        logger.info(
+            "planner short-circuiting destination-less follow-up to respond "
+            "(fuel_data populated, no logistics fields — FIX-02)"
+        )
+        ts = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
+        prior_steps = len(state.get("reasoning_trace") or [])
+        return {
+            "next_step": "respond",
+            "user_intent": state.get("user_intent") or "news_query",
+            "reasoning_trace": [
+                {
+                    "step": prior_steps + 1,
+                    "agent": "planner",
+                    "tool": None,
+                    "tool_input": "fuel_data_present_no_destination",
+                    "tool_output": None,
+                    "reasoning": (
+                        "Destination-less baseline query with cached fuel — "
+                        "short-circuit to respond"
+                    ),
+                    "timestamp": ts,
+                    "status": "ok",
+                }
+            ],
+        }
+
     messages = state.get("messages") or []
     last_user = next(
         (m for m in reversed(messages) if m.get("role") == "user"), None

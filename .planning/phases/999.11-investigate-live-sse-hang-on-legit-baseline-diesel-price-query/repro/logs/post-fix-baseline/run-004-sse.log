@@ -1,0 +1,114 @@
+[
+  {
+    "wall_clock": "2026-05-11T16:38:45.936Z",
+    "elapsed_ms": 97,
+    "type": "meta",
+    "payload": {
+      "thread_id": "probe-ac2a69d3f25c4079bca353b80b164acd"
+    }
+  },
+  {
+    "wall_clock": "2026-05-11T16:38:48.016Z",
+    "elapsed_ms": 2177,
+    "type": "trace",
+    "payload": {
+      "step": 1,
+      "agent": "planner",
+      "tool": null,
+      "tool_input": {},
+      "tool_output": {
+        "user_intent": "surcharge_query",
+        "shipping_type": null,
+        "weight_kg": null,
+        "origin": null,
+        "destination": null,
+        "origin_hub_id": "hq-lat-krabang",
+        "missing_fields": [
+          "shipping_type",
+          "weight_kg",
+          "destination"
+        ],
+        "next_step": "fetch_fuel",
+        "clarification_reason": null
+      },
+      "reasoning": "Intent=surcharge_query; routing to fetch_fuel",
+      "timestamp": "2026-05-11T16:38:48.012078Z",
+      "status": "ok"
+    }
+  },
+  {
+    "wall_clock": "2026-05-11T16:38:53.434Z",
+    "elapsed_ms": 7594,
+    "type": "trace",
+    "payload": {
+      "step": 2,
+      "agent": "fuel_agent",
+      "tool": "fetch_fuel_price",
+      "tool_input": {},
+      "tool_output": {
+        "price": 39.95,
+        "date": "2026-05-11",
+        "unit": "THB/L",
+        "source": "eppo_cached_csv",
+        "baseline": 36.31,
+        "delta_pct": 0.1002
+      },
+      "reasoning": "The current diesel B7 price of 39.95 THB/L is 10.02% above the 36.31 THB/L baseline. (trend=above_baseline)",
+      "timestamp": "2026-05-11T16:38:53.432727Z",
+      "status": "ok"
+    }
+  },
+  {
+    "wall_clock": "2026-05-11T16:38:53.440Z",
+    "elapsed_ms": 7600,
+    "type": "trace",
+    "payload": {
+      "step": 3,
+      "agent": "planner",
+      "tool": null,
+      "tool_input": "fuel_data_present_no_destination",
+      "tool_output": null,
+      "reasoning": "Destination-less baseline query with cached fuel — short-circuit to respond",
+      "timestamp": "2026-05-11T16:38:53.436425Z",
+      "status": "ok"
+    }
+  },
+  {
+    "wall_clock": "2026-05-11T16:38:53.443Z",
+    "elapsed_ms": 7603,
+    "type": "trace",
+    "payload": {
+      "step": 4,
+      "agent": "response",
+      "tool": null,
+      "tool_input": {
+        "status": "clarify"
+      },
+      "tool_output": {
+        "markdown_length": 135
+      },
+      "reasoning": "Rendered clarify payload",
+      "timestamp": "2026-05-11T16:38:53.442497Z",
+      "status": "ok"
+    }
+  },
+  {
+    "wall_clock": "2026-05-11T16:38:53.443Z",
+    "elapsed_ms": 7603,
+    "type": "answer",
+    "payload": {
+      "markdown": "I need a bit more information to calculate your surcharge. Please provide: shipping_type, weight_kg, destination. (missing_information)",
+      "surcharge_result": null,
+      "capped": false,
+      "status": "clarify",
+      "search_context": null,
+      "message_id": "probe-ac2a69d3f25c4079bca353b80b164acd-0"
+    }
+  },
+  {
+    "wall_clock": "2026-05-11T16:38:53.447Z",
+    "elapsed_ms": 7607,
+    "type": "done",
+    "payload": {}
+  }
+]

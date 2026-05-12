@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: — Real-World Routing & Demo Hardening
-status: ready
-stopped_at: "Completed Phase 999.10 (Phase 10 / v1.1 — Unify Refusal Copy on Planner Bypass Paths). All 3 plans landed: 999.10-01 (GuardCategory Literal extension), 999.10-02 (planner D-04/D-05 refusal branches + 4 unit tests), 999.10-03 (adversarial-pack regression test + false-positive guard). Backend pytest 345 → 354 green (+9 net new). Frontend vitest 145/145 green. Phase verification passed 5/5 must-haves. GUARD-07 marked complete in REQUIREMENTS.md. Branch: feature/guard-input-bypass-paths (linear ahead of develop, ready for PR). Next: Phase 11 (live SSE hang investigation — Context-ready, awaiting /gsd:plan-phase 11)."
-last_updated: "2026-05-11T13:06:51.456Z"
+status: completed
+stopped_at: "Completed Phase 999.11 (Phase 11 / v1.1 — Live SSE Hang Root-Cause Fix). Root cause: hypothesis (b) planner re-loop CONFIRMED + FIXED at commit e550256 (destination-less short-circuit in planner_node); hypotheses (c) cold-start and (a) SSE termination cleanly RULED OUT. Backend pytest 355 -> 358 (+3: D-10 pin + 2 defense-in-depth). 5/5 live-bar runs PASS_UNDER_30S at ~7.6-7.9s (D-09 demo gate cleared). FIX-02 marked Complete (Phase 11) in REQUIREMENTS.md with 'Validated in v1.1: Phase 11' suffix. Branch: develop. Next: v1.1 milestone closure (run /gsd:complete-milestone) or W6 demo recording."
+last_updated: "2026-05-11T17:13:28.846Z"
 last_activity: 2026-05-11
 progress:
   total_phases: 4
   completed_phases: 0
   total_plans: 0
   completed_plans: 0
-  percent: 33
+  percent: 100
 ---
 
 # Project State
@@ -21,17 +21,17 @@ progress:
 See: .planning/PROJECT.md (updated 2026-05-10 — milestone v1.1 declared)
 
 **Core value:** The agent must transparently reason through fuel price, route, and shipping data to produce an accurate, explainable surcharge recommendation.
-**Current focus:** Phase 11 — Live SSE Hang Root-Cause Fix (Phase 10 complete; Phase 11 Context-ready, awaiting /gsd:plan-phase 11)
+**Current focus:** Phase 999.11 — investigate-live-sse-hang-on-legit-baseline-diesel-price-query
 
 ## Current Position
 
-Phase: 999.10 (Phase 10 / v1.1) — COMPLETE
-Plan: 3 of 3 complete
-Last completed: Phase 999.10 (Unify Refusal Copy on Planner Bypass Paths) — 2026-05-11
-Status: Complete; ready for Phase 11
+Phase: 999.11 (Phase 11 / v1.1) — COMPLETE
+Plan: 5 of 5 complete
+Last completed: Phase 999.11 (Live SSE Hang Root-Cause Fix) — 2026-05-11
+Status: Complete; v1.1 ready for closure or demo recording
 Last activity: 2026-05-11
 
-Progress: [██████░░░░] 67% (v1.1 — 2 of 3 phases complete)
+Progress: [██████████] 100% (v1.1 — 3 of 3 phases complete)
 
 ## Performance Metrics
 
@@ -92,6 +92,11 @@ Progress: [██████░░░░] 67% (v1.1 — 2 of 3 phases complete)
 | Phase 999.9 P03 | 9min | 3 tasks tasks | 12 files files |
 | Phase 999.10 P01 | 2min | 1 tasks | 1 files |
 | Phase 999.10 P02 | 3min | 1 tasks | 2 files |
+| Phase 999.11 P01 | 8min | 2 tasks | 4 files |
+| Phase 999.11 P02 | 44min | 2 tasks | 53 files |
+| Phase 999.11 P03 | 25min | 2 tasks | 4 files |
+| Phase 999.11 P04 | ~15min | 2 tasks | 3 files |
+| Phase 999.11 P05 | ~8min | 3 tasks | 4 files (999.11-SUMMARY.md + REQUIREMENTS.md + ROADMAP.md + STATE.md) |
 
 ## Accumulated Context
 
@@ -268,6 +273,17 @@ Recent decisions affecting current work:
 - [Phase 999.10]: Plan 03: PLAN's <action> specified a defensive monkeypatch on `guard_input.get_chat_model` but that attribute doesn't exist at module level (imported lazily inside _llm_fallback at line 134). Removed the monkeypatch and module import; defensive guard was non-load-bearing because GUARD_INPUT_USE_LLM_FALLBACK defaults False and the regex catches the four cases. Layer differentiation still proven by per-case guard_decision.category assertion (injection/off_topic for guard_input cases; planner_off_topic/planner_parse_failed for planner cases).
 - [Phase 999.10]: Plan 03: test_legit_baseline_does_not_refuse invokes planner_node directly (not the full graph) — the legit-vs-refusal fork happens entirely inside planner_node, so unit-level assertion is the correct scope. Avoids requiring fuel/route/pricing specialist-agent network mocks for the false-positive regression guard.
 - [Phase 999.10]: Plan 03 deviation: executor agent timed out (stream idle) after the RED-stub commit (9a8613a); orchestrator inherited the work via workflow's spot-check fallback rule, wrote the full GREEN test content per the PLAN <action> block, ran pytest (5 pass), committed GREEN (d1156a6), then landed SUMMARY + STATE + ROADMAP + GUARD-07 completion. The RED-stub strategy gave a clear, grep-able marker of exactly where the agent stalled — recovery was mechanical.
+- [Phase 999.11]: Plan 01: out-of-process repro harness (subprocess.Popen uvicorn + httpx) with dual wall-clock+elapsed-ms timestamping; D-06 toggles (--skip-coldstart-refresh, --warmup-first) wired for hypothesis (c) isolation; 5-run orchestrator exits 0 only when 5/5 PASS_UNDER_30S
+- [Phase 999.11]: Plan 02 RULED OUT (c) cold-start — step 4 combined --warmup-first --skip-coldstart-refresh still fails 5/5 with bit-identical ValueError; proceeding to Plan 03 (b) planner re-loop. Smoking gun: SSE trace planner -> fuel_agent -> planner with next_step=fetch_route despite destination=None.
+- [Phase 999.11]: Plan 02 Rule 3 fix to run_5x.sh — `${EXTRA_ARGS[@]+"${EXTRA_ARGS[@]}"}` bash safe-expansion idiom for set -u compatibility when zero extra args passed (step 1 baseline); pre-existing latent bug in Plan 01's deliverable, exposed by Plan 02's zero-arg call site.
+- [Phase 999.11]: Plan 02 symptom-shift documented: reproduction surface is fast ~10s deterministic ValueError (route_agent_node requires destination), NOT the original 60s body=0 hang from backlog. Both are critical legit-baseline failures; Plan 03 proceeds on the live signature; Plan 05 reconciles narrative.
+- [Phase 999.11]: Plan 03 Hypothesis (b) planner re-loop CONFIRMED + FIXED: destination-less short-circuit in planner_node (4 preconditions: fuel_data populated AND no destination AND no shipping_type AND no weight_kg) routes directly to respond BEFORE LLM invoke, closing the live SSE hang on legit baseline diesel-price query. 5/5 fresh-uvicorn runs PASS_UNDER_30S at ~7.8s. Phase root cause CLOSED. Plan 04 (hypothesis a) becomes NO-OP.
+- [Phase 999.11]: Plan 03 D-10 pinning test test_planner_does_not_loop_on_destination_less_baseline_query — pins Phase 11 / FIX-02 root cause (RED on pre-fix, GREEN on post-fix). Defense-in-depth pin test_tool_call_count_reducer_aggregates_parallel_writes mirrors test_parallel_fanout.py for setup, asserts final_state['tool_call_count'] >= 2 to guard the Annotated[int, operator.add] reducer under fan-out against future last-write-wins regressions (passes on current main; pins the invariant).
+- [Phase 999.11]: Plan 03 Rule 1 deviation: 3 pre-existing planner tests (test_skips_fetch_when_fuel_fresh, test_planner_no_fanout_when_fuel_fresh, test_trace_tool_output_reflects_post_override_next_step) updated with shipping_type='bounce' state pre-population — they modeled a non-production-realistic synthetic state shape (fresh state with pre-populated fuel_data but no other logistics fields). In real production, a state with cached fuel always inherits prior logistics fields from prior turns via the 999.1 merge; the test updates make them representative of realistic follow-up paths.
+- [Phase 999.11]: Plan 04 (a) SSE termination RULED OUT — static analysis trio (response_node returns all carry final_payload; _fresh_stream only intentional approval_required early-return; graph response→END is the only terminal edge) + integration probe via app_with_mocks emitted meta→trace×6→answer→done cleanly with answer.status='ok'. All 3 variants structurally impossible. Defense-in-depth test landed in test_api_chat.py with 'defense-in-depth invariant: Phase 11 / FIX-02 — additive coverage, not the D-10 pin' marker (NO D-10 marker; phase-wide invariant: single D-10 pin lives on Plan 03's test_planner.py:1319).
+- [Phase 999.11]: Plan 04 no backend production code modified — chat.py, response_node.py, graph.py, planner.py untouched per must_haves.truths.3 'If RULED OUT: no backend code changes land'. Only files changed: backend/tests/test_api_chat.py (+89 lines test), 999.11-04-EVIDENCE.md (+58 lines closure note), 999.11-04-SUMMARY.md (new). Full backend pytest 358/358 GREEN (+1 over 357 baseline, zero regressions, zero flakes).
+- [Phase 999.11]: Plan 04 escalation NOT APPLICABLE — Phase 11 root cause is SINGULAR (hypothesis (b) planner re-loop CONFIRMED + FIXED at commit e550256 in Plan 03), CLOSED before Plan 04 ran. EVIDENCE.md 'Escalation: all three hypotheses RULED OUT' section header present for plan acceptance-criterion compliance, but marked NOT APPLICABLE inline. D-04 escalation clause (Langfuse traces + AgentState snapshots) NOT invoked. No Phase 999.12 follow-up needed. Plan 05 closes the phase with REQUIREMENTS stamp + live-bar gate.
+- [Phase 999.11]: Plan 05 Phase 11 closure — FIX-02 stamped Complete (Phase 11) in REQUIREMENTS.md (line 53 + traceability table line 125); ROADMAP.md Phase 11 detail block flipped Status to Complete (2026-05-11), active-phases checklist + Progress table row reflect 5/5 complete; STATE.md Current Position advanced to Phase 999.11 COMPLETE with v1.1 progress 3/3 phases (100%). D-09 live-bar gate honored via Plan 03's post-fix-baseline/summary.jsonl archive per user verdict (no backend code changed between e550256 and HEAD; archive remains representative). Phase-level 999.11-SUMMARY.md is the canonical wrap-up per plan output spec — no per-plan 999.11-05-SUMMARY.md authored. v1.1 milestone now ready for closure via /gsd:complete-milestone. (FIX-02)
 
 ### Pending Todos
 
@@ -294,7 +310,7 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-05-11T08:59:42.053Z
-Stopped at: Completed 999.10-02-PLAN.md (Wave 2: planner D-04 out_of_scope + D-05 parse_failed refusal branches wired via _set_guard_refusal helper; emits guard_decision={layer:'input', refused:True, category:'planner_off_topic'|'planner_parse_failed', violations:[]} + next_step='respond'; response_node refusal branch renders REFUSAL_COPY with status='refused' uniformly; 349/349 backend pytest green; ready for Wave 3 Plan 03 adversarial-pack regression)
+Last session: 2026-05-11T17:30:00.000Z
+Stopped at: Completed Phase 999.11 (Phase 11 / v1.1 — Live SSE Hang Root-Cause Fix). Root cause: hypothesis (b) planner re-loop CONFIRMED + FIXED at commit e550256 (destination-less short-circuit in planner_node); hypotheses (c) cold-start and (a) SSE termination cleanly RULED OUT. Backend pytest 355 -> 358 (+3: D-10 pin + 2 defense-in-depth). 5/5 live-bar runs PASS_UNDER_30S at ~7.6-7.9s (D-09 demo gate cleared). FIX-02 marked Complete (Phase 11) in REQUIREMENTS.md with 'Validated in v1.1: Phase 11' suffix. Branch: develop. Next: v1.1 milestone closure (run /gsd:complete-milestone) or W6 demo recording.
 Resume file: None
-Next: Restart uvicorn, then run the 15 attacks in backend/tests/adversarial_pack.txt through /api/chat to confirm refusal-and-redirect behavior end-to-end; review Langfuse traces for guard activations. Also: inspect TraceStep expanded view to confirm UWB bullet markdown renders cleanly.
+Next: Demo recording (W6); or close v1.1 milestone with milestone audit via /gsd:complete-milestone. Pre-existing ROADMAP.md drift on Phase 10 active-checklist + Progress table row logged to .planning/phases/999.11-.../deferred-items.md (out of scope for Plan 05; fix in housekeeping commit or milestone audit).
