@@ -1,5 +1,30 @@
 # Milestones
 
+## v1.1 Real-World Routing & Demo Hardening (Shipped: 2026-05-12)
+
+**Phases completed:** 3 phases (9, 10, 11), 12 plans, ~26 tasks
+**Timeline:** 2026-05-09 → 2026-05-12 (4 days; 102 commits)
+**Code delta:** 69 source files changed, +7241/-348 LOC (backend + frontend + data)
+**Requirements:** 22/22 v1.1 requirements satisfied (10 active phase-mapped + 12 retroactive)
+**Audit:** passed (re-audit 2026-05-12T18:00:00Z); 23/23 cross-phase wires PASS; 6/6 E2E flows operational
+
+**Key accomplishments:**
+
+- 10-hub seed dataset (1 HQ + 9 branches) + 135-row origin × destination rate matrix + symmetric ORIGIN_DEST_MULTIPLIER + 4-arg `lookup_rate` signature; v1.0 central-1 rates preserved byte-for-byte (Phase 9 / 999.9-01)
+- AgentState/RouteData/ChatRequest extended additively with `origin_hub_id`; `calculate_route` signature changed to `(hub_id, destination)`; planner extracts/validates/inherits hub_id; pricing_agent resolves hub_id → origin_zone via `origin_zone_for`; API boundary defaults to HQ (Phase 9 / 999.9-02)
+- HubPicker dropdown with glass-morphism styling above ChatInput; ChatApp lifts `originHubId` state with sessionStorage persistence + post-hydration seeding; `useChatStream` forwards `origin_hub_id` in POST /api/chat body; full frontend suite green (145 tests, +20 net new) (Phase 9 / 999.9-03)
+- Unified refusal copy on planner bypass paths — additive `GuardCategory` Literal extension (`planner_off_topic`, `planner_parse_failed`); planner D-04 (out_of_scope) + D-05 (parse_failed) emit `state.guard_decision` and route to response refusal branch; `REFUSAL_COPY` + `status='refused'` for adversarial_pack cases 2 + 4 (Phase 10 / 999.10)
+- Live SSE hang on legit baseline diesel-price query CLOSED via pre-LLM destination-less short-circuit in `planner_node` (commit `e550256`); hypotheses (c) cold-start and (a) SSE termination cleanly RULED OUT; 5/5 fresh-uvicorn runs PASS_UNDER_30S at ~7.6–7.9 s — W6 demo gate cleared (Phase 11 / 999.11)
+- FastAPI lifespan cold-start fuel-price refresh with timezone-aware (Asia/Bangkok) staleness predicate + D-03 log-and-continue (retroactive: Quick 260509-eum / DATA-06)
+- Pricing Agent visible reasoning bullets (3–5 per turn) + 7-day fuel-volatility flag (low/normal/high) via pure CSV reader (retroactive: Quick 260509-uwb / PRICE-01, PRICE-02)
+- Two-layer adversarial guardrails: SECURITY_PREAMBLE on all agent prompts, `guard_input` rules-first regex classifier + Gemini LLM fallback flag, `guard_output` SurchargeResult invariant validator, per-turn `tool_call_count` cap (=6) via `Annotated[int, operator.add]` reducer, locked REFUSAL_COPY, 15-attack `adversarial_pack.txt` (retroactive: Quick 260509-utd / GUARD-01..06)
+- Dark cosmic glass-morphism UI theme applied across 23 view components (Tailwind v4 `@theme` tokens + `glass-surface`/`glass-panel`/`brand-gradient` utilities + static gradient mesh body) (retroactive: Quick 260509-e0p / THEME-01)
+- EPPO fuel-price scraper rewrite after EPPO site URL + Excel structure restructure (retroactive: Debug 999.6 / DATA-07)
+- 90-day daily fuel-price history backfilled via Bangchak historical scraper (retroactive: Debug 999.7 / DATA-08)
+- Resume flow no longer appends duplicate assistant message on conversation reload (retroactive: Debug 999.5 / FIX-01)
+
+---
+
 ## v1.0 MVP (Shipped: 2026-05-05)
 
 **Phases completed:** 8 phases, 36 plans, 87 tasks

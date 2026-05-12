@@ -1,35 +1,35 @@
 ---
 gsd_state_version: 1.0
-milestone: v1.1
-milestone_name: — Real-World Routing & Demo Hardening
-status: completed
-stopped_at: "Completed Phase 999.11 (Phase 11 / v1.1 — Live SSE Hang Root-Cause Fix). Root cause: hypothesis (b) planner re-loop CONFIRMED + FIXED at commit e550256 (destination-less short-circuit in planner_node); hypotheses (c) cold-start and (a) SSE termination cleanly RULED OUT. Backend pytest 355 -> 358 (+3: D-10 pin + 2 defense-in-depth). 5/5 live-bar runs PASS_UNDER_30S at ~7.6-7.9s (D-09 demo gate cleared). FIX-02 marked Complete (Phase 11) in REQUIREMENTS.md with 'Validated in v1.1: Phase 11' suffix. Branch: develop. Next: v1.1 milestone closure (run /gsd:complete-milestone) or W6 demo recording."
-last_updated: "2026-05-11T17:21:26.481Z"
-last_activity: 2026-05-11
+milestone: null
+milestone_name: ""
+status: between_milestones
+stopped_at: "v1.1 (Real-World Routing & Demo Hardening) shipped 2026-05-12. 22/22 v1.1 requirements satisfied; 23/23 cross-phase wires PASS; 6/6 E2E flows operational; W6 demo gate cleared (5/5 fresh-uvicorn runs PASS_UNDER_30S on legit baseline diesel-price query). v1.1 archived to .planning/milestones/. No active milestone — code freeze for W5 / W6 final demo recording. Next: W6 demo or /gsd:new-milestone to begin v1.2/v2.0."
+last_updated: "2026-05-12T14:30:00.000Z"
+last_activity: 2026-05-12
 progress:
-  total_phases: 4
+  total_phases: 0
   completed_phases: 0
   total_plans: 0
   completed_plans: 0
-  percent: 100
+  percent: 0
 ---
 
 # Project State
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-05-10 — milestone v1.1 declared)
+See: .planning/PROJECT.md (updated 2026-05-12 — v1.1 milestone closed)
 
 **Core value:** The agent must transparently reason through fuel price, route, and shipping data to produce an accurate, explainable surcharge recommendation.
-**Current focus:** Phase 999.11 — investigate-live-sse-hang-on-legit-baseline-diesel-price-query
+**Current focus:** Between milestones — v1.1 shipped 2026-05-12. Awaiting W6 demo recording or `/gsd:new-milestone`.
 
 ## Current Position
 
-Phase: 999.11
-Plan: Not started
-Last completed: Phase 999.11 (Live SSE Hang Root-Cause Fix) — 2026-05-11
-Status: Complete; v1.1 ready for closure or demo recording
-Last activity: 2026-05-12 - Completed quick task 260512-t7q: Surface origin_hub_id in FIX-02 short-circuit trace
+Phase: —
+Plan: —
+Last completed: v1.1 milestone (Phases 9, 10, 11) — 2026-05-12
+Status: v1.1 milestone complete; between milestones
+Last activity: 2026-05-12 — Closed v1.1 milestone (archived ROADMAP + REQUIREMENTS + AUDIT to .planning/milestones/v1.1-*)
 
 Progress: [██████████] 100% (v1.1 — 3 of 3 phases complete)
 
