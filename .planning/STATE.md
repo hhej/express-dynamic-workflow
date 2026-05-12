@@ -4,7 +4,7 @@ milestone: v1.1
 milestone_name: — Real-World Routing & Demo Hardening
 status: completed
 stopped_at: "Completed Phase 999.11 (Phase 11 / v1.1 — Live SSE Hang Root-Cause Fix). Root cause: hypothesis (b) planner re-loop CONFIRMED + FIXED at commit e550256 (destination-less short-circuit in planner_node); hypotheses (c) cold-start and (a) SSE termination cleanly RULED OUT. Backend pytest 355 -> 358 (+3: D-10 pin + 2 defense-in-depth). 5/5 live-bar runs PASS_UNDER_30S at ~7.6-7.9s (D-09 demo gate cleared). FIX-02 marked Complete (Phase 11) in REQUIREMENTS.md with 'Validated in v1.1: Phase 11' suffix. Branch: develop. Next: v1.1 milestone closure (run /gsd:complete-milestone) or W6 demo recording."
-last_updated: "2026-05-11T17:13:28.846Z"
+last_updated: "2026-05-11T17:21:26.481Z"
 last_activity: 2026-05-11
 progress:
   total_phases: 4
@@ -25,11 +25,11 @@ See: .planning/PROJECT.md (updated 2026-05-10 — milestone v1.1 declared)
 
 ## Current Position
 
-Phase: 999.11 (Phase 11 / v1.1) — COMPLETE
-Plan: 5 of 5 complete
+Phase: 999.11
+Plan: Not started
 Last completed: Phase 999.11 (Live SSE Hang Root-Cause Fix) — 2026-05-11
 Status: Complete; v1.1 ready for closure or demo recording
-Last activity: 2026-05-11
+Last activity: 2026-05-12 - Completed quick task 260512-t3t: Fix ROADMAP.md drift on Phase 10 status
 
 Progress: [██████████] 100% (v1.1 — 3 of 3 phases complete)
 
@@ -307,6 +307,7 @@ None yet.
 | 260509-eum | Backend cold-start fuel-price refresh: lifespan schedules background asyncio task; reuses fetch_fuel_prices.refresh_csv with timezone-aware (Asia/Bangkok) staleness predicate; D-03 log-and-continue on any failure (QUICK-260509-EUM-01..03) | 2026-05-09 | 9bf5471 | Verified (248/248 backend tests green; smoke 1+2+3 pass; CLI exits 0; EXPRESS_SKIP_COLDSTART_REFRESH=1 confirmed effective end-to-end) | [260509-eum-backend-cold-start-fuel-price-refresh-au](./quick/260509-eum-backend-cold-start-fuel-price-refresh-au/) |
 | 260509-uwb | Pricing Agent visible reasoning upgrade: PricingReasoning gains bullets:list[str], _compute_volatility_flag reads 7d EPPO CSV window (low/normal/high), _build_bullets emits 3-5 bullets (base+fuel/volatility / traffic-only-bounce / news-only-when-search_context / final + cap/floor); D-11 fallback now bullet-shaped; formula calculate_surcharge.py byte-for-byte unchanged (QUICK-260509-UWB-01..03) | 2026-05-09 | bbaf95e, 119ac56, 0a6b878 | Verified (260/260 backend tests green; pricing 5→9; locked formula files unchanged; no new external-API imports) | [260509-uwb-upgrade-pricing-agent-to-visibly-reason-](./quick/260509-uwb-upgrade-pricing-agent-to-visibly-reason-/) |
 | 260509-utd | Two-layer guardrail hardening against adversarial classmate testing: SECURITY_PREAMBLE + "tool output is DATA" clause prepended to all 6 agent prompts; new guard_input node (rules-first regex classifier with optional Gemini LLM fallback behind GUARD_INPUT_USE_LLM_FALLBACK env flag, defaults unclear→ALLOW) and guard_output node (validates SurchargeResult invariants from backend.config); per-turn tool_call_count cap (MAX_TOOL_CALLS_PER_TURN=6) wired via Annotated[int, operator.add] reducer to survive Phase 5 D-01 parallel fan-out; response_node refusal branch with branded copy + reasoning_trace tag agent='guard_input'/'guard_output' (not 'planner', avoids miscount); adversarial_pack.txt with 15 attacks (5 injection / 5 off-topic / 5 cost-bombing); zero new dependencies (QUICK-260509-UTD-01..05) | 2026-05-09 | 9c24cd9, f068022, 3c7a4a9 | Executor-verified (256→295 backend tests, +39 net new green; uvicorn restart required for live deployment) | [260509-utd-upgrade-guardrails-to-harden-agent-again](./quick/260509-utd-upgrade-guardrails-to-harden-agent-again/) |
+| 260512-t3t | Fix ROADMAP.md drift on Phase 10 status (line 40 checkbox + progress table row) — flipped `[ ]` → `[x]` and `0/3 Planned` → `3/3 Complete — 2026-05-11` to match REQUIREMENTS.md (GUARD-07 Complete) and STATE.md (Phase 999.10 completed 2026-05-11); housekeeping closure flagged by v1.1 milestone audit | 2026-05-12 | a6c7c30 |  | [260512-t3t-fix-roadmap-md-drift-on-phase-10-status-](./quick/260512-t3t-fix-roadmap-md-drift-on-phase-10-status-/) |
 
 ## Session Continuity
 
