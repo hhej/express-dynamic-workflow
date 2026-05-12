@@ -8,15 +8,13 @@ An Agentic AI product that dynamically calculates fuel surcharges for Express lo
 
 The agent must transparently reason through fuel price, route, and shipping data to produce an accurate, explainable surcharge recommendation — visible reasoning is what makes this agentic, not just automated.
 
-## Current Milestone: v1.1 Real-World Routing & Demo Hardening
+## Current State: Between Milestones (v1.1 Shipped 2026-05-12)
 
-**Goal:** Move from synthetic origin-destination pairs to a real Express hub network, tighten the agent against adversarial inputs, and ensure fuel data stays fresh — making the v1.0 demo bulletproof for W6 grading.
+**Status:** v1.1 milestone complete. Code freeze for W5 / W6 final demo recording. No active milestone.
 
-**Target features:**
-- HQ/branch origin model — sender picks hub via dropdown or prose; single-leg routing from chosen hub to destination (Phase 9 / 999.9)
-- Unified refusal copy on planner bypass paths — `out_of_scope` and `parse_failed` render the same locked `REFUSAL_COPY` as guard_input trips (Phase 10 / 999.10)
-- Live SSE hang root-cause fix on legit baseline diesel-price query — demo-gating for W6 (Phase 11 / 999.11)
-- Already shipped this milestone (retroactive): dark cosmic glass UI theme, cold-start fuel refresh, pricing-agent reasoning bullets with volatility flag, two-layer adversarial guardrails, EPPO scraper rewrite, 90-day Bangchak backfill, resume-flow duplicate-message fix
+**Most recent milestone — v1.1 Real-World Routing & Demo Hardening:** Shipped 2026-05-12 after a 4-day burndown (102 commits; +7241/-348 LOC across 69 source files). Closed the gap from synthetic origin-destination pairs to a real 10-hub Express network (HQ + 9 branches) with HubPicker UI + 135-row origin × destination rate matrix, unified refusal copy across `guard_input` and planner bypass paths, and root-cause-fixed the live SSE hang on the legit baseline diesel-price query (W6 demo gate cleared at 5/5 fresh-uvicorn runs PASS_UNDER_30S at ~7.6–7.9 s). 22/22 v1.1 requirements satisfied (10 active phase-mapped + 12 retroactive via quick tasks + debugs). See [.planning/milestones/v1.1-MILESTONE-AUDIT.md](milestones/v1.1-MILESTONE-AUDIT.md).
+
+**Next actions:** Record W6 demo video against the shipped product, then `/gsd:new-milestone` if a v1.2 / v2.0 cycle is desired.
 
 ## Requirements
 
@@ -57,11 +55,16 @@ The agent must transparently reason through fuel price, route, and shipping data
 - [x] Unified refusal copy on planner bypass paths — `out_of_scope` LLM-tagged + `parse_failed` exhaustion both set `guard_decision` and route to `response_node` refusal branch; CI-deterministic regression across 4 adversarial-pack cases — Validated in Phase 10 / 999.10 (GUARD-07)
 - [x] Live SSE hang root-cause fix on legit baseline diesel-price query — destination-less follow-up short-circuit in `planner_node` (pre-LLM, fires when `fuel_data` cached and all logistics fields null) prevents the cache-aware override at `planner.py:509` from promoting `next_step="fetch_route"` on null destination; 5/5 fresh-uvicorn runs PASS_UNDER_30S at ~7.6-7.9s with `answer + done` events — Validated in Phase 11 / 999.11 (FIX-02)
 
+<!-- v1.1 Validated (all shipped 2026-05-09 → 2026-05-12) -->
+- [x] HQ/branch origin model: 10-hub network (1 HQ + 9 branches), HubPicker UI, single-leg routing, 135-row origin×destination rate matrix — Validated in v1.1 / Phase 9 (HUB-01..08)
+- [x] Unified refusal copy on planner bypass paths (`out_of_scope` + `parse_failed` render REFUSAL_COPY + `status='refused'` like guard_input) — Validated in v1.1 / Phase 10 (GUARD-07)
+- [x] Live `POST /api/chat` no longer hangs on legit baseline diesel-price query — root cause was destination-less follow-up over-routing in `planner_node`; pre-LLM short-circuit fix; 5/5 fresh-uvicorn runs PASS_UNDER_30S at ~7.6–7.9 s — Validated in v1.1 / Phase 11 (FIX-02)
+
 ### Active
 
-<!-- v1.1 in-flight requirements — formalized in REQUIREMENTS.md -->
+<!-- No active requirements — between milestones. Run /gsd:new-milestone to define v1.2 / v2.0 scope. -->
 
-- [ ] HQ/branch origin model: 10-hub network (1 HQ + 9 branches), HubPicker UI, single-leg routing, 135-row origin×destination rate matrix (Phase 9 / 999.9)
+(None — v1.1 shipped 2026-05-12. v2 candidate requirements captured in [milestones/v1.1-REQUIREMENTS.md](milestones/v1.1-REQUIREMENTS.md) §"v2 Requirements".)
 
 ### Out of Scope
 
@@ -80,17 +83,23 @@ The agent must transparently reason through fuel price, route, and shipping data
 **Grading (IT Lead):** Agent Architecture & Technical Execution (35%), Data Integration (20%), Technical Documentation & Git Practice (20%), AI/Vibe-Coding Tool Leverage (15%), Team Technical Leadership (10%).
 **Key grading insight:** "The agent is the product — not a feature bolted onto a CRUD app." All four optional enhancements were targeted and shipped: multi-agent pattern (planner + 4 specialists), RAG-style tool augmentation (Tavily), conversation memory (AsyncSqliteSaver), and agentic retry loop (D-22 RetryPolicy + D-24 error sink).
 
-**Current State (v1.0 shipped 2026-05-05):**
-- 8 phases, 36 plans, 87 tasks, 60+ feat commits
-- ~16,000 LOC across Python (backend) + TypeScript (frontend)
-- 194/194 backend pytest pass, 122/122 frontend vitest pass
-- 43/43 v1 requirements satisfied (3-source cross-reference verified)
-- All 4 E2E flows fully wired: surcharge happy path, follow-up cache reuse, HITL high-value approval, Tavily news_query
+**Current State (v1.1 shipped 2026-05-12):**
+- 11 phases (8 v1.0 + 3 v1.1), 48 plans, ~113 tasks, 162+ feat commits across both milestones
+- ~23,000 LOC across Python (backend) + TypeScript (frontend) — +7,241/-348 LOC delta during v1.1 across 69 source files
+- 358/358 backend pytest pass, 145/145 frontend vitest pass
+- 22/22 v1.1 requirements satisfied + 43/43 v1.0 requirements still satisfied (65/65 total)
+- All 6 E2E flows fully wired (v1.1): cold-start happy path + prose override + cross-zone surcharge + adversarial off-topic + adversarial parse-fail + follow-up turn `origin_hub_id` inheritance
+- W6 demo gate cleared: 5/5 fresh-uvicorn runs of legit baseline diesel-price query PASS_UNDER_30S at ~7.6–7.9 s on commit e550256
 - Live observability proven: Langfuse Cloud trace `express-surcharge-agent` carrying `formula_accuracy` + `user_feedback` Scores
-- 5 of 6 submission screenshots landed (`langfuse-feedback-score.png`, `chat-breakdown.png`, `trace-parallel.png`, `dashboard.png`, `hitl-approval.png`, `langfuse-trace.png`); demo.mp4 deferred
-- v1.0.0 git tag pending on main merge commit
+- All 6 submission screenshots landed (chat-breakdown, hubpicker (v1.1 — added 2026-05-12), trace-parallel, dashboard, hitl-approval, langfuse-trace); demo.mp4 not in scope (user opted out of video recording for the submission)
+- v1.0.0 git tag pending on main merge commit; v1.1 git tag created 2026-05-12
 
-**Tech debt accepted into v1.0:**
+**Tech debt accepted into v1.1 (8 items across 3 phases — non-functional / documentation hygiene):**
+- Phase 9 (999.9): no phase-level `999.9-SUMMARY.md`; Plans 02 + 03 use design-decision markers in `requirements-completed` frontmatter instead of HUB-XX REQ-IDs; `999.9-VALIDATION.md` `wave_0_complete: false` stale
+- Phase 10 (999.10): no phase-level `999.10-SUMMARY.md`; `999.10-VALIDATION.md` was reconstructed retroactively
+- Phase 11 (999.11): `999.11-VALIDATION.md` `wave_0_complete: false` stale; `repro/logs/final/summary.jsonl` never created (user-authorized deviation — canonical D-09 evidence at `repro/logs/post-fix-baseline/summary.jsonl`)
+
+**Tech debt inherited from v1.0 (still accepted):**
 - `_scrape_eppo_live()` remains intentional NotImplementedError stub — CSV fallback returns real data (DATA-02 satisfied)
 - Nyquist VALIDATION.md drafts exist for phases 1, 4, 5, 8 (not load-bearing; tests pass)
 
@@ -133,6 +142,11 @@ The agent must transparently reason through fuel price, route, and shipping data
 | Wholesale README rewrite (DOC-01) | Phase 4-era README missing Phase 5 differentiator narrative | ✓ Good — 9 sections + Mermaid topology + AI Tools + Limitations land the AI/Vibe-Coding 15% rubric |
 | `message_id = {thread_id}-{turn_idx}` BE-stamp | Single source of truth eliminates audit Issue 3 drift class | ✓ Good — TS type system enforces presence; round-trip Vitest+MSW tests prevent regression |
 | `useConversations` Context Provider | Single shared instance for sidebar refresh after `done` event | ✓ Good — closes audit Issue 4; D-14 integration test verifies second `GET /api/conversations` after answer |
+| Per-zone (not per-hub) origin in rate table | 3 origin zones × 3 dest zones = 9 cells × 3 ship × 5 weight = 135 rows; per-hub would be 450 rows for 10 hubs with no business signal added | ✓ Good (v1.1 / Phase 9) — symmetric ORIGIN_DEST_MULTIPLIER matrix; v1.0 central-1 rates preserved byte-for-byte; `lookup_rate` 4-arg signature added without renaming the 3-arg call sites |
+| Single-leg pricing model (vs two-leg HQ → branch → destination) | Matches how Kerry/Flash/Thailand Post quote shipments; user-facing pricing narrative simpler; deferred two-leg to v2 (PRICE-03) | ✓ Good (v1.1 / Phase 9) — pricing_agent narrates origin zone via `hub_label_for` + `origin_zone_for`; "Origin unspecified" bullet prepended when defaulted to HQ |
+| Additive `GuardCategory` Literal extension (`planner_off_topic`, `planner_parse_failed`) | Type-system gate opens before emission sites; keeps `state.guard_decision.layer = 'input'` so the existing `response_node` refusal predicate continues working | ✓ Good (v1.1 / Phase 10) — adversarial_pack cases 2 + 4 now return `status='refused'` + REFUSAL_COPY (previously `clarify`); cases 1 + 3 unchanged |
+| Pre-LLM destination-less short-circuit in `planner_node` | Root-cause fix for the live SSE hang on the legit baseline diesel-price query; the cache-aware override at `planner.py:509` was unconditionally promoting destination-less follow-ups to `fetch_route` after fuel was cached, causing `route_agent` to ValueError on null destination and the SSE stream to emit `done` with errors[] | ✓ Good (v1.1 / Phase 11) — 5/5 fresh-uvicorn runs PASS_UNDER_30S at ~7.6–7.9 s on the legit baseline; W6 demo gate cleared; hypotheses (c) cold-start and (a) SSE termination cleanly RULED OUT |
+| Sequential hypothesis investigation (c) → (b) → (a) over diagnosis-by-mitigation | Prevents premature workaround; each hypothesis ruled out with reproducible evidence (`999.11-02-EVIDENCE.md` / `999.11-03-EVIDENCE.md` / `999.11-04-EVIDENCE.md`) before moving to next | ✓ Good (v1.1 / Phase 11) — fresh-uvicorn + httpx probe harness deterministically reproduced the hang; root cause confirmed before fix landed |
 
 ## Evolution
 
@@ -152,4 +166,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-05-11 — Phase 11 / 999.11 (Live SSE Hang Root-Cause Fix, FIX-02) moved Active → Validated. Demo gate for W6 cleared (5/5 fresh-uvicorn PASS_UNDER_30S on legit baseline). Active now: HQ/branch (Phase 9 — Validated in its own separate update). All v1.1 active phases complete.*
+*Last updated: 2026-05-12 after v1.1 milestone close — Real-World Routing & Demo Hardening shipped; 22/22 v1.1 requirements satisfied; W6 demo gate cleared; no active milestone (between-milestone state); next action is W6 demo recording or `/gsd:new-milestone` for v1.2/v2.0.*

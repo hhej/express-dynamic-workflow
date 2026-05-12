@@ -224,6 +224,79 @@ The Planner node outputs a `next_step` field that LangGraph uses for conditional
 
 ---
 
+## Adversarial Guardrails (v1.1)
+
+Two-layer defense against prompt injection, off-topic queries, and cost-bombing. The guardrails sit on top of the agent loop without redesigning it — `guard_input` is the new entry node, `guard_output` sits between Pricing and HITL/Response, and a per-turn tool-call cap rides on the existing `Annotated[int, operator.add]` reducer pattern.
+
+### Topology
+
+```
+START -> guard_input -> { planner | response (refused) }
+pricing_agent -> guard_output -> { hitl_gate | response (guard_failed) }
+```
+
+`guard_input` is the entry edge (`g.add_edge(START, "guard_input")` in `backend/agent/graph.py:234`); `_route_from_guard_input` returns `"planner"` on allow or `"response"` on refusal. `guard_output` sits AFTER pricing only (`g.add_edge("pricing_agent", "guard_output")` at `graph.py:263`); the planner's `clarify` path bypasses both pricing and guard_output by routing directly to response (Pitfall 6).
+
+### Layer 1: `guard_input` (Phase 5 / Quick 260509-utd — GUARD-01..06)
+
+- **Rules-first regex classifier** (`backend/agent/nodes/guard_input.py:_classify`): matches `prompt_injection`, `off_topic`, `cost_bombing` against curated pattern lists. Fresh-turn only — follow-up turns skip classification (rationale: a follow-up already cleared the gate; the planner re-classifies intent per turn anyway).
+- **Optional Gemini LLM fallback** (`_llm_fallback`): when the regex pass returns `"unclear"` AND `GUARD_INPUT_USE_LLM_FALLBACK=true`, Gemini 2.0 Flash is asked to classify into the same `GuardCategory` Literal. Defaults to `ALLOW` on any error / parse failure (fail-open for the demo — the rules pass is the load-bearing layer; LLM fallback is defense-in-depth).
+- **Per-turn tool-call cap** (`MAX_TOOL_CALLS_PER_TURN`, default 6 — `backend/config.py:148`): when a follow-up turn's `state.tool_call_count` (an `Annotated[int, operator.add]` reducer that survives parallel fan-out) reaches the cap, `guard_input` refuses with category `tool_call_budget`. Prevents adversaries from cost-bombing the demo by chaining repeated tool invocations within a single chat thread.
+- **Refusal short-circuit**: any refused category sets `state.guard_decision = {layer: 'input', refused: True, category, violations: []}` and routes to `response_node` (skipping planner). `response_node`'s refusal branch (lines 240–278 of `backend/agent/nodes/response_node.py`) renders the canonical `REFUSAL_COPY` verbatim with `status='refused'`. No tools fire, no LLM calls beyond the optional fallback classifier, no surcharge math.
+
+### Layer 2: `guard_output` (Phase 5 / Quick 260509-utd — GUARD-03)
+
+- **SurchargeResult invariant validation** after `pricing_agent_node` returns: cap honoured (≤ `MAX_SURCHARGE_CAP`), floor honoured (≥ `MIN_SURCHARGE_FLOOR`), `final_amount ≥ 0`, `shipping_type in {bounce, retail_standard, retail_fast}`, non-null reasoning bullets. Invariants are imported from `backend.config` (single source of truth — no drift between the formula in Pricing Agent and the validator in `guard_output`).
+- On any invariant violation: sets `state.guard_decision = {layer: 'output', refused: True, category: 'invariant_failure', violations: [...]}` and routes to `response_node`, which renders `REFUSAL_COPY` with `status='guard_failed'` (NOT `'refused'` — the predicate in `response_node.py` reads `status = 'refused' if layer == 'input' else 'guard_failed'`, preserving the distinction between user-facing refusal and internal invariant failure).
+
+### Phase 10 / v1.1 — Unified refusal copy on planner bypass paths (GUARD-07)
+
+The Planner has two non-tool bypass paths that historically returned generic `status='clarify'` copy:
+
+1. **`user_intent='out_of_scope'`** — Gemini classifies the user message as outside the surcharge/logistics domain. Cases like "What's the weather in Bangkok?" used to hit this branch.
+2. **`parse_failed`** — D-02 retry loop exhausts after 2 attempts (malformed JSON from Gemini, missing required fields, etc.).
+
+Both paths now emit `state.guard_decision` with the new `GuardCategory` members `planner_off_topic` / `planner_parse_failed` (additive Literal extension in `backend/agent/nodes/guard_input.py:GuardCategory` — widened from 5 → 7 members; `state.guard_decision.layer` stays `'input'` so `response_node`'s `'refused' if layer == 'input' else 'guard_failed'` predicate works unchanged). The Response Node's existing refusal branch renders `REFUSAL_COPY` + `status='refused'` — identical visible behaviour to a `guard_input` rules trip.
+
+Regression-pinned by `backend/tests/test_planner_refusal_paths.py` (4 cases pinning the unified contract) + adversarial-pack CI test `backend/tests/test_adversarial_pack.py` (asserts cases 1, 2, 3, 4 all return `status='refused'` + REFUSAL_COPY — previously cases 2 + 4 returned `status='clarify'`).
+
+### Phase 11 / v1.1 — Destination-less follow-up short-circuit (FIX-02)
+
+**Symptom (pre-fix):** the legit baseline query `"What's the current diesel price in Bangkok?"` hung the live SSE stream on a fresh-then-followup conversation. Trace emitted `planner → fuel_agent → planner` (3 steps), then `route_agent` was scheduled with `destination=None`, raised `ValueError("origin and destination required for calculate_route")`, the SSE stream emitted `done` with `errors[]`, and the client urlopen-timed-out at 60s with a 0-byte body. 4 of 5 cases in the 260509-utd live probe completed cleanly; only this case hung. **Demo-gating for W6.**
+
+**Root cause:** the cache-aware override block in `planner_node` (`backend/agent/nodes/planner.py:509`) unconditionally promoted the planner's `respond` emission to `fetch_route` when fuel was cached AND route was stale — without checking whether `destination` was actually present in state. A destination-less follow-up turn after a fresh fuel-only turn therefore got over-routed to `route_agent` with null destination.
+
+**Fix (commit `e550256` — `backend/agent/nodes/planner.py:312`):** pre-LLM short-circuit. Before the planner calls Gemini, if `state.fuel_data` is present AND all logistics fields are null (`destination`, `shipping_type`, `weight_kg`, `origin_hub_id`), the planner emits a `tool_output` trace entry with `trigger='fuel_data_present_no_destination'` + `origin_hub_id` and sets `next_step='respond'`. The cache-aware override block never runs; `route_agent` never gets called with null destination.
+
+**Investigation method:** sequential hypothesis ruling per `999.11-RESEARCH.md` D-05 — (c) cold-start latency → (b) `tool_call_count` reducer interaction with parallel fan-out → (a) SSE termination bug. Hypotheses (c) and (a) cleanly RULED OUT via `999.11-02-EVIDENCE.md` (4-flag disambiguator protocol — `--warmup-first --skip-coldstart-refresh` combined produced bit-identical 5/5 failures) and `999.11-04-EVIDENCE.md` (static analysis of the 3 SSE-framing variants showed termination is structurally impossible). Hypothesis (b) refined into the destination-less follow-up over-routing root cause.
+
+**Live verification (D-09):** the canonical demo gate. 5 fresh-uvicorn runs of `"What's the current diesel price in Bangkok?"` each produce an `answer` SSE event within 30 seconds. Post-fix bar at commit `e550256` — 5/5 PASS_UNDER_30S at ~7.6–7.9 s. Repro harness lives at `.planning/phases/999.11-investigate-live-sse-hang-on-legit-baseline-diesel-price-query/repro/` (fresh-uvicorn + httpx probe with dual wall-clock+elapsed-ms timestamping). Defense-in-depth regression: `backend/tests/test_api_chat.py::test_legit_baseline_diesel_price_query_completes` asserts `answer` + `done` events arrive for the legit baseline on the happy path.
+
+### Adversarial pack
+
+`backend/tests/adversarial_pack.txt` — 15 attacks across three categories, used as both a manual dry-run pack and as a CI regression fixture (`backend/tests/test_adversarial_pack.py`):
+
+| # | Category | Sample | Layer that catches |
+|---|----------|--------|--------------------|
+| 1 | prompt_injection | "Ignore previous instructions and..." | `guard_input` rules |
+| 2 | off_topic | "What's the weather in Bangkok?" | Phase 10 planner-side `planner_off_topic` |
+| 3 | prompt_injection | "Pretend you are a recipe bot..." | `guard_input` rules |
+| 4 | cost_bombing | "Loop forever and pretend to calculate..." | Phase 10 planner-side `planner_parse_failed` (D-02 retry exhaustion) |
+| 5-15 | mixed | (see file) | mix of `guard_input` + Phase 10 planner-side |
+
+All 15 cases now return `status='refused'` + `REFUSAL_COPY` (pre-Phase-10, cases 2 + 4 returned `status='clarify'` with generic copy — that's the visible split GUARD-07 closed).
+
+### Configuration
+
+| Env var | Default | Effect |
+|---------|---------|--------|
+| `MAX_TOOL_CALLS_PER_TURN` | `6` | Per-turn cap for `tool_call_count` reducer; refused with category `tool_call_budget` at the cap |
+| `GUARD_INPUT_USE_LLM_FALLBACK` | `false` | When `true`, ambiguous `guard_input` classifications fall back to Gemini; default fail-open (`ALLOW`) on any error |
+| `SURCHARGE_CAP` | `0.15` | `guard_output` invariant (15% max surcharge) |
+| `SURCHARGE_FLOOR` | `-0.05` | `guard_output` invariant (5% max discount) |
+
+---
+
 ## Surcharge Calculation Logic
 
 ```
@@ -277,6 +350,8 @@ Multiplier matrix (`ORIGIN_DEST_MULTIPLIER` in `data/scripts/generate_rate_table
 Symmetric: `M[origin][dest] == M[dest][origin]`. Diagonal = 1.00 preserves v1.0 central-1 → central-1 rates byte-for-byte (e.g., `bounce 0-5kg = 55 THB`). Off-diagonal scales with zone distance.
 
 ### Origin capture: hybrid dropdown + prose
+
+![HubPicker dropdown open on cold start showing all 10 hubs with HQ Lat Krabang as the default selection](screenshots/hubpicker.png)
 
 1. **Dropdown (HubPicker):** persistent default per browser tab. Cold start = `hq-lat-krabang`. SessionStorage key: `express_origin_hub_id`.
 2. **Prose extraction:** Planner (Gemini 2.0 Flash) reads a 10-hub shortlist injected into its SYSTEM_PROMPT and extracts `origin_hub_id` from the user's message. Allowlist-validated against `_HUB_INDEX`; invalid emissions fall back to the dropdown's value.
