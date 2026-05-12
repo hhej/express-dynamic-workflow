@@ -280,6 +280,31 @@ never affects the user response.
   production WAF or red-teaming. The `_DOMAIN_ALLOW_PATTERNS`
   allowlist may need tightening per a deployment's question-bank
   (deferred as GUARD-08).
+- **Volatility flag is heuristic, not calibrated** — the
+  `low / normal / high` 7-day fuel-volatility flag in the Pricing
+  Agent (`_compute_volatility_flag` in
+  [backend/agent/nodes/pricing_agent.py](backend/agent/nodes/pricing_agent.py))
+  uses hand-picked ratios (`recent_delta vs 0.5× / 0.2× mean_abs_delta`
+  over the last 7 distinct calendar days). Real production
+  calibration would A/B the thresholds against the ops team's
+  fairness ratings or against the historical frequency of manual
+  surcharge revisions — out of scope for the course timeline. **The
+  flag is intentionally a narrative aid in the reasoning trace, not
+  an input to the deterministic surcharge formula** — so a
+  miscategorised "high" never affects price correctness, only the
+  prose around it.
+- **Silent-default to HQ Lat Krabang is set at the API boundary, not
+  narrated to the user** — when neither the HubPicker dropdown nor
+  inline prose specifies an origin, the API integration boundary
+  (`_fresh_stream` in `backend/api/routes/chat.py`) resolves
+  `origin_hub_id='hq-lat-krabang'` BEFORE state seeding (Pitfall 1
+  mitigation from Phase 9). The Pricing Agent's "Origin unspecified —
+  defaulted to HQ Lat Krabang" reasoning bullet therefore only fires
+  on direct unit calls with `state.origin_hub_id=None`. Trade-off
+  picked deliberately: cleaner end-user UX (the HubPicker dropdown
+  above the chat input always shows the active hub) over strictly
+  maximal narration. The audit chain is preserved end-to-end via
+  Langfuse trace metadata.
 
 ## License
 
