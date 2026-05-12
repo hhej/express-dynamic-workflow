@@ -96,22 +96,38 @@ def route_agent_node(state: dict) -> dict:
 
     Args:
         state: Full AgentState-shaped dict. Must include pre-extracted
-            `origin` and `destination` keys (D-10).
+            `destination` key (D-10). Phase 999.9 D-04: also reads
+            optional `origin_hub_id` (defaults to 'hq-lat-krabang' when
+            absent, per D-09).
 
     Returns:
         Partial state dict: {"route_data": RouteData.model_dump(),
                              "reasoning_trace": [one_trace_entry]}.
 
     Raises:
-        ValueError: If origin or destination is not set in state (Planner
-            failed its pre-extraction contract).
+        ValueError: If destination is not set in state (Planner failed
+            its pre-extraction contract). The legacy free-text `origin`
+            field is no longer required — Phase 999.9 routes via
+            origin_hub_id only.
     """
-    origin = state.get("origin")
+    # Phase 999.9 D-04/D-09: hub_id-based origin (defaults to HQ when
+    # missing); the legacy `state["origin"]` free-text field is no
+    # longer consumed here — calculate_route resolves the address from
+    # origin_hub_id via origin_string_for.
+    origin_hub_id = state.get("origin_hub_id") or "hq-lat-krabang"
     destination = state.get("destination")
-    if not origin or not destination:
+    if not destination:
         raise ValueError(
-            "route_agent_node requires both 'origin' and 'destination' "
-            f"in state; got origin={origin!r}, destination={destination!r}"
+            "route_agent_node requires 'destination' in state; "
+            f"got destination={destination!r}"
+        )
+    # Defensive allowlist guard (the API boundary should always seed a
+    # valid hub_id, but be loud if it doesn't).
+    from backend.agent.tools.hubs import _HUB_INDEX
+    if origin_hub_id not in _HUB_INDEX:
+        raise ValueError(
+            f"route_agent_node received unknown origin_hub_id={origin_hub_id!r}; "
+            f"allowed={sorted(_HUB_INDEX)}"
         )
 
     # gap-2 fix (Plan 05-09, 2026-05-03): out-of-Bangkok-Metro destinations
@@ -122,11 +138,11 @@ def route_agent_node(state: dict) -> dict:
     # propagates as an SSE error event with no recovery path. Catch ONLY
     # the zone-miss ValueError (string-match on the message prefix from
     # calculate_route.py:100) — the D-10 ValueError on missing
-    # origin/destination raised above MUST still bubble per Phase 2
-    # Plan 05 decision (it surfaces a Planner pre-extraction contract
-    # violation eagerly).
+    # destination raised above MUST still bubble per Phase 2 Plan 05
+    # decision (it surfaces a Planner pre-extraction contract violation
+    # eagerly).
     try:
-        route_data = calculate_route(origin, destination)
+        route_data = calculate_route(origin_hub_id, destination)
     except ValueError as exc:
         msg = str(exc)
         if msg.startswith("No Bangkok Metro zone"):
@@ -136,7 +152,10 @@ def route_agent_node(state: dict) -> dict:
                 "step": prior_steps + 1,
                 "agent": "route_agent",
                 "tool": "calculate_route",
-                "tool_input": {"origin": origin, "destination": destination},
+                "tool_input": {
+                    "origin_hub_id": origin_hub_id,
+                    "destination": destination,
+                },
                 "tool_output": None,
                 "reasoning": (
                     f"Destination {destination!r} is outside the Bangkok Metro "
@@ -155,6 +174,11 @@ def route_agent_node(state: dict) -> dict:
                 }],
                 "next_step": "respond",
                 "reasoning_trace": [warn_trace],
+                # Quick task 260509-utd UTD-04: count this as a tool call
+                # attempt — keeps the per-turn cap from being bypassed by
+                # invalid-destination loops. Emit +1 DELTA (operator.add
+                # reducer aggregates safely under parallel fan-out).
+                "tool_call_count": 1,
             }
         raise  # any other ValueError bubbles per D-10 / D-23
     reasoning = _narrate_with_llm(route_data)
@@ -164,7 +188,10 @@ def route_agent_node(state: dict) -> dict:
         "step": prior_steps + 1,
         "agent": "route_agent",
         "tool": "calculate_route",
-        "tool_input": {"origin": origin, "destination": destination},
+        "tool_input": {
+            "origin_hub_id": origin_hub_id,
+            "destination": destination,
+        },
         "tool_output": route_data.model_dump(),
         "reasoning": reasoning,
         "timestamp": datetime.now(timezone.utc).isoformat().replace(
@@ -184,4 +211,8 @@ def route_agent_node(state: dict) -> dict:
     return {
         "route_data": route_dump,
         "reasoning_trace": [trace_entry],
+        # Quick task 260509-utd UTD-04: per-turn cost-bombing counter.
+        # Emit +1 DELTA (operator.add reducer aggregates safely under
+        # the Phase 5 D-01 fuel/route parallel fan-out).
+        "tool_call_count": 1,
     }

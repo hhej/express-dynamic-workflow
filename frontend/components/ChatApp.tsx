@@ -5,8 +5,20 @@ import { ConversationSidebar } from '@/components/sidebar/ConversationSidebar';
 import { TracePanel } from '@/components/trace/TracePanel';
 import { useChatStream } from '@/hooks/useChatStream';
 import { ConversationsProvider, useConversations } from '@/hooks/useConversations';
+import hubsData from '@/data/hubs.json';
+import { HUB_PICKER_STORAGE_KEY, DEFAULT_HUB_ID } from '@/lib/constants';
 import type { ChatMessage } from '@/components/chat/MessageList';
-import type { FinalPayload } from '@/types/agent.types';
+import type { FinalPayload, Hub } from '@/types/agent.types';
+
+// Phase 999.9 D-08 — module-level constant; static-import is build-time
+// resolved so the array is stable across renders without useMemo.
+const HUBS_LIST: Hub[] = Object.entries(hubsData).map(
+  ([hub_id, data]) => ({
+    hub_id,
+    ...(data as Omit<Hub, 'hub_id'>),
+  }),
+);
+const HUB_ID_ALLOWLIST = new Set(HUBS_LIST.map((h) => h.hub_id));
 
 /**
  * Top-level Client Component composing the three-column desktop layout
@@ -23,6 +35,38 @@ function ChatAppInner() {
   const chat = useChatStream();
   const conversations = useConversations();
   const [messages, setMessages] = useState<ChatMessage[]>([]);
+
+  // Phase 999.9 D-08 — lifted originHubId state. Cold render uses
+  // DEFAULT_HUB_ID; the post-hydration useEffect below seeds from
+  // sessionStorage if a valid hub_id is stored (RESEARCH Pitfall 6 —
+  // avoid SSR hydration mismatch by reading sessionStorage in an effect,
+  // not in the initial useState).
+  const [originHubId, setOriginHubId] = useState<string>(DEFAULT_HUB_ID);
+
+  // Phase 999.9 D-08 / RESEARCH Pitfall 6 — post-hydration sessionStorage
+  // read avoids SSR mismatch. Cold render uses DEFAULT_HUB_ID; this
+  // effect runs once after mount and overrides if sessionStorage holds
+  // a valid hub_id. Invalid stored values fall through (allowlist guard).
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const stored = window.sessionStorage.getItem(HUB_PICKER_STORAGE_KEY);
+    if (stored && HUB_ID_ALLOWLIST.has(stored)) {
+      setOriginHubId(stored);
+    }
+  }, []);
+
+  // Phase 999.9 D-08 — persist every change to sessionStorage so the
+  // picker survives cross-route navigation within the same tab.
+  // sessionStorage scope: per browser tab; closes with the tab.
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    window.sessionStorage.setItem(HUB_PICKER_STORAGE_KEY, originHubId);
+  }, [originHubId]);
+
+  const handleHubChange = useCallback((hubId: string) => {
+    setOriginHubId(hubId);
+  }, []);
+
   // Track the finalPayload we've already appended so a re-render after `done`
   // doesn't double-append the same assistant message.
   const lastAppendedPayloadRef = useRef<FinalPayload | null>(null);
@@ -33,6 +77,18 @@ function ChatAppInner() {
 
   // When a finalPayload arrives, append it as an assistant message and
   // refresh the sidebar so the new (or updated) thread shows up.
+  //
+  // Debug 999.5 (2026-05-09): dep array narrowed from
+  // `[chat.finalPayload, chat.status, conversations.refresh]` to
+  // `[chat.finalPayload, chat.status]`. `conversations.refresh` is
+  // stable today (useCallback with [] deps), but listing it as a dep
+  // gives the effect an extra re-fire vector if a future refactor
+  // destabilises the reference. The effect doesn't read .refresh's
+  // identity for control flow — it just CALLS it as a side effect —
+  // so dropping it from deps is correctness-preserving and removes a
+  // future-foot-gun. Pair this with the handleResume guard-seed below
+  // (belt-and-braces against the `done` effect re-appending the prior
+  // turn's finalPayload onto a freshly replayed history).
   useEffect(() => {
     if (!chat.finalPayload) return;
     if (chat.status !== 'done') return;
@@ -68,7 +124,10 @@ function ChatAppInner() {
       ];
     });
     void conversations.refresh();
-  }, [chat.finalPayload, chat.status, conversations.refresh]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- conversations.refresh
+    // is intentionally omitted (see comment above): it is stable today and
+    // the effect only invokes it as a side effect.
+  }, [chat.finalPayload, chat.status]);
 
   // Plan 06-02 D-06: when SSE emits approval_required, append a placeholder
   // assistant message whose null payload is the slot ApprovalCard hangs off
@@ -91,9 +150,11 @@ function ChatAppInner() {
   const handleSend = useCallback(
     (message: string) => {
       setMessages((prev) => [...prev, { role: 'user', content: message }]);
-      void chat.send(message);
+      // Phase 999.9 D-08 — forward originHubId so backend receives the
+      // user's chosen hub on every turn (or the default 'hq-lat-krabang').
+      void chat.send(message, originHubId);
     },
-    [chat],
+    [chat, originHubId],
   );
 
   // Plan 06-02 D-03: thin handler callbacks consume chat.approve so the
@@ -149,11 +210,26 @@ function ChatAppInner() {
         // truthy) fires on replayed messages. Before Phase 7 chat.threadId
         // stayed null after a resume click and feedback was silently
         // broken on every resumed conversation.
+        // Debug 999.5 (2026-05-09): seed the appended-payload guard with
+        // the CURRENT finalPayload (the last turn's already-appended payload)
+        // BEFORE chat.setThreadId() runs the RESET reducer that clears it.
+        // RESET clears chat.finalPayload to null, so the `done` effect's
+        // `if (!chat.finalPayload) return;` check normally short-circuits
+        // post-resume. The guard seed is belt-and-braces: if a future change
+        // ever lets the effect re-evaluate with the OLD finalPayload still
+        // visible (e.g., a render scheduled before RESET took effect), the
+        // ref-equality guard `lastAppendedPayloadRef.current === finalPayload`
+        // short-circuits BEFORE the duplicate append fires. setting null
+        // (the previous behaviour) ARMED the guard for re-fire — the guard
+        // failed when it mattered. Seeding the live identity disarms it.
+        //
+        // For a follow-up `send()` after this resume, useChatStream.send()
+        // dispatches START which recreates state with finalPayload=null;
+        // the next ANSWER produces a brand-new payload object identity, so
+        // the seed (which references the prior turn's payload, possibly null)
+        // does not block that legitimate append.
+        lastAppendedPayloadRef.current = chat.finalPayload;
         chat.setThreadId(threadId);
-        // Reset the appended-payload guard so the NEXT real `done` payload
-        // (from a follow-up send) is correctly appended even if the resume
-        // happened to leave the previous finalPayload in chat state.
-        lastAppendedPayloadRef.current = null;
       } catch (err) {
         console.error('[resume]', err);
       }
@@ -186,7 +262,7 @@ function ChatAppInner() {
       : null;
 
   return (
-    <main className="flex h-screen w-screen overflow-hidden bg-white">
+    <main className="flex h-screen w-screen overflow-hidden bg-transparent text-text-primary">
       <div className="hidden md:flex">
         <ConversationSidebar
           activeThreadId={chat.threadId}
@@ -204,6 +280,9 @@ function ChatAppInner() {
         onDeny={handleDeny}
         approvalErrorMessage={approvalErrorMessage}
         placeholder={placeholder}
+        hubs={HUBS_LIST}
+        originHubId={originHubId}
+        onHubChange={handleHubChange}
       />
       <div className="hidden md:flex">
         <TracePanel

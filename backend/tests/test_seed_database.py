@@ -1,12 +1,14 @@
-"""Tests for the SQLite seeder (DATA-01, DATA-04, DATA-05).
+"""Tests for the SQLite seeder (DATA-01, DATA-04, DATA-05) + Phase 999.9 D-01/D-07.
 
 Covers:
 - DATA-04: ``seed_database.py`` loads the rate table and fuel price
   CSVs into SQLite plus a zones table from JSON.
-- DATA-01: the resulting ``rate_table`` has the expected 45 rows and
-  schema (shipping types, zones, weight tiers, base_rate_thb).
+- DATA-01 + 999.9 D-07: the resulting ``rate_table`` has 135 rows and
+  the new origin_zone × dest_zone schema.
 - DATA-05: the resulting ``zones`` table contains central-1/2/3 with
   non-empty province lists matching ``zone_definitions.json``.
+- 999.9 D-01: ``hubs`` table is created with hub_id PRIMARY KEY and
+  10 rows from ``data/raw/hubs.json``.
 
 Tests are hermetic: they redirect the seeder's DB_PATH to ``tmp_path``
 and never touch the committed ``data/express.db``.
@@ -25,6 +27,7 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 SCRIPTS_DIR = REPO_ROOT / "data" / "scripts"
 RAW_DIR = REPO_ROOT / "data" / "raw"
 ZONE_JSON = RAW_DIR / "zone_definitions.json"
+HUBS_JSON = RAW_DIR / "hubs.json"
 
 
 def _load_seed_module():
@@ -53,12 +56,12 @@ def seeded_db(tmp_path, monkeypatch) -> Path:
 
 
 class TestSeedDatabaseRateTable:
-    """DATA-01 + DATA-04: rate_table is loaded with the right shape."""
+    """DATA-01 + DATA-04 + 999.9 D-07: rate_table is loaded with 135 rows."""
 
-    def test_rate_table_has_45_rows(self, seeded_db):
+    def test_rate_table_has_135_rows(self, seeded_db):
         with sqlite3.connect(seeded_db) as conn:
             (count,) = conn.execute("SELECT COUNT(*) FROM rate_table").fetchone()
-        assert count == 45
+        assert count == 135
 
     def test_rate_table_shipping_types(self, seeded_db):
         with sqlite3.connect(seeded_db) as conn:
@@ -67,10 +70,17 @@ class TestSeedDatabaseRateTable:
             ).fetchall()
         assert {r[0] for r in rows} == {"bounce", "retail_standard", "retail_fast"}
 
-    def test_rate_table_zones(self, seeded_db):
+    def test_rate_table_origin_zones(self, seeded_db):
         with sqlite3.connect(seeded_db) as conn:
             rows = conn.execute(
-                "SELECT DISTINCT zone FROM rate_table"
+                "SELECT DISTINCT origin_zone FROM rate_table"
+            ).fetchall()
+        assert {r[0] for r in rows} == {"central-1", "central-2", "central-3"}
+
+    def test_rate_table_dest_zones(self, seeded_db):
+        with sqlite3.connect(seeded_db) as conn:
+            rows = conn.execute(
+                "SELECT DISTINCT dest_zone FROM rate_table"
             ).fetchall()
         assert {r[0] for r in rows} == {"central-1", "central-2", "central-3"}
 
@@ -87,21 +97,23 @@ class TestSeedDatabaseRateTable:
                 "SELECT MIN(base_rate_thb), MAX(base_rate_thb) FROM rate_table"
             ).fetchone()
         assert lo >= 50
-        assert hi <= 700
+        # Cross-zone retail_fast 50+kg c1<->c3 = 450 * 1.70 = 765 (new max)
+        assert hi <= 800
 
     def test_rate_table_full_cross_product(self, seeded_db):
-        """Each (type, zone, tier) appears exactly once -> 45 unique combos."""
+        """Each (ship, origin, dest, tier) appears exactly once -> 135 unique combos."""
         with sqlite3.connect(seeded_db) as conn:
             (uniq,) = conn.execute(
                 "SELECT COUNT(*) FROM ("
-                "  SELECT shipping_type, zone, weight_min_kg, weight_max_kg, "
-                "         COUNT(*) AS c "
+                "  SELECT shipping_type, origin_zone, dest_zone, "
+                "         weight_min_kg, weight_max_kg, COUNT(*) AS c "
                 "  FROM rate_table "
-                "  GROUP BY shipping_type, zone, weight_min_kg, weight_max_kg "
+                "  GROUP BY shipping_type, origin_zone, dest_zone, "
+                "           weight_min_kg, weight_max_kg "
                 "  HAVING c = 1"
                 ")"
             ).fetchone()
-        assert uniq == 45
+        assert uniq == 135
 
 
 class TestSeedDatabaseFuelPrices:
@@ -121,13 +133,18 @@ class TestSeedDatabaseFuelPrices:
         assert set(cols) == {"date", "diesel_b7_price", "source"}
 
     def test_fuel_prices_diesel_values_are_realistic(self, seeded_db):
-        """Diesel B7 prices should be within the realistic 25-40 THB/L band."""
+        """Diesel B7 prices should be within a realistic THB/L band.
+
+        Bounds widened to 10-60 in 999.7: P09 monthly aggregates back to
+        2003 carry low values (~12.84 in 2003-06) and the April 2026
+        post-subsidy spike reached 50.54 baht.
+        """
         with sqlite3.connect(seeded_db) as conn:
             (lo, hi) = conn.execute(
                 "SELECT MIN(diesel_b7_price), MAX(diesel_b7_price) FROM fuel_prices"
             ).fetchone()
-        assert 25.0 <= lo <= 40.0
-        assert 25.0 <= hi <= 40.0
+        assert 10.0 <= lo <= 60.0
+        assert 10.0 <= hi <= 60.0
 
 
 class TestSeedDatabaseZones:
@@ -170,12 +187,12 @@ class TestSeedDatabaseZones:
 class TestSeederHelpers:
     """Direct unit coverage for ``seed_rate_table``/``seed_fuel_prices``."""
 
-    def test_seed_rate_table_returns_45(self, tmp_path):
+    def test_seed_rate_table_returns_135(self, tmp_path):
         module = _load_seed_module()
         conn = sqlite3.connect(tmp_path / "x.db")
         try:
             n = module.seed_rate_table(conn)
-            assert n == 45
+            assert n == 135
         finally:
             conn.close()
 
@@ -185,5 +202,70 @@ class TestSeederHelpers:
         try:
             n = module.seed_fuel_prices(conn)
             assert n >= 170
+        finally:
+            conn.close()
+
+
+# --- Phase 999.9 D-01 / Wave 1 Plan 01 Task 3 NEW tests ---
+
+
+class TestPhase999_9SeedHubs:
+    """999.9 D-01: hubs table is seeded from data/raw/hubs.json."""
+
+    def test_seed_hubs_inserts_10_rows(self, tmp_path):
+        """seed_hubs creates the hubs table and inserts 10 rows."""
+        module = _load_seed_module()
+        conn = sqlite3.connect(tmp_path / "x.db")
+        try:
+            n = module.seed_hubs(conn)
+            assert n == 10
+            (count,) = conn.execute("SELECT COUNT(*) FROM hubs").fetchone()
+            assert count == 10
+        finally:
+            conn.close()
+
+    def test_135_rows_after_seed(self, tmp_path):
+        """seed_rate_table from current CSV produces exactly 135 rows."""
+        module = _load_seed_module()
+        conn = sqlite3.connect(tmp_path / "x.db")
+        try:
+            module.seed_rate_table(conn)
+            (count,) = conn.execute("SELECT COUNT(*) FROM rate_table").fetchone()
+            assert count == 135
+        finally:
+            conn.close()
+
+    def test_idempotent_reseed(self, tmp_path):
+        """Re-running seed_rate_table + seed_hubs leaves row counts stable
+        (if_exists=replace and DELETE+INSERT semantics)."""
+        module = _load_seed_module()
+        conn = sqlite3.connect(tmp_path / "x.db")
+        try:
+            module.seed_rate_table(conn)
+            module.seed_hubs(conn)
+            module.seed_rate_table(conn)
+            module.seed_hubs(conn)
+            (rate_count,) = conn.execute(
+                "SELECT COUNT(*) FROM rate_table"
+            ).fetchone()
+            (hub_count,) = conn.execute("SELECT COUNT(*) FROM hubs").fetchone()
+            assert rate_count == 135
+            assert hub_count == 10
+        finally:
+            conn.close()
+
+    def test_hubs_schema(self, tmp_path):
+        """hubs table columns are exactly hub_id, name, address, zone (in order)."""
+        module = _load_seed_module()
+        conn = sqlite3.connect(tmp_path / "x.db")
+        try:
+            module.seed_hubs(conn)
+            cols = [
+                row[1]
+                for row in conn.execute("PRAGMA table_info(hubs)").fetchall()
+            ]
+            assert cols == ["hub_id", "name", "address", "zone"], (
+                f"hubs schema columns out of order: {cols}"
+            )
         finally:
             conn.close()

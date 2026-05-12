@@ -4,6 +4,7 @@ pytest==8.4.2
 requests==2.32.5
 beautifulsoup4==4.14.3
 openpyxl==3.1.5
+xlrd==2.0.2
 python-dotenv==1.1.1
 
 # Phase 2 additions

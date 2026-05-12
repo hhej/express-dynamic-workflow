@@ -194,6 +194,95 @@ def test_happy_path_sse_sequence(app_with_mocks):
     assert answer["payload"]["status"] == "ok"
 
 
+def test_legit_baseline_diesel_price_query_completes(app_with_mocks):
+    """defense-in-depth invariant: Phase 11 / FIX-02 — additive coverage, not the D-10 pin.
+
+    Permanent CI guard pinning the SSE plumbing contract on the
+    legit-baseline diesel-price query shape: the stream MUST contain an
+    ``answer`` event AND MUST close with a trailing ``done`` event.
+
+    Live regression context (closed by Plan 03 / commit ``e550256``): the
+    legit baseline ``"What's the current diesel price in Bangkok?"``
+    previously hung in the FE with no ``answer`` event and no ``done``
+    arriving before the urlopen 60s client timeout. Phase 11 root-caused
+    the hang to hypothesis (b) — a planner re-loop in
+    ``planner_node``'s cache-aware override cascade — and fixed it via
+    the destination-less short-circuit. Hypothesis (a) SSE termination
+    was independently RULED OUT (see ``999.11-04-EVIDENCE.md``) via
+    static analysis (every ``response_node`` return carries
+    ``final_payload``; ``_fresh_stream``'s only early return is the
+    intentional Pitfall-2 ``approval_required`` path; the graph wires
+    ``response → END``) AND this integration probe (the SSE plumbing
+    emits ``meta → trace × n → answer → done`` cleanly through
+    ``app_with_mocks``).
+
+    Because Phase 11's CONFIRMED-path canonical pin already landed on
+    Plan 03 (``test_planner_does_not_loop_on_destination_less_baseline_query``
+    in ``test_planner.py`` — that test carries the D-10 marker), this
+    test is defense-in-depth ONLY: it
+    pins the SSE plumbing invariant so any future regression that
+    breaks ``answer`` or ``done`` emission on the legit-baseline shape
+    is caught in CI, deterministically and offline.
+
+    The default ``app_with_mocks`` planner script
+    (``fetch_fuel → fetch_route → calculate_price → respond``) drives
+    this test, not the live destination-less short-circuit script. The
+    test is validating the SSE plumbing LAYER (``_drain_events`` +
+    ``_fresh_stream`` + ``response_node.final_payload``), NOT the
+    planner routing — the planner short-circuit itself is pinned by
+    Plan 03's D-10 test on the planner unit.
+    """
+    with TestClient(app_with_mocks) as client:
+        with client.stream(
+            "POST", "/api/chat",
+            json={
+                "message": "What's the current diesel price in Bangkok?",
+                "thread_id": "fix02-baseline",
+            },
+        ) as r:
+            assert r.status_code == 200
+            body = "".join(chunk for chunk in r.iter_text())
+
+    events = _parse_sse_events(body)
+    types = [e["type"] for e in events]
+
+    # First event MUST be meta carrying the supplied thread_id.
+    assert types[0] == "meta", f"First event must be meta; got types={types}"
+    assert events[0]["payload"]["thread_id"] == "fix02-baseline"
+
+    # Variant-1 / variant-2 guard: an answer event MUST appear in the
+    # stream. Hypothesis (a) failure modes 1 (graph completes without
+    # final_payload) and 2 (response_node returns missing final_payload)
+    # would both manifest as a missing answer event here.
+    assert "answer" in types, (
+        f"FIX-02 SSE regression: no answer event arrived. "
+        f"This signals hypothesis (a) variant 1 or 2. Types: {types}"
+    )
+
+    # Variant-3 guard: stream MUST close with done. A _fresh_stream
+    # early return bypassing the finally block would manifest as a
+    # missing or non-trailing done event here.
+    assert types[-1] == "done", (
+        f"FIX-02 SSE regression: stream closed without done. "
+        f"This signals hypothesis (a) variant 3. Last type: {types[-1]}, "
+        f"full types: {types}"
+    )
+
+    # Answer payload shape contract (D-10 / Phase 7 D-01):
+    answer = next(e for e in events if e["type"] == "answer")
+    assert answer["payload"].get("markdown"), (
+        f"answer payload missing or empty markdown: {answer}"
+    )
+    # message_id stamped by _drain_events at thread_id-turn_idx format.
+    message_id = answer["payload"].get("message_id", "")
+    assert message_id.endswith("-0"), (
+        f"message_id missing or wrong turn idx for first turn: {message_id!r}"
+    )
+    assert message_id.startswith("fix02-baseline-"), (
+        f"message_id thread_id mismatch: {message_id!r}"
+    )
+
+
 def test_server_generates_thread_id(app_with_mocks):
     """When client omits thread_id the server emits a fresh UUIDv4."""
     with TestClient(app_with_mocks) as client:
@@ -658,4 +747,188 @@ def test_answer_message_id_matches_feedback_regex(app_with_mocks):
     )
     assert m.group(1) == "t-regex"
     assert m.group(2) == "0"
+
+
+# ---------------------------------------------------------------------------
+# Phase 999.9 D-08 — ChatRequest.origin_hub_id flows through to AgentState
+# ---------------------------------------------------------------------------
+#
+# Plan: .planning/phases/999.9-hq-branch-origin-model-real-world-hub-to-
+#       destination-shipping/999.9-02-PLAN.md (Task 3)
+#
+# These tests assert the API-boundary contract:
+#   1. ChatRequest accepts origin_hub_id and seeds AgentState
+#   2. Default 'hq-lat-krabang' applied when origin_hub_id is None/missing
+#   3. Invalid hub_id falls back to default (allowlist validation)
+#   4. End-to-end: explicit hub_id flows through the agent graph and
+#      pricing_agent computes against the resolved origin_zone
+
+
+def _capture_initial_state(app):
+    """Wrap app.state.graph so the FIRST astream_events call captures the
+    payload (initial_state dict). Returns the captured holder dict.
+    """
+    captured: dict = {"payload": None}
+    original_graph = app.state.graph
+    original_astream = original_graph.astream_events
+
+    async def spy_astream(payload, *args, **kwargs):
+        if captured["payload"] is None:
+            captured["payload"] = payload
+        async for ev in original_astream(payload, *args, **kwargs):
+            yield ev
+
+    original_graph.astream_events = spy_astream
+    return captured
+
+
+def test_chat_request_accepts_origin_hub_id(app_with_mocks):
+    """POST /api/chat with origin_hub_id="branch-bang-na" → initial_state
+    seeds origin_hub_id='branch-bang-na'.
+    """
+    with TestClient(app_with_mocks) as client:
+        captured = _capture_initial_state(app_with_mocks)
+        with client.stream(
+            "POST", "/api/chat",
+            json={
+                "message": "Surcharge for 5kg Bounce to Nonthaburi",
+                "thread_id": "t-hub-bangna",
+                "origin_hub_id": "branch-bang-na",
+            },
+        ) as r:
+            assert r.status_code == 200
+            for _ in r.iter_text():
+                pass
+
+    assert captured["payload"] is not None
+    assert isinstance(captured["payload"], dict)
+    assert captured["payload"].get("origin_hub_id") == "branch-bang-na"
+
+
+def test_chat_request_origin_hub_id_default_seeds_hq(app_with_mocks):
+    """POST /api/chat WITHOUT origin_hub_id → initial_state defaults to
+    'hq-lat-krabang' (Pitfall 1: API-boundary default).
+    """
+    with TestClient(app_with_mocks) as client:
+        captured = _capture_initial_state(app_with_mocks)
+        with client.stream(
+            "POST", "/api/chat",
+            json={
+                "message": "Surcharge for 5kg Bounce to Nonthaburi",
+                "thread_id": "t-hub-default",
+            },
+        ) as r:
+            assert r.status_code == 200
+            for _ in r.iter_text():
+                pass
+
+    assert captured["payload"] is not None
+    assert captured["payload"].get("origin_hub_id") == "hq-lat-krabang"
+
+
+def test_chat_request_origin_hub_id_invalid_falls_back_to_hq(app_with_mocks):
+    """Allowlist validation: invalid origin_hub_id is logged + defaults to HQ.
+
+    Pitfall 1 mitigation — the agent layer never sees the bogus value.
+    """
+    with TestClient(app_with_mocks) as client:
+        captured = _capture_initial_state(app_with_mocks)
+        with client.stream(
+            "POST", "/api/chat",
+            json={
+                "message": "Surcharge for 5kg Bounce to Nonthaburi",
+                "thread_id": "t-hub-invalid",
+                "origin_hub_id": "fake-hub-9001",
+            },
+        ) as r:
+            assert r.status_code == 200
+            for _ in r.iter_text():
+                pass
+
+    assert captured["payload"] is not None
+    # Invalid → defaulted to HQ (NOT the bogus fake-hub-9001 value).
+    assert captured["payload"].get("origin_hub_id") == "hq-lat-krabang"
+
+
+def test_chat_request_origin_hub_id_explicit_seeds_state(app_with_mocks):
+    """End-to-end: ChatRequest with origin_hub_id='branch-ayutthaya'
+    flows through the graph and the pricing_agent computes against
+    origin_zone='central-2'. We cannot easily assert the trace's
+    internal origin_zone value (the rendered narration is built by the
+    LLM stub), but we CAN verify:
+      - initial_state seeded the explicit hub_id
+      - the chat returned a successful answer with surcharge_result
+      - the trace contains an entry from the pricing_agent
+    """
+    with TestClient(app_with_mocks) as client:
+        captured = _capture_initial_state(app_with_mocks)
+        with client.stream(
+            "POST", "/api/chat",
+            json={
+                "message": "Surcharge for 5kg Bounce to Nonthaburi",
+                "thread_id": "t-hub-ayutthaya",
+                "origin_hub_id": "branch-ayutthaya",
+            },
+        ) as r:
+            assert r.status_code == 200
+            body = "".join(chunk for chunk in r.iter_text())
+
+    assert captured["payload"]["origin_hub_id"] == "branch-ayutthaya"
+
+    events = _parse_sse_events(body)
+    types = [e["type"] for e in events]
+    assert types[-1] == "done"
+    assert "answer" in types
+    answer = next(e for e in events if e["type"] == "answer")
+    assert answer["payload"]["status"] == "ok"
+    assert answer["payload"]["surcharge_result"] is not None
+
+    # pricing_agent emitted a trace step.
+    pricing_traces = [
+        e for e in events
+        if e["type"] == "trace"
+        and (e["payload"] or {}).get("agent") == "pricing_agent"
+    ]
+    assert len(pricing_traces) >= 1
+
+
+def test_chat_request_no_hub_default_narration(app_with_mocks):
+    """API-boundary default mitigates the D-09 narration bullet at the
+    integration level (Pitfall 1).
+
+    When ChatRequest sends NO origin_hub_id and no prose hub mention,
+    the API boundary defaults to 'hq-lat-krabang' so by the time
+    pricing_agent runs, state.origin_hub_id is non-None at entry → the
+    "Origin unspecified" bullet does NOT fire. (The bullet only fires
+    in direct unit calls to pricing_agent_node — see test_pricing_agent.py
+    for that coverage.)
+
+    This test asserts the defense-in-depth: the bullet is suppressed at
+    the API integration layer because the boundary default lands first.
+    """
+    with TestClient(app_with_mocks) as client:
+        with client.stream(
+            "POST", "/api/chat",
+            json={
+                "message": "Surcharge for 5kg Bounce from Bangkok to Nonthaburi",
+                "thread_id": "t-no-hub",
+            },
+        ) as r:
+            assert r.status_code == 200
+            body = "".join(chunk for chunk in r.iter_text())
+
+    events = _parse_sse_events(body)
+    # The pricing_agent trace narration should NOT contain the D-09
+    # silent-default bullet — Pitfall 1 in effect.
+    pricing_traces = [
+        e for e in events
+        if e["type"] == "trace"
+        and (e["payload"] or {}).get("agent") == "pricing_agent"
+    ]
+    assert len(pricing_traces) >= 1
+    for tr in pricing_traces:
+        reasoning = (tr["payload"] or {}).get("reasoning") or ""
+        assert "Origin unspecified" not in reasoning, (
+            f"D-09 narration bullet leaked at API integration layer: {reasoning!r}"
+        )
 

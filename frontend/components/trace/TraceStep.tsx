@@ -21,7 +21,7 @@ interface Props {
 export function TraceStep({ entry }: Props) {
   const [open, setOpen] = useState(false);
   return (
-    <li className="rounded border border-gray-200 bg-white">
+    <li className="rounded glass-surface">
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
@@ -29,14 +29,14 @@ export function TraceStep({ entry }: Props) {
         className="flex w-full items-center justify-between gap-2 px-3 py-2 text-left text-sm"
       >
         <span className="flex min-w-0 items-center gap-2">
-          <span className="font-mono text-xs text-gray-500">#{entry.step}</span>
+          <span className="font-mono text-xs text-text-muted">#{entry.step}</span>
           <span className="font-semibold">{AGENT_LABEL[entry.agent]}</span>
-          <span className="truncate text-gray-700">{entry.reasoning}</span>
+          <span className="truncate text-text-secondary">{entry.reasoning}</span>
         </span>
         <TraceStatusBadge status={entry.status} />
       </button>
       {open && (
-        <div className="space-y-2 border-t border-gray-200 px-3 py-2 text-xs">
+        <div className="space-y-2 border-t border-white/10 px-3 py-2 text-xs text-text-secondary">
           {entry.tool && (
             <div>
               <span className="font-semibold">Tool:</span>{' '}
@@ -45,17 +45,17 @@ export function TraceStep({ entry }: Props) {
           )}
           <div>
             <div className="font-semibold">Input</div>
-            <pre className="overflow-x-auto rounded bg-gray-50 p-2 font-mono">
+            <pre className="overflow-x-auto rounded bg-white/5 p-2 font-mono text-text-primary">
               {JSON.stringify(entry.tool_input, null, 2)}
             </pre>
           </div>
           <div>
             <div className="font-semibold">Output</div>
-            <pre className="overflow-x-auto rounded bg-gray-50 p-2 font-mono">
+            <pre className="overflow-x-auto rounded bg-white/5 p-2 font-mono text-text-primary">
               {JSON.stringify(entry.tool_output, null, 2)}
             </pre>
           </div>
-          <div className="text-gray-500">
+          <div className="text-text-muted">
             <time dateTime={entry.timestamp} title={entry.timestamp}>
               {entry.timestamp}
             </time>

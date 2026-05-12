@@ -2,9 +2,10 @@
 import { useState } from 'react';
 import clsx from 'clsx';
 import { ChatInput } from '@/components/chat/ChatInput';
+import { HubPicker } from '@/components/chat/HubPicker';
 import { MessageList, type ChatMessage } from '@/components/chat/MessageList';
 import { DashboardView } from '@/components/dashboard/DashboardView';
-import type { ApprovalPayload } from '@/types/agent.types';
+import type { ApprovalPayload, Hub } from '@/types/agent.types';
 
 export type CenterTab = 'chat' | 'dashboard';
 
@@ -22,6 +23,12 @@ interface Props {
   approvalErrorMessage?: string | null;
   /** Plan 06-02 D-08 — overrides ChatInput's default placeholder when set. */
   placeholder?: string;
+  /** Phase 999.9 D-08 — full hub list rendered in the HubPicker dropdown. */
+  hubs: Hub[];
+  /** Phase 999.9 D-08 — currently-selected origin hub id. */
+  originHubId: string;
+  /** Phase 999.9 D-08 — fires when user picks a different hub. */
+  onHubChange: (hubId: string) => void;
 }
 
 /**
@@ -44,12 +51,15 @@ export function ChatColumn({
   onDeny,
   approvalErrorMessage,
   placeholder,
+  hubs,
+  originHubId,
+  onHubChange,
 }: Props) {
   const [tab, setTab] = useState<CenterTab>('chat');
 
   return (
-    <div className="flex flex-1 flex-col bg-white">
-      <div className="flex items-center gap-1 border-b border-gray-200 p-2">
+    <div className="flex flex-1 flex-col bg-transparent text-text-primary">
+      <div className="flex items-center gap-1 border-b border-white/10 p-2">
         <TabButton
           active={tab === 'chat'}
           onClick={() => setTab('chat')}
@@ -80,11 +90,25 @@ export function ChatColumn({
           onDeny={onDeny}
           approvalErrorMessage={approvalErrorMessage}
         />
-        <ChatInput
-          onSend={onSend}
-          disabled={inputDisabled}
-          placeholder={placeholder}
-        />
+        {/*
+          Phase 999.9 — input-row container holds HubPicker (first child)
+          and ChatInput (second child). UI-SPEC §Spacing Scale: flex-col gap-2
+          + top border + p-4 padding (matches the previous ChatInput <form> p-4
+          + border-t pattern, now lifted to the wrapper so HubPicker shares it).
+        */}
+        <div className="flex flex-col gap-2 border-t border-white/10 p-4">
+          <HubPicker
+            hubs={hubs}
+            value={originHubId}
+            onChange={onHubChange}
+            disabled={inputDisabled}
+          />
+          <ChatInput
+            onSend={onSend}
+            disabled={inputDisabled}
+            placeholder={placeholder}
+          />
+        </div>
       </div>
       <div
         className={clsx(
@@ -113,10 +137,10 @@ function TabButton({
       onClick={onClick}
       aria-pressed={active}
       className={clsx(
-        'rounded px-4 py-1 text-sm font-semibold',
+        'rounded-md px-4 py-1 text-sm font-semibold transition-colors',
         active
-          ? 'bg-blue-600 text-white'
-          : 'bg-white text-gray-700 hover:bg-gray-100',
+          ? 'brand-gradient text-white shadow-md shadow-brand-from/30'
+          : 'glass-surface text-text-primary hover:bg-white/15 hover:text-white',
       )}
     >
       {label}

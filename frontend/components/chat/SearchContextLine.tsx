@@ -16,24 +16,24 @@ export function SearchContextLine({ context }: { context: SearchContext }) {
   if (!summary) return null;
   const hasSources = context.sources.length > 0;
   return (
-    <div className="border-l-2 border-blue-200 bg-gray-50 p-2">
-      <p className="text-xs leading-normal text-gray-700">
+    <div className="border-l-2 border-brand-via/60 bg-white/5 backdrop-blur-md p-2 rounded-r">
+      <p className="text-xs leading-normal text-text-secondary">
         <span className="font-semibold">Market context:</span>{' '}
         <span className="italic">{summary}</span>
       </p>
       {hasSources && (
         <details className="mt-1">
-          <summary className="cursor-pointer text-xs text-gray-500">
+          <summary className="cursor-pointer text-xs text-text-muted">
             Sources: {context.sources.length}
           </summary>
-          <ul className="mt-1 space-y-1 pl-4 text-xs text-gray-500">
+          <ul className="mt-1 space-y-1 pl-4 text-xs text-text-muted">
             {context.sources.map((s, i) => (
               <li key={`${s.url}-${i}`}>
                 <a
                   href={s.url}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="underline"
+                  className="underline text-accent-cyan hover:text-accent-violet"
                 >
                   {s.title || s.url}
                 </a>

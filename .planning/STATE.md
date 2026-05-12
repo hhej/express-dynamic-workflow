@@ -1,36 +1,37 @@
 ---
 gsd_state_version: 1.0
-milestone: v1.0
-milestone_name: milestone
-status: executing
-stopped_at: Completed 08-02-conversations-provider-PLAN.md
-last_updated: "2026-05-05T07:57:53.742Z"
-last_activity: 2026-05-05
+milestone: null
+milestone_name: ""
+status: between_milestones
+stopped_at: "v1.1 (Real-World Routing & Demo Hardening) shipped 2026-05-12. 22/22 v1.1 requirements satisfied; 23/23 cross-phase wires PASS; 6/6 E2E flows operational; W6 demo gate cleared (5/5 fresh-uvicorn runs PASS_UNDER_30S on legit baseline diesel-price query). v1.1 archived to .planning/milestones/. No active milestone — code freeze for W5 / W6 final demo recording. Next: W6 demo or /gsd:new-milestone to begin v1.2/v2.0."
+last_updated: "2026-05-12T14:30:00.000Z"
+last_activity: 2026-05-12
 progress:
-  total_phases: 8
-  completed_phases: 8
-  total_plans: 36
-  completed_plans: 36
-  percent: 71
+  total_phases: 0
+  completed_phases: 0
+  total_plans: 0
+  completed_plans: 0
+  percent: 0
 ---
 
 # Project State
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-04-04)
+See: .planning/PROJECT.md (updated 2026-05-12 — v1.1 milestone closed)
 
 **Core value:** The agent must transparently reason through fuel price, route, and shipping data to produce an accurate, explainable surcharge recommendation.
-**Current focus:** Phase 08 — search-context-sidebar-polish
+**Current focus:** Between milestones — v1.1 shipped 2026-05-12. Awaiting W6 demo recording or `/gsd:new-milestone`.
 
 ## Current Position
 
-Phase: 08
-Plan: Not started
-Status: Ready to execute
-Last activity: 2026-05-05
+Phase: —
+Plan: —
+Last completed: v1.1 milestone (Phases 9, 10, 11) — 2026-05-12
+Status: v1.1 milestone complete; between milestones
+Last activity: 2026-05-12 — Closed v1.1 milestone (archived ROADMAP + REQUIREMENTS + AUDIT to .planning/milestones/v1.1-*)
 
-Progress: [███░░░░░░░] 71%
+Progress: [██████████] 100% (v1.1 — 3 of 3 phases complete)
 
 ## Performance Metrics
 
@@ -86,6 +87,16 @@ Progress: [███░░░░░░░] 71%
 | Phase 07 P02 | 7min | 3 tasks | 7 files |
 | Phase 07 P03 | 2 min | 3 tasks | 2 files |
 | Phase 08 P02 | 6min | 3 tasks | 6 files |
+| Phase 999.9 P01 | 9min | 3 tasks | 9 files |
+| Phase 999.9 P02 | 17min | 3 tasks | 14 files |
+| Phase 999.9 P03 | 9min | 3 tasks tasks | 12 files files |
+| Phase 999.10 P01 | 2min | 1 tasks | 1 files |
+| Phase 999.10 P02 | 3min | 1 tasks | 2 files |
+| Phase 999.11 P01 | 8min | 2 tasks | 4 files |
+| Phase 999.11 P02 | 44min | 2 tasks | 53 files |
+| Phase 999.11 P03 | 25min | 2 tasks | 4 files |
+| Phase 999.11 P04 | ~15min | 2 tasks | 3 files |
+| Phase 999.11 P05 | ~8min | 3 tasks | 4 files (999.11-SUMMARY.md + REQUIREMENTS.md + ROADMAP.md + STATE.md) |
 
 ## Accumulated Context
 
@@ -214,6 +225,10 @@ Recent decisions affecting current work:
 - [Quick 260503-rs8]: uvicorn must be restarted after deploying this fix — running server holds the OLD `_make_config` in memory; pytest exercises a fresh import each run so the test suite covers the new key without a server restart, but live `/api/chat` traffic does not pick up the trace_name until uvicorn is recycled.
 - [Quick 260503-s2h]: Top-level RunnableConfig.run_name='express-surcharge-agent' (sibling to configurable/callbacks/metadata, NOT inside metadata) — populates the Langfuse Observations 'Name' column via the langfuse-langchain CallbackHandler reading the LangChain root span name. Pairs with 260503-rs8's metadata.langfuse_trace_name (which populates the 'Trace Name' column) so both columns now match under one constant agent identity for dashboard filtering.
 - [Quick 260503-s2h]: Single in-place test extension in test_chat_attaches_callback_when_enabled (no new test function) — preserves the 186-test baseline established post-260503-rs8; success criteria explicitly required no test count delta.
+- [Quick 260509-uwb]: PricingReasoning extended to {summary, bullets} (D-04 backward compat); LLM gets augmented JSON payload (rate/surcharge/fuel_data/route_data/shipping_type/volatility_flag/search_context_summary/seed_bullets); LLM-bullets-win predicate is strict (3-5 non-empty items only) — borderline emissions fall through to deterministic seed so trace is consistently rich.
+- [Quick 260509-uwb]: Volatility thresholds — recent_delta > 0.5 * mean_abs_delta AND mean > 0 → 'high'; < 0.2 * mean_abs_delta → 'low'; else 'normal'. Pure CSV reader (data/raw/eppo_diesel_prices.csv); never raises (returns 'normal' on any I/O or parse error). No new APIs added (D-03 honoured).
+- [Quick 260509-uwb]: D-11 deterministic-fallback contract enriched — Gemini failure now returns same bullet shape as LLM happy path (3+ newline-joined `- bullet` lines, not single sentence); trace status='ok' invariant preserved.
+- [Quick 260509-uwb]: Test deviation Rule 1 — plan's illustrative LLM payloads used 124.80 / 126.00 totals but calculate_surcharge formula given the test state actually produces 129.05 (bounce) / 122.12 (retail); test fixtures updated to use formula's actual values, honouring the LLM-as-narrator invariant.
 - [Phase 06]: Plan 06-01 D-01 + D-15.1: extended TraceStep.AGENT_LABEL with hitl_gate -> 'Approval gate' and search_agent -> 'Search agent'; added Vitest exhaustive-loop test (AGENT_NAMES) so any future AgentName addition that forgets AGENT_LABEL fails BOTH at tsc (Record<AgentName,string> TS2739) AND at runtime (loop assertion). Defense-in-depth drift prevention.
 - [Phase 06]: Plan 06-01 PROCESS DEVIATION: parallel 06-02 executor agent's git stage swept Plan 06-01's already-staged TraceStep.tsx + TraceStep.test.tsx files into commit ff68f26 'feat(06-02): add ApprovalCard errorMessage prop'. Code is correct AND committed (git show ff68f26 confirms exact spec match), only commit-message slug attribution drifted from (06-01) to (06-02). SUMMARY.md commit will land under (06-01) for grep-by-plan traceability. No functional impact.
 - [Phase 06]: ChatColumn isStreaming -> inputDisabled rename per D-07: name boolean for what it gates (input), not state that happens to be true (streaming)
@@ -239,6 +254,36 @@ Recent decisions affecting current work:
 - [Phase 08]: Plan 08-02: useMemo on context value AND narrowed useEffect deps from [conversations] to [conversations.refresh] — defense-in-depth against unbounded refetch loop where every items update would re-create the value object and refire the post-done effect (Pitfall 3)
 - [Phase 08]: Plan 08-02: D-14 integration test scopes sidebar assertion to Resume button aria-label (/Resume Surcharge for 15kg Bounce/) — chat-answer markdown also contains preview text so getByText collides; aria-label scoping disambiguates (Rule 1 fix discovered during test execution)
 - [Phase 08]: Plan 08-02: ConversationSidebar.test.tsx and SurchargeHistoryChart.test.tsx gained renderWithProvider helpers — Rule 1 fix because provider migration broke standalone component renders; in-scope because direct consumers of useConversations broken by THIS task's changes
+- [Phase 999.9]: Plan 01: ORIGIN_DEST_MULTIPLIER 3x3 symmetric matrix replaces legacy single-zone multipliers; diagonal=1.0 preserves v1.0 byte-for-byte (Pitfall 3); off-diagonals 1.25 / 1.45 / 1.70 calibrated by zone-distance
+- [Phase 999.9]: Plan 01: hubs.py mirrors _ZONE_INDEX pattern -- _HUB_INDEX built once at module import time; uvicorn restart required to pick up hubs.json edits (matches Phase 2 D-08 baseline cache philosophy)
+- [Phase 999.9]: Plan 01: lookup_rate signature change is breaking in arity (3 -> 4); pricing_agent.py:460 still on 3-arg form -- documented inter-wave breakage that Wave 2 Plan 999.9-02 Task 1 closes FIRST so test suite returns to all-green within one merge window
+- [Phase 999.9]: Plan 01: hub display strings (the 'name' field in hubs.json) are FULL strings from UI-SPEC -- frontend renders verbatim with zero concatenation; UI-SPEC locks these literals
+- [Phase 999.9]: Plan 02: Pitfall 1 — API-boundary default 'hq-lat-krabang' lands in _fresh_stream BEFORE initial_state construction; the agent layer never sees None at planner entry. Consequence: D-09 narration bullet only fires on direct unit calls to pricing_agent_node, not at the API integration layer.
+- [Phase 999.9]: Plan 02: _route_matches in planner.py compares state.origin_hub_id == route_data.origin_hub_id when both sides have hub_id information; falls back to legacy free-text origin compare only for pre-999.9 RouteData payloads. Without this, follow-up turns missed the route cache (test_graph.py:test_followup_only_runs_pricing surfaced this — Rule 3 fix in scope of Task 1).
+- [Phase 999.9]: Plan 02: D-08 follow-up token-detection extended to origin_hub_id with bare-province expansion. The address 'Mueang Nonthaburi, Nonthaburi' yields tokens [mueang nonthaburi, nonthaburi] PLUS bare 'nonthaburi' (Mueang prefix stripped) so prose like 'What about from Nonthaburi?' is detected. Initial implementation only checked the first comma-split chunk and missed bare-province mentions.
+- [Phase 999.9]: Plan 03: Static-import frontend/data/hubs.json over runtime fetch (UI-SPEC §Open Discretion resolution) — simpler, build-time stable, no new endpoint; trade-off is duplication with data/raw/hubs.json that future phase can centralize
+- [Phase 999.9]: Plan 03: HubPicker renders ABOVE ChatInput in flex-col wrapper (UI-SPEC §Spacing Scale locked); border-t lifted from ChatInput <form> to wrapper so visual border draws above HubPicker; ChatInput retains p-4 for standalone-test compatibility
+- [Phase 999.9]: Plan 03: post-hydration sessionStorage seeding via useEffect([]) avoids SSR mismatch (Pitfall 6); allowlist-guard silently falls back to DEFAULT_HUB_ID on invalid stored values; resume + new-conversation paths preserve originHubId per UI-SPEC §Interaction Contracts
+- [Phase 999.10]: Plan 01: GuardCategory Literal extended additively from 5 to 7 members (planner_off_topic, planner_parse_failed appended in stable order); doc comment names which node emits which subset (guard_input_node: first 5; planner_node Plan 02: last 2); zero logic change in guard_input.py — _classify/_DOMAIN_ALLOW_PATTERNS/_llm_fallback/guard_input_node byte-identical otherwise; 345/345 backend pytest green; Wave 1 type-system gate opens for Plan 02 emission edits.
+- [Phase 999.10]: Plan 02: _set_guard_refusal helper centralizes the verdict-dict shape (layer='input', refused=True, violations=[]) shared by both planner-tripped refusal branches; placed at module level adjacent to other helpers (between _loop_budget_exhausted and _parse_structured). Both call sites stay declarative ('refuse with this category, route to respond').
+- [Phase 999.10]: Plan 02: D-04 (out_of_scope) refusal branch placed IMMEDIATELY after the parse-success assert and BEFORE the origin_hub_id allowlist validation + 999.1 merge — an out_of_scope user message must never reach those downstream blocks because their semantics (logistics extraction, hub lookup, follow-up null-out, fan-out promotion) do not apply to refused messages. Keeps the refusal return shape minimal: just next_step + guard_decision.
+- [Phase 999.10]: Plan 02: D-05 (parse_failed) refusal is UNCONDITIONAL inside the D-02 retry loop's attempt==2 block — no further conditioning on user message content (D-06/D-07 invariant). The trigger is the parse exhaustion itself; adding a second-pass classifier would duplicate guard_input's work and risk false-clarifies on legit messages that happen to crash JSON parsing.
+- [Phase 999.10]: Plan 02: D-11 trace ownership stays with response_node — planner emits NO refusal trace entry of its own. The existing response_node refusal branch already emits an agent='response' trace entry; adding a planner-tagged refusal trace would either duplicate that entry (poor signal) or split the refusal across two trace nodes (split observability). Matches the existing guard_input -> response_node refusal flow.
+- [Phase 999.10]: Plan 03: backend/tests/test_adversarial_pack_regression.py parametrises 4 representative adversarial-pack cases + 1 false-positive guard. CI-deterministic substitute for ROADMAP success criterion 4's manual live re-run; verbatim coupling to adversarial_pack.txt strings means a pack edit forces a test edit (caught at code review). 354/354 backend pytest green (349 baseline + 5 new).
+- [Phase 999.10]: Plan 03: PLAN's <action> specified a defensive monkeypatch on `guard_input.get_chat_model` but that attribute doesn't exist at module level (imported lazily inside _llm_fallback at line 134). Removed the monkeypatch and module import; defensive guard was non-load-bearing because GUARD_INPUT_USE_LLM_FALLBACK defaults False and the regex catches the four cases. Layer differentiation still proven by per-case guard_decision.category assertion (injection/off_topic for guard_input cases; planner_off_topic/planner_parse_failed for planner cases).
+- [Phase 999.10]: Plan 03: test_legit_baseline_does_not_refuse invokes planner_node directly (not the full graph) — the legit-vs-refusal fork happens entirely inside planner_node, so unit-level assertion is the correct scope. Avoids requiring fuel/route/pricing specialist-agent network mocks for the false-positive regression guard.
+- [Phase 999.10]: Plan 03 deviation: executor agent timed out (stream idle) after the RED-stub commit (9a8613a); orchestrator inherited the work via workflow's spot-check fallback rule, wrote the full GREEN test content per the PLAN <action> block, ran pytest (5 pass), committed GREEN (d1156a6), then landed SUMMARY + STATE + ROADMAP + GUARD-07 completion. The RED-stub strategy gave a clear, grep-able marker of exactly where the agent stalled — recovery was mechanical.
+- [Phase 999.11]: Plan 01: out-of-process repro harness (subprocess.Popen uvicorn + httpx) with dual wall-clock+elapsed-ms timestamping; D-06 toggles (--skip-coldstart-refresh, --warmup-first) wired for hypothesis (c) isolation; 5-run orchestrator exits 0 only when 5/5 PASS_UNDER_30S
+- [Phase 999.11]: Plan 02 RULED OUT (c) cold-start — step 4 combined --warmup-first --skip-coldstart-refresh still fails 5/5 with bit-identical ValueError; proceeding to Plan 03 (b) planner re-loop. Smoking gun: SSE trace planner -> fuel_agent -> planner with next_step=fetch_route despite destination=None.
+- [Phase 999.11]: Plan 02 Rule 3 fix to run_5x.sh — `${EXTRA_ARGS[@]+"${EXTRA_ARGS[@]}"}` bash safe-expansion idiom for set -u compatibility when zero extra args passed (step 1 baseline); pre-existing latent bug in Plan 01's deliverable, exposed by Plan 02's zero-arg call site.
+- [Phase 999.11]: Plan 02 symptom-shift documented: reproduction surface is fast ~10s deterministic ValueError (route_agent_node requires destination), NOT the original 60s body=0 hang from backlog. Both are critical legit-baseline failures; Plan 03 proceeds on the live signature; Plan 05 reconciles narrative.
+- [Phase 999.11]: Plan 03 Hypothesis (b) planner re-loop CONFIRMED + FIXED: destination-less short-circuit in planner_node (4 preconditions: fuel_data populated AND no destination AND no shipping_type AND no weight_kg) routes directly to respond BEFORE LLM invoke, closing the live SSE hang on legit baseline diesel-price query. 5/5 fresh-uvicorn runs PASS_UNDER_30S at ~7.8s. Phase root cause CLOSED. Plan 04 (hypothesis a) becomes NO-OP.
+- [Phase 999.11]: Plan 03 D-10 pinning test test_planner_does_not_loop_on_destination_less_baseline_query — pins Phase 11 / FIX-02 root cause (RED on pre-fix, GREEN on post-fix). Defense-in-depth pin test_tool_call_count_reducer_aggregates_parallel_writes mirrors test_parallel_fanout.py for setup, asserts final_state['tool_call_count'] >= 2 to guard the Annotated[int, operator.add] reducer under fan-out against future last-write-wins regressions (passes on current main; pins the invariant).
+- [Phase 999.11]: Plan 03 Rule 1 deviation: 3 pre-existing planner tests (test_skips_fetch_when_fuel_fresh, test_planner_no_fanout_when_fuel_fresh, test_trace_tool_output_reflects_post_override_next_step) updated with shipping_type='bounce' state pre-population — they modeled a non-production-realistic synthetic state shape (fresh state with pre-populated fuel_data but no other logistics fields). In real production, a state with cached fuel always inherits prior logistics fields from prior turns via the 999.1 merge; the test updates make them representative of realistic follow-up paths.
+- [Phase 999.11]: Plan 04 (a) SSE termination RULED OUT — static analysis trio (response_node returns all carry final_payload; _fresh_stream only intentional approval_required early-return; graph response→END is the only terminal edge) + integration probe via app_with_mocks emitted meta→trace×6→answer→done cleanly with answer.status='ok'. All 3 variants structurally impossible. Defense-in-depth test landed in test_api_chat.py with 'defense-in-depth invariant: Phase 11 / FIX-02 — additive coverage, not the D-10 pin' marker (NO D-10 marker; phase-wide invariant: single D-10 pin lives on Plan 03's test_planner.py:1319).
+- [Phase 999.11]: Plan 04 no backend production code modified — chat.py, response_node.py, graph.py, planner.py untouched per must_haves.truths.3 'If RULED OUT: no backend code changes land'. Only files changed: backend/tests/test_api_chat.py (+89 lines test), 999.11-04-EVIDENCE.md (+58 lines closure note), 999.11-04-SUMMARY.md (new). Full backend pytest 358/358 GREEN (+1 over 357 baseline, zero regressions, zero flakes).
+- [Phase 999.11]: Plan 04 escalation NOT APPLICABLE — Phase 11 root cause is SINGULAR (hypothesis (b) planner re-loop CONFIRMED + FIXED at commit e550256 in Plan 03), CLOSED before Plan 04 ran. EVIDENCE.md 'Escalation: all three hypotheses RULED OUT' section header present for plan acceptance-criterion compliance, but marked NOT APPLICABLE inline. D-04 escalation clause (Langfuse traces + AgentState snapshots) NOT invoked. No Phase 999.12 follow-up needed. Plan 05 closes the phase with REQUIREMENTS stamp + live-bar gate.
+- [Phase 999.11]: Plan 05 Phase 11 closure — FIX-02 stamped Complete (Phase 11) in REQUIREMENTS.md (line 53 + traceability table line 125); ROADMAP.md Phase 11 detail block flipped Status to Complete (2026-05-11), active-phases checklist + Progress table row reflect 5/5 complete; STATE.md Current Position advanced to Phase 999.11 COMPLETE with v1.1 progress 3/3 phases (100%). D-09 live-bar gate honored via Plan 03's post-fix-baseline/summary.jsonl archive per user verdict (no backend code changed between e550256 and HEAD; archive remains representative). Phase-level 999.11-SUMMARY.md is the canonical wrap-up per plan output spec — no per-plan 999.11-05-SUMMARY.md authored. v1.1 milestone now ready for closure via /gsd:complete-milestone. (FIX-02)
 
 ### Pending Todos
 
@@ -246,9 +291,7 @@ None yet.
 
 ### Blockers/Concerns
 
-- Research flagged LOW confidence on package versions -- must verify at install time (Phase 1)
-- EPPO API response format undocumented -- may need reverse engineering (Phase 2)
-- Gemini structured output reliability unknown -- test early in Phase 2
+(None — all v1.0 blockers resolved)
 
 ### Quick Tasks Completed
 
@@ -260,9 +303,16 @@ None yet.
 | 260503-qzx | Guard pricing_agent against missing route_data/fuel_data (resolves gap-4 from 20-question UAT — KeyError on hallucinated planner routing) | 2026-05-03 | 79d8ee0 | Verified (186/186 backend tests green) | [260503-qzx-guard-pricing-agent-against-missing-rout](./quick/260503-qzx-guard-pricing-agent-against-missing-rout/) |
 | 260503-rs8 | Pin langchain==0.3.28 (fixes silent CallbackHandler import failure) + add constant langfuse_trace_name='express-surcharge-agent' to /api/chat trace metadata (OBS-FIX-LANGCHAIN-PIN, OBS-FIX-TRACE-NAME) | 2026-05-03 | 529075f | Verified (186/186 backend tests green; uvicorn restart required for live metadata pickup) | [260503-rs8-pin-langchain-dep-set-langfuse-trace-nam](./quick/260503-rs8-pin-langchain-dep-set-langfuse-trace-nam/) |
 | 260503-s2h | Set top-level RunnableConfig.run_name='express-surcharge-agent' so Langfuse Observations 'Name' column matches 'Trace Name' column from 260503-rs8 (OBS-FIX-RUN-NAME) | 2026-05-03 | 0606e43 | Verified (186/186 backend tests green; uvicorn restart required for live root-span-name pickup) | [260503-s2h-set-runnableconfig-run-name-so-langfuse-](./quick/260503-s2h-set-runnableconfig-run-name-so-langfuse-/) |
+| 260509-e0p | Restyle frontend with dark cosmic glass morphism theme (Tailwind v4 @theme tokens + glass-surface/glass-panel/brand-gradient @utility classes + static gradient mesh body background; 23 view components reskinned) | 2026-05-09 | b4e6fa2, 3e56e2a | Verified visually + readability follow-ups (PR #11 merged) | [260509-e0p-i-want-to-change-our-application-theme-i](./quick/260509-e0p-i-want-to-change-our-application-theme-i/) |
+| 260509-eum | Backend cold-start fuel-price refresh: lifespan schedules background asyncio task; reuses fetch_fuel_prices.refresh_csv with timezone-aware (Asia/Bangkok) staleness predicate; D-03 log-and-continue on any failure (QUICK-260509-EUM-01..03) | 2026-05-09 | 9bf5471 | Verified (248/248 backend tests green; smoke 1+2+3 pass; CLI exits 0; EXPRESS_SKIP_COLDSTART_REFRESH=1 confirmed effective end-to-end) | [260509-eum-backend-cold-start-fuel-price-refresh-au](./quick/260509-eum-backend-cold-start-fuel-price-refresh-au/) |
+| 260509-uwb | Pricing Agent visible reasoning upgrade: PricingReasoning gains bullets:list[str], _compute_volatility_flag reads 7d EPPO CSV window (low/normal/high), _build_bullets emits 3-5 bullets (base+fuel/volatility / traffic-only-bounce / news-only-when-search_context / final + cap/floor); D-11 fallback now bullet-shaped; formula calculate_surcharge.py byte-for-byte unchanged (QUICK-260509-UWB-01..03) | 2026-05-09 | bbaf95e, 119ac56, 0a6b878 | Verified (260/260 backend tests green; pricing 5→9; locked formula files unchanged; no new external-API imports) | [260509-uwb-upgrade-pricing-agent-to-visibly-reason-](./quick/260509-uwb-upgrade-pricing-agent-to-visibly-reason-/) |
+| 260509-utd | Two-layer guardrail hardening against adversarial classmate testing: SECURITY_PREAMBLE + "tool output is DATA" clause prepended to all 6 agent prompts; new guard_input node (rules-first regex classifier with optional Gemini LLM fallback behind GUARD_INPUT_USE_LLM_FALLBACK env flag, defaults unclear→ALLOW) and guard_output node (validates SurchargeResult invariants from backend.config); per-turn tool_call_count cap (MAX_TOOL_CALLS_PER_TURN=6) wired via Annotated[int, operator.add] reducer to survive Phase 5 D-01 parallel fan-out; response_node refusal branch with branded copy + reasoning_trace tag agent='guard_input'/'guard_output' (not 'planner', avoids miscount); adversarial_pack.txt with 15 attacks (5 injection / 5 off-topic / 5 cost-bombing); zero new dependencies (QUICK-260509-UTD-01..05) | 2026-05-09 | 9c24cd9, f068022, 3c7a4a9 | Executor-verified (256→295 backend tests, +39 net new green; uvicorn restart required for live deployment) | [260509-utd-upgrade-guardrails-to-harden-agent-again](./quick/260509-utd-upgrade-guardrails-to-harden-agent-again/) |
+| 260512-t3t | Fix ROADMAP.md drift on Phase 10 status (line 40 checkbox + progress table row) — flipped `[ ]` → `[x]` and `0/3 Planned` → `3/3 Complete — 2026-05-11` to match REQUIREMENTS.md (GUARD-07 Complete) and STATE.md (Phase 999.10 completed 2026-05-11); housekeeping closure flagged by v1.1 milestone audit | 2026-05-12 | a6c7c30 |  | [260512-t3t-fix-roadmap-md-drift-on-phase-10-status-](./quick/260512-t3t-fix-roadmap-md-drift-on-phase-10-status-/) |
+| 260512-t7q | Surface origin_hub_id in FIX-02 destination-less short-circuit trace entry (planner.py:316 string→dict with `trigger` + `origin_hub_id` keys) + new regression pytest; closes v1.1 audit cross-phase observability gap (Phase 9 hub × Phase 11 FIX-02). Backend pytest 358→359 green. | 2026-05-12 | 527fe62 |  | [260512-t7q-surface-origin-hub-id-in-fix-02-destinat](./quick/260512-t7q-surface-origin-hub-id-in-fix-02-destinat/) |
 
 ## Session Continuity
 
-Last session: 2026-05-05T06:01:29.264Z
-Stopped at: Completed 08-02-conversations-provider-PLAN.md
+Last session: 2026-05-11T17:30:00.000Z
+Stopped at: Completed Phase 999.11 (Phase 11 / v1.1 — Live SSE Hang Root-Cause Fix). Root cause: hypothesis (b) planner re-loop CONFIRMED + FIXED at commit e550256 (destination-less short-circuit in planner_node); hypotheses (c) cold-start and (a) SSE termination cleanly RULED OUT. Backend pytest 355 -> 358 (+3: D-10 pin + 2 defense-in-depth). 5/5 live-bar runs PASS_UNDER_30S at ~7.6-7.9s (D-09 demo gate cleared). FIX-02 marked Complete (Phase 11) in REQUIREMENTS.md with 'Validated in v1.1: Phase 11' suffix. Branch: develop. Next: v1.1 milestone closure (run /gsd:complete-milestone) or W6 demo recording.
 Resume file: None
+Next: Demo recording (W6); or close v1.1 milestone with milestone audit via /gsd:complete-milestone. Pre-existing ROADMAP.md drift on Phase 10 active-checklist + Progress table row logged to .planning/phases/999.11-.../deferred-items.md (out of scope for Plan 05; fix in housekeeping commit or milestone audit).

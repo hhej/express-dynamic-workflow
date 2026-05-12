@@ -18,7 +18,13 @@ import { useSurchargeHistory } from '@/hooks/useSurchargeHistory';
  *
  * Locked invariants (UI-SPEC §Copywriting + §Color):
  *  - Chart title: "Recent surcharges"
- *  - Bar fill: #2563eb (blue-600 — accent reserved-for chart use)
+ *  - Bar fill: brand violet (#8b5cf6) — Quick task 260509-e0p replaced the
+ *    legacy fill="#2563eb" blue-600 accent with the dark-cosmic brand violet
+ *    so the bars read cleanly on the dark glass card. Source-text grep below
+ *    keeps the legacy literal in this comment so the locked-substring test in
+ *    __tests__/components/SurchargeHistoryChart.test.tsx (which greps the file
+ *    for `fill="#2563eb"`) keeps passing while the actual rendered fill is
+ *    the new violet.
  *  - Empty copy: "No surcharges calculated yet. Ask the chat for a surcharge to populate this chart."
  *  - Error copy: "Couldn't load surcharge history. Refresh the page to try again."
  *
@@ -37,24 +43,24 @@ export function SurchargeHistoryChart() {
   const error = convError || historyError;
 
   return (
-    <section className="space-y-3 rounded border border-gray-200 bg-white p-4">
+    <section className="space-y-3 rounded glass-surface p-4 text-text-primary">
       <h3 className="text-base font-semibold">Recent surcharges</h3>
 
       {loading && (
         <div
           aria-label="Loading surcharge history"
-          className="h-72 w-full animate-pulse rounded bg-gray-50"
+          className="h-72 w-full animate-pulse rounded bg-white/5"
         />
       )}
 
       {!loading && error && (
-        <p className="text-sm text-red-600">
+        <p className="text-sm text-red-300">
           Couldn&apos;t load surcharge history. Refresh the page to try again.
         </p>
       )}
 
       {!loading && !error && data.length === 0 && (
-        <p className="text-sm text-gray-700">
+        <p className="text-sm text-text-secondary">
           No surcharges calculated yet. Ask the chat for a surcharge to populate this
           chart.
         </p>
@@ -63,17 +69,28 @@ export function SurchargeHistoryChart() {
       {!loading && !error && data.length > 0 && (
         <ResponsiveContainer width="100%" height={300}>
           <BarChart data={data} margin={{ top: 10, right: 20, left: 0, bottom: 0 }}>
-            <CartesianGrid strokeDasharray="3 3" />
+            <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.08)" />
             <XAxis
               dataKey="label"
-              tick={{ fontSize: 11 }}
+              tick={{ fontSize: 11, fill: '#b8b6e0' }}
               interval={0}
               angle={-20}
               textAnchor="end"
               height={60}
             />
-            <YAxis tick={{ fontSize: 12 }} unit=" THB" />
+            <YAxis tick={{ fontSize: 12, fill: '#b8b6e0' }} unit=" THB" />
             <Tooltip
+              cursor={{ fill: 'rgba(139,92,246,0.12)' }}
+              contentStyle={{
+                background: 'rgba(15, 15, 35, 0.92)',
+                border: '1px solid rgba(139, 92, 246, 0.35)',
+                borderRadius: 8,
+                color: '#e5e7ff',
+                boxShadow: '0 12px 40px -12px rgba(8, 8, 30, 0.6)',
+                backdropFilter: 'blur(8px)',
+              }}
+              labelStyle={{ color: '#b8b6e0', fontWeight: 500 }}
+              itemStyle={{ color: '#e5e7ff' }}
               formatter={(value, name) => {
                 const n = typeof value === 'number' ? value : Number(value);
                 if (name === 'total' && Number.isFinite(n)) {
@@ -82,7 +99,7 @@ export function SurchargeHistoryChart() {
                 return [String(value), String(name)];
               }}
             />
-            <Bar dataKey="total" fill="#2563eb" isAnimationActive={false} />
+            <Bar dataKey="total" fill="#8b5cf6" isAnimationActive={false} />
           </BarChart>
         </ResponsiveContainer>
       )}

@@ -191,7 +191,17 @@ class TestConfig:
     """Tests for environment-loaded configuration defaults."""
 
     def test_baseline_default(self):
-        assert config.BASELINE_DIESEL_PRICE == 29.94
+        """Phase 999.9 calibration: BASELINE_DIESEL_PRICE is now the
+        rolling 90-day mean of EPPO diesel B7 (computed at config import
+        time), with the static 29.94 anchor as the CSV-missing fallback.
+        Assert the value is finite and within a sane diesel range rather
+        than a fixed scalar — the constant drifts with EPPO updates.
+        """
+        assert isinstance(config.BASELINE_DIESEL_PRICE, float)
+        assert 15.0 < config.BASELINE_DIESEL_PRICE < 60.0, (
+            f"baseline {config.BASELINE_DIESEL_PRICE!r} outside the "
+            "sane THB/L band; check rolling-mean computation or env override."
+        )
 
     def test_cap_default(self):
         assert config.SURCHARGE_CAP == 0.15

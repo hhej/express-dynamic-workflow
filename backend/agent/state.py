@@ -89,3 +89,54 @@ class AgentState(TypedDict):
         }
     Written by search_agent_node; read by response_node to prepend a
     market-context line above the prose answer."""
+
+    guard_decision: Optional[dict]
+    """Quick task 260509-utd: last verdict from guard_input or guard_output.
+
+    Shape::
+
+        {
+          "layer": "input" | "output",
+          "category": str,           # see GuardCategory in guard_input.py
+          "refused": bool,
+          "violations": List[str],   # populated by guard_output only
+        }
+
+    Read by ``response_node`` to render the polite-refusal copy when
+    ``refused=True`` (status='refused' for input layer, 'guard_failed'
+    for output). No reducer — last-write-wins is correct because each
+    node reads + writes its own decision and only one guard runs per
+    superstep.
+    """
+
+    tool_call_count: Annotated[int, operator.add]
+    """Quick task 260509-utd: per-turn cumulative tool invocation count.
+
+    Bumped by fuel/route/search/pricing agents — each emits ``+1`` from
+    its own return dict (NOT the absolute new value); the ``operator.add``
+    reducer aggregates concurrent writes correctly under the Phase 5 D-01
+    parallel fan-out (fuel + route both bump in the same superstep). On
+    sequential supersteps the reducer simply accumulates one delta at a
+    time, so the running total still equals the number of tool calls
+    across the turn. Checked by ``guard_input`` against
+    ``MAX_TOOL_CALLS_PER_TURN`` to defend against cost-bombing inputs.
+
+    ``guard_input`` resets the counter at the start of a fresh user turn
+    by emitting a NEGATIVE delta equal to ``-state.tool_call_count`` (so
+    the new accumulated total lands at 0). This stays consistent with
+    the operator.add contract — the alternative of using a non-additive
+    reducer would break under fan-out (two concurrent writes per step).
+    """
+
+    origin_hub_id: Optional[str]
+    """Phase 999.9 (D-08/D-09/D-10): chosen origin hub identifier (e.g.,
+    'hq-lat-krabang', 'branch-bang-na'). Resolved by Planner from
+    prose extraction (D-10) or seeded from ChatRequest.origin_hub_id
+    (D-08) at the API boundary. Pricing Agent reads this to derive
+    origin_zone via origin_zone_for(hub_id) before calling lookup_rate.
+
+    None means dropdown not yet picked AND prose did not specify —
+    pricing_agent silently defaults to 'hq-lat-krabang' (D-09) and
+    narrates the assumption in the reasoning trace. The API boundary
+    ALSO defaults to 'hq-lat-krabang' (Pitfall 1 mitigation), so in
+    practice state.origin_hub_id is always non-None at planner entry."""

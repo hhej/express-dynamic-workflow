@@ -34,7 +34,7 @@ class ChartErrorBoundary extends Component<
       return (
         <section
           role="alert"
-          className="rounded border border-red-200 bg-red-50 p-4 text-sm text-red-700"
+          className="rounded glass-surface border-red-300/30 bg-red-500/10 p-4 text-sm text-red-200"
         >
           Something went wrong rendering this chart. Refresh the page to try again.
         </section>
@@ -50,7 +50,7 @@ class ChartErrorBoundary extends Component<
  */
 export function DashboardView() {
   return (
-    <div className="flex flex-col gap-6 overflow-y-auto p-6">
+    <div className="flex flex-col gap-6 overflow-y-auto p-6 text-text-primary">
       <h2 className="text-base font-semibold">Dashboard</h2>
       <ChartErrorBoundary>
         <FuelPriceChart />

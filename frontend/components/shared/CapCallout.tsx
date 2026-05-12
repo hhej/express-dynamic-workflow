@@ -4,7 +4,7 @@ export function CapCallout() {
     <div
       role="alert"
       aria-label="Surcharge capped or floored — review recommended"
-      className="flex items-start gap-2 rounded border border-yellow-300 bg-yellow-50 p-3 text-sm text-yellow-900"
+      className="flex items-start gap-2 rounded glass-surface border-yellow-300/40 bg-yellow-300/10 p-3 text-sm text-yellow-100"
     >
       <span aria-hidden>⚠</span>
       <span>Cap/floor applied — review recommended</span>

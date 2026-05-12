@@ -86,7 +86,7 @@ export function MessageList({
           return (
             <li
               key={`u-${i}`}
-              className="max-w-[75%] self-end rounded-lg bg-blue-600 px-4 py-2 text-sm text-white"
+              className="max-w-[75%] self-end rounded-lg bg-blue-600 brand-gradient px-4 py-2 text-sm text-white shadow-md shadow-brand-from/30"
             >
               {m.content}
             </li>
@@ -97,8 +97,20 @@ export function MessageList({
         const slotApproval = isLast ? awaitingApproval : null;
         return (
           <li
+            // Debug 999.5 (2026-05-09): key reverted from `a-${m.id}-${i}`
+            // back to `a-${m.id}`. The `-${i}` suffix was a defensive band-aid
+            // shipped in quick task 260509-e0p that masked the real duplicate-
+            // append bug in ChatApp.tsx. With the real fix in place
+            // (handleResume guard-seed + done-effect dep narrowing), m.id —
+            // which is the BE-stamped message_id `{thread_id}-{turn_idx}` for
+            // canonical assistants and `replay-noncanonical-${i}` for HITL
+            // pre-pause partials — is unique within `messages`. Using array
+            // index in keys is a React anti-pattern: it silently masks
+            // reconciliation bugs and breaks list-update animations / focus
+            // retention. If a future regression ever lets a duplicate id slip
+            // through, we WANT React to warn so we can chase the root cause.
             key={`a-${m.id}`}
-            className="max-w-[85%] space-y-2 self-start rounded-lg bg-white px-4 py-2 text-sm text-gray-900"
+            className="max-w-[85%] space-y-2 self-start glass-surface px-4 py-2 text-sm text-text-primary"
           >
             {renderAssistant(m, slotApproval, onApprove, onDeny, approvalErrorMessage)}
             {threadId && m.payload && m.payload.message_id && !slotApproval && (

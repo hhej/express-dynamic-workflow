@@ -1,0 +1,52 @@
+{
+  "hq-lat-krabang": {
+    "name": "Express HQ — Lat Krabang Industrial Estate, Bangkok",
+    "address": "Lat Krabang Industrial Estate, Bangkok",
+    "zone": "central-1"
+  },
+  "branch-bang-na": {
+    "name": "Express Branch — Bang Na, Bangkok",
+    "address": "Bang Na, Bangkok",
+    "zone": "central-1"
+  },
+  "branch-nonthaburi": {
+    "name": "Express Branch — Mueang Nonthaburi",
+    "address": "Mueang Nonthaburi, Nonthaburi",
+    "zone": "central-1"
+  },
+  "branch-pathum-thani": {
+    "name": "Express Branch — Mueang Pathum Thani",
+    "address": "Mueang Pathum Thani, Pathum Thani",
+    "zone": "central-1"
+  },
+  "branch-samut-prakan": {
+    "name": "Express Branch — Mueang Samut Prakan",
+    "address": "Mueang Samut Prakan, Samut Prakan",
+    "zone": "central-1"
+  },
+  "branch-ayutthaya": {
+    "name": "Express Branch — Phra Nakhon Si Ayutthaya",
+    "address": "Phra Nakhon Si Ayutthaya, Ayutthaya",
+    "zone": "central-2"
+  },
+  "branch-nakhon-pathom": {
+    "name": "Express Branch — Mueang Nakhon Pathom",
+    "address": "Mueang Nakhon Pathom, Nakhon Pathom",
+    "zone": "central-2"
+  },
+  "branch-samut-sakhon": {
+    "name": "Express Branch — Mueang Samut Sakhon",
+    "address": "Mueang Samut Sakhon, Samut Sakhon",
+    "zone": "central-2"
+  },
+  "branch-ratchaburi": {
+    "name": "Express Branch — Mueang Ratchaburi",
+    "address": "Mueang Ratchaburi, Ratchaburi",
+    "zone": "central-3"
+  },
+  "branch-lop-buri": {
+    "name": "Express Branch — Mueang Lop Buri",
+    "address": "Mueang Lop Buri, Lop Buri",
+    "zone": "central-3"
+  }
+}

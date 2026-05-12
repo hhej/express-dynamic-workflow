@@ -1,0 +1,11 @@
+# Ignore loose per-run artifacts at the root of repro/logs/.
+# Per the four-step disambiguator protocol (Plan 02 Task 1), each
+# step's `bash run_5x.sh ...` produces these at the root, and they
+# are then `cp`'d into a stepN/ subdirectory for permanent archival.
+# The next step's invocation `rm -f`'s them before re-running.
+# Tracking them at the root would create churn on every disambiguator
+# run. The canonical evidence lives in stepN/ subdirectories (those
+# are checked in explicitly).
+run-*-sse.log
+run-*-uvicorn.stderr
+summary.jsonl

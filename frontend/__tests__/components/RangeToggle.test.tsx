@@ -11,15 +11,16 @@ describe('RangeToggle (D-15.1)', () => {
     expect(screen.getByRole('radio', { name: '90d' })).toBeInTheDocument();
   });
 
-  it('marks the matching button active with bg-blue-600 + text-white', () => {
+  it('marks the matching button active with brand-gradient + text-white, inactive with glass-surface', () => {
     render(<RangeToggle selectedDays={7} onChange={() => {}} />);
     const active = screen.getByRole('radio', { name: '7d' });
     expect(active).toHaveAttribute('aria-checked', 'true');
-    expect(active.className).toContain('bg-blue-600');
+    expect(active.className).toContain('brand-gradient');
     expect(active.className).toContain('text-white');
     const inactive = screen.getByRole('radio', { name: '30d' });
     expect(inactive).toHaveAttribute('aria-checked', 'false');
-    expect(inactive.className).toContain('bg-white');
+    expect(inactive.className).toContain('glass-surface');
+    expect(inactive.className).toContain('text-text-primary');
   });
 
   it('clicking inactive option calls onChange with its days', async () => {

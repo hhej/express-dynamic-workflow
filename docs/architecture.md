@@ -149,13 +149,15 @@ class AgentState(TypedDict):
     # Phase 5 additions
     approval_decision: Literal["approve", "deny"] | None  # Phase 5 D-07; set by hitl_gate_node, read by response_node
     search_context: dict | None           # Phase 5 D-11; Tavily summary + sources; read by response_node for "Market context:" prefix
+    # Phase 9 / v1.1 (999.9 D-08) addition
+    origin_hub_id: str | None             # Chosen origin hub (e.g., 'hq-lat-krabang', 'branch-bang-na'); set by planner extraction or seeded from ChatRequest; resolved to origin_zone via origin_zone_for(hub_id) at lookup time
 ```
 
 | Field | Type | Reducer | Set by | Notes |
 |-------|------|---------|--------|-------|
 | messages | list[BaseMessage] | last-write-wins | runtime | LangGraph message channel |
 | fuel_data | dict \| None | last-write-wins | fuel_agent_node | TTL annotated via `fetched_at`; reused on cache hit |
-| route_data | dict \| None | last-write-wins | route_agent_node | Cache key = (origin, destination); 15-min TTL |
+| route_data | dict \| None | last-write-wins | route_agent_node | Cache key = (origin_hub_id, destination) post Phase 9 / v1.1; 15-min TTL |
 | shipping_type / weight_kg / origin / destination | scalars | last-write-wins | planner_node | Extracted from user message |
 | surcharge_result | dict \| None | last-write-wins | pricing_agent_node | Drives breakdown table render |
 | reasoning_trace | list[dict] | `operator.add` | every node | Parallel-write safe (Phase 2 Pitfall 1) |
@@ -164,6 +166,7 @@ class AgentState(TypedDict):
 | final_payload | dict \| None | last-write-wins | response_node | Surfaced via SSE answer event |
 | **approval_decision** | Optional[Literal["approve", "deny"]] | last-write-wins | hitl_gate_node | **Phase 5 D-07** — HITL gate decision; read by response_node |
 | **search_context** | Optional[dict] | last-write-wins | search_agent_node | **Phase 5 D-11** — Tavily summary + sources; read by response_node for "Market context:" prefix |
+| **origin_hub_id** | Optional[str] | last-write-wins | planner_node (allowlist-validated) / API boundary | **Phase 9 / v1.1 (999.9 D-08)** — chosen origin hub; resolved to origin_zone for `lookup_rate(shipping_type, origin_zone, dest_zone, weight_kg)` |
 
 ### Conditional Routing
 
@@ -193,17 +196,17 @@ The Planner node outputs a `next_step` field that LangGraph uses for conditional
 ### 2. Route Calculator Tool (`calculate_route`)
 
 - **Source**: Google Maps Directions API
-- **Input**: `origin` (e.g., "Bangkok"), `destination` (e.g., "Nonthaburi")
-- **Output**: `{distance_km: float, duration_min: int, traffic_severity: int (1-5), zone: str}`
-- **Zone mapping**: Based on origin-destination pair → central-1, central-2, or central-3
-- **Cache**: Results cached for 15 minutes to reduce API calls
+- **Input** (Phase 9 / v1.1 — 999.9 D-04): `origin_hub_id` (e.g., `"hq-lat-krabang"`, `"branch-bang-na"`) and `destination` (e.g., `"Nonthaburi"`). The hub address is resolved internally via `origin_string_for(hub_id)` from `backend/agent/tools/hubs.py`.
+- **Output**: `{origin_hub_id: str, distance_km: float, duration_min: int, traffic_severity: int (1-5), zone: str}` — `zone` is the destination zone, used as `dest_zone` for rate lookup.
+- **Zone mapping**: Destination zone derived from destination string only (Bangkok Metro provinces → central-1 / central-2 / central-3); origin zone derived separately from `origin_hub_id` at the pricing-agent layer.
+- **Cache**: Results cached for 15 minutes; cache key is the `(origin_hub_id, destination)` tuple — different hubs to the same destination are independent cache entries.
 
 ### 3. Rate Table Lookup Tool (`lookup_rate`)
 
 - **Source**: Local SQLite database (`data/express.db`)
-- **Input**: `shipping_type`, `zone`, `weight_kg`
+- **Signature** (Phase 9 / v1.1 — 999.9 D-05): `lookup_rate(shipping_type, origin_zone, dest_zone, weight_kg)` — both `origin_zone` and `dest_zone` are required. `origin_zone` is derived from the chosen `origin_hub_id` via `origin_zone_for(hub_id)` at the pricing-agent layer.
 - **Output**: `{base_rate: float, currency: "THB", rate_tier: str}`
-- **Data**: Express rate table with 3 shipping types, 3 zones, multiple weight tiers
+- **Data**: Express rate table with **135 rows** (3 origin zones × 3 destination zones × 3 ship types × 5 weight tiers). Both `origin_zone` and `dest_zone` are stored as columns in the `rate_table` SQLite schema.
 
 ### 4. Surcharge Calculator Tool (`calculate_surcharge`)
 
@@ -218,6 +221,79 @@ The Planner node outputs a `next_step` field that LangGraph uses for conditional
 - **Input**: `query` (e.g., "Thailand diesel price forecast")
 - **Output**: `{results: [{title, snippet, url}]}`
 - **Purpose**: Provides context for reasoning transparency — the agent can cite why prices are moving
+
+---
+
+## Adversarial Guardrails (v1.1)
+
+Two-layer defense against prompt injection, off-topic queries, and cost-bombing. The guardrails sit on top of the agent loop without redesigning it — `guard_input` is the new entry node, `guard_output` sits between Pricing and HITL/Response, and a per-turn tool-call cap rides on the existing `Annotated[int, operator.add]` reducer pattern.
+
+### Topology
+
+```
+START -> guard_input -> { planner | response (refused) }
+pricing_agent -> guard_output -> { hitl_gate | response (guard_failed) }
+```
+
+`guard_input` is the entry edge (`g.add_edge(START, "guard_input")` in `backend/agent/graph.py:234`); `_route_from_guard_input` returns `"planner"` on allow or `"response"` on refusal. `guard_output` sits AFTER pricing only (`g.add_edge("pricing_agent", "guard_output")` at `graph.py:263`); the planner's `clarify` path bypasses both pricing and guard_output by routing directly to response (Pitfall 6).
+
+### Layer 1: `guard_input` (Phase 5 / Quick 260509-utd — GUARD-01..06)
+
+- **Rules-first regex classifier** (`backend/agent/nodes/guard_input.py:_classify`): matches `prompt_injection`, `off_topic`, `cost_bombing` against curated pattern lists. Fresh-turn only — follow-up turns skip classification (rationale: a follow-up already cleared the gate; the planner re-classifies intent per turn anyway).
+- **Optional Gemini LLM fallback** (`_llm_fallback`): when the regex pass returns `"unclear"` AND `GUARD_INPUT_USE_LLM_FALLBACK=true`, Gemini 2.0 Flash is asked to classify into the same `GuardCategory` Literal. Defaults to `ALLOW` on any error / parse failure (fail-open for the demo — the rules pass is the load-bearing layer; LLM fallback is defense-in-depth).
+- **Per-turn tool-call cap** (`MAX_TOOL_CALLS_PER_TURN`, default 6 — `backend/config.py:148`): when a follow-up turn's `state.tool_call_count` (an `Annotated[int, operator.add]` reducer that survives parallel fan-out) reaches the cap, `guard_input` refuses with category `tool_call_budget`. Prevents adversaries from cost-bombing the demo by chaining repeated tool invocations within a single chat thread.
+- **Refusal short-circuit**: any refused category sets `state.guard_decision = {layer: 'input', refused: True, category, violations: []}` and routes to `response_node` (skipping planner). `response_node`'s refusal branch (lines 240–278 of `backend/agent/nodes/response_node.py`) renders the canonical `REFUSAL_COPY` verbatim with `status='refused'`. No tools fire, no LLM calls beyond the optional fallback classifier, no surcharge math.
+
+### Layer 2: `guard_output` (Phase 5 / Quick 260509-utd — GUARD-03)
+
+- **SurchargeResult invariant validation** after `pricing_agent_node` returns: cap honoured (≤ `MAX_SURCHARGE_CAP`), floor honoured (≥ `MIN_SURCHARGE_FLOOR`), `final_amount ≥ 0`, `shipping_type in {bounce, retail_standard, retail_fast}`, non-null reasoning bullets. Invariants are imported from `backend.config` (single source of truth — no drift between the formula in Pricing Agent and the validator in `guard_output`).
+- On any invariant violation: sets `state.guard_decision = {layer: 'output', refused: True, category: 'invariant_failure', violations: [...]}` and routes to `response_node`, which renders `REFUSAL_COPY` with `status='guard_failed'` (NOT `'refused'` — the predicate in `response_node.py` reads `status = 'refused' if layer == 'input' else 'guard_failed'`, preserving the distinction between user-facing refusal and internal invariant failure).
+
+### Phase 10 / v1.1 — Unified refusal copy on planner bypass paths (GUARD-07)
+
+The Planner has two non-tool bypass paths that historically returned generic `status='clarify'` copy:
+
+1. **`user_intent='out_of_scope'`** — Gemini classifies the user message as outside the surcharge/logistics domain. Cases like "What's the weather in Bangkok?" used to hit this branch.
+2. **`parse_failed`** — D-02 retry loop exhausts after 2 attempts (malformed JSON from Gemini, missing required fields, etc.).
+
+Both paths now emit `state.guard_decision` with the new `GuardCategory` members `planner_off_topic` / `planner_parse_failed` (additive Literal extension in `backend/agent/nodes/guard_input.py:GuardCategory` — widened from 5 → 7 members; `state.guard_decision.layer` stays `'input'` so `response_node`'s `'refused' if layer == 'input' else 'guard_failed'` predicate works unchanged). The Response Node's existing refusal branch renders `REFUSAL_COPY` + `status='refused'` — identical visible behaviour to a `guard_input` rules trip.
+
+Regression-pinned by `backend/tests/test_planner_refusal_paths.py` (4 cases pinning the unified contract) + adversarial-pack CI test `backend/tests/test_adversarial_pack.py` (asserts cases 1, 2, 3, 4 all return `status='refused'` + REFUSAL_COPY — previously cases 2 + 4 returned `status='clarify'`).
+
+### Phase 11 / v1.1 — Destination-less follow-up short-circuit (FIX-02)
+
+**Symptom (pre-fix):** the legit baseline query `"What's the current diesel price in Bangkok?"` hung the live SSE stream on a fresh-then-followup conversation. Trace emitted `planner → fuel_agent → planner` (3 steps), then `route_agent` was scheduled with `destination=None`, raised `ValueError("origin and destination required for calculate_route")`, the SSE stream emitted `done` with `errors[]`, and the client urlopen-timed-out at 60s with a 0-byte body. 4 of 5 cases in the 260509-utd live probe completed cleanly; only this case hung. **Demo-gating for W6.**
+
+**Root cause:** the cache-aware override block in `planner_node` (`backend/agent/nodes/planner.py:509`) unconditionally promoted the planner's `respond` emission to `fetch_route` when fuel was cached AND route was stale — without checking whether `destination` was actually present in state. A destination-less follow-up turn after a fresh fuel-only turn therefore got over-routed to `route_agent` with null destination.
+
+**Fix (commit `e550256` — `backend/agent/nodes/planner.py:312`):** pre-LLM short-circuit. Before the planner calls Gemini, if `state.fuel_data` is present AND all logistics fields are null (`destination`, `shipping_type`, `weight_kg`, `origin_hub_id`), the planner emits a `tool_output` trace entry with `trigger='fuel_data_present_no_destination'` + `origin_hub_id` and sets `next_step='respond'`. The cache-aware override block never runs; `route_agent` never gets called with null destination.
+
+**Investigation method:** sequential hypothesis ruling per `999.11-RESEARCH.md` D-05 — (c) cold-start latency → (b) `tool_call_count` reducer interaction with parallel fan-out → (a) SSE termination bug. Hypotheses (c) and (a) cleanly RULED OUT via `999.11-02-EVIDENCE.md` (4-flag disambiguator protocol — `--warmup-first --skip-coldstart-refresh` combined produced bit-identical 5/5 failures) and `999.11-04-EVIDENCE.md` (static analysis of the 3 SSE-framing variants showed termination is structurally impossible). Hypothesis (b) refined into the destination-less follow-up over-routing root cause.
+
+**Live verification (D-09):** the canonical demo gate. 5 fresh-uvicorn runs of `"What's the current diesel price in Bangkok?"` each produce an `answer` SSE event within 30 seconds. Post-fix bar at commit `e550256` — 5/5 PASS_UNDER_30S at ~7.6–7.9 s. Repro harness lives at `.planning/phases/999.11-investigate-live-sse-hang-on-legit-baseline-diesel-price-query/repro/` (fresh-uvicorn + httpx probe with dual wall-clock+elapsed-ms timestamping). Defense-in-depth regression: `backend/tests/test_api_chat.py::test_legit_baseline_diesel_price_query_completes` asserts `answer` + `done` events arrive for the legit baseline on the happy path.
+
+### Adversarial pack
+
+`backend/tests/adversarial_pack.txt` — 15 attacks across three categories, used as both a manual dry-run pack and as a CI regression fixture (`backend/tests/test_adversarial_pack.py`):
+
+| # | Category | Sample | Layer that catches |
+|---|----------|--------|--------------------|
+| 1 | prompt_injection | "Ignore previous instructions and..." | `guard_input` rules |
+| 2 | off_topic | "What's the weather in Bangkok?" | Phase 10 planner-side `planner_off_topic` |
+| 3 | prompt_injection | "Pretend you are a recipe bot..." | `guard_input` rules |
+| 4 | cost_bombing | "Loop forever and pretend to calculate..." | Phase 10 planner-side `planner_parse_failed` (D-02 retry exhaustion) |
+| 5-15 | mixed | (see file) | mix of `guard_input` + Phase 10 planner-side |
+
+All 15 cases now return `status='refused'` + `REFUSAL_COPY` (pre-Phase-10, cases 2 + 4 returned `status='clarify'` with generic copy — that's the visible split GUARD-07 closed).
+
+### Configuration
+
+| Env var | Default | Effect |
+|---------|---------|--------|
+| `MAX_TOOL_CALLS_PER_TURN` | `6` | Per-turn cap for `tool_call_count` reducer; refused with category `tool_call_budget` at the cap |
+| `GUARD_INPUT_USE_LLM_FALLBACK` | `false` | When `true`, ambiguous `guard_input` classifications fall back to Gemini; default fail-open (`ALLOW`) on any error |
+| `SURCHARGE_CAP` | `0.15` | `guard_output` invariant (15% max surcharge) |
+| `SURCHARGE_FLOOR` | `-0.05` | `guard_output` invariant (5% max discount) |
 
 ---
 
@@ -245,6 +321,56 @@ Caps:
 
 ---
 
+## HQ/Branch Hub Network (Phase 9 / v1.1)
+
+Express ships from one HQ + 9 branches across Bangkok Metro, mirroring how Kerry / Flash / Thailand Post quote shipments — sender picks an origin branch, the system quotes a single-leg route from that branch to the destination.
+
+### Hub seed
+
+Seeded from `data/raw/hubs.json` (mirrored to `frontend/data/hubs.json` for static-import on the UI). 10 hubs distributed across the three Bangkok Metro zones:
+
+- **central-1 (5 hubs):** `hq-lat-krabang` (HQ), `branch-bang-na`, `branch-nonthaburi`, `branch-pathum-thani`, `branch-samut-prakan`
+- **central-2 (3 hubs):** `branch-ayutthaya`, `branch-nakhon-pathom`, `branch-samut-sakhon`
+- **central-3 (2 hubs):** `branch-ratchaburi`, `branch-lop-buri`
+
+Distribution mirrors real Bangkok logistics density. Lat Krabang HQ is the canonical e-commerce / logistics cluster (Kerry, Flash, Lazada, Shopee all have facilities there).
+
+### Origin × destination rate matrix
+
+The rate table grew from 45 rows (destination-zone-only) to **135 rows** (3 origin × 3 dest × 3 ship × 5 weight tiers). Lookup key: `(shipping_type, origin_zone, dest_zone, weight_kg)`.
+
+Multiplier matrix (`ORIGIN_DEST_MULTIPLIER` in `data/scripts/generate_rate_table.py`):
+
+| M | central-1 | central-2 | central-3 |
+|---|-----------|-----------|-----------|
+| **central-1** | 1.00 | 1.25 | 1.70 |
+| **central-2** | 1.25 | 1.00 | 1.45 |
+| **central-3** | 1.70 | 1.45 | 1.00 |
+
+Symmetric: `M[origin][dest] == M[dest][origin]`. Diagonal = 1.00 preserves v1.0 central-1 → central-1 rates byte-for-byte (e.g., `bounce 0-5kg = 55 THB`). Off-diagonal scales with zone distance.
+
+### Origin capture: hybrid dropdown + prose
+
+![HubPicker dropdown open on cold start showing all 10 hubs with HQ Lat Krabang as the default selection](screenshots/hubpicker.png)
+
+1. **Dropdown (HubPicker):** persistent default per browser tab. Cold start = `hq-lat-krabang`. SessionStorage key: `express_origin_hub_id`.
+2. **Prose extraction:** Planner (Gemini 2.0 Flash) reads a 10-hub shortlist injected into its SYSTEM_PROMPT and extracts `origin_hub_id` from the user's message. Allowlist-validated against `_HUB_INDEX`; invalid emissions fall back to the dropdown's value.
+3. **Silent default:** when neither dropdown nor prose specifies a hub, `pricing_agent_node` defaults to `hq-lat-krabang` and emits a "Origin unspecified — defaulted to HQ Lat Krabang." bullet in its reasoning trace (D-09). At the API integration boundary (`_fresh_stream` in `backend/api/routes/chat.py`), `origin_hub_id` is resolved to `'hq-lat-krabang'` BEFORE state seeding (Pitfall 1) — the bullet therefore only fires on direct unit calls to `pricing_agent_node` with `state.origin_hub_id=None`.
+
+### Single-leg routing (D-04)
+
+Every chat turn makes ONE Google Maps Directions call: chosen hub → destination. The internal HQ→branch transfer is operational cost, NOT customer-facing pricing — matches Kerry / Flash / Thailand Post quoting behaviour.
+
+Cache key: `(origin_hub_id, destination)` — different hubs to the same destination are independent cache entries.
+
+### Planner shortlist injection
+
+The Planner SYSTEM_PROMPT includes a 10-line hub shortlist (one line per hub, format `- {hub_id}: {name} ({zone})`) so Gemini can extract `origin_hub_id` from inline prose ("ship from Bang Na to Nonthaburi" → `branch-bang-na`). The shortlist is built once at module import time from `_HUB_INDEX` (`backend/agent/tools/hubs.py`); a uvicorn restart picks up `hubs.json` edits, matching the Phase 2 D-08 baseline cache philosophy. Token-budget impact: ~150–300 tokens added to the existing planner extraction call — no new RPM cost.
+
+The planner's follow-up token-detection block (Phase 5 D-08) was extended to `origin_hub_id` so prose like "What about from Nonthaburi?" inherits/overrides correctly across turns.
+
+---
+
 ## Memory Management
 
 ### Session Memory (LangGraph Checkpointer)
@@ -263,8 +389,8 @@ Caps:
 ### Tool Result Cache (in AgentState)
 
 - `fuel_data` persists across conversation turns (TTL: 1 hour)
-- `route_data` persists across turns (invalidated when origin/destination changes)
-- Planner checks state before re-invoking tools to save API calls
+- `route_data` persists across turns (invalidated when `(origin_hub_id, destination)` changes — Phase 9 / v1.1 cache-key extension)
+- Planner checks state before re-invoking tools to save API calls; `_route_matches` compares `state.origin_hub_id == route_data.origin_hub_id` (with legacy free-text fallback for pre-v1.1 cached payloads)
 
 ### Conversation Management
 
@@ -343,7 +469,7 @@ Trigger condition (D-01):
 
 1. Planner LLM emits `next_step="fetch_fuel"` or `"fetch_route"`
 2. AND `state.fuel_data` is stale (no `fetched_at` or older than `FUEL_DATA_TTL_SECONDS=3600`)
-3. AND `state.route_data` does not match merged origin/destination
+3. AND `state.route_data` does not match `(origin_hub_id, destination)` per `_route_matches` (Phase 9 / v1.1 — falls back to legacy free-text origin compare for pre-v1.1 cached payloads)
 4. AND all extraction inputs (`shipping_type`, `weight_kg`, `origin`, `destination`) are present
 
 When all four conditions hold the planner promotes to the sentinel `next_step="fanout_fuel_route"`, which the conditional edge translates to the list `["fuel_agent", "route_agent"]`.
