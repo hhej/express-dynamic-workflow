@@ -78,7 +78,7 @@ export function ChatColumn({
        */}
       <div
         className={clsx(
-          'flex-1 flex-col',
+          'flex-1 flex-col min-h-0',
           tab === 'chat' ? 'flex' : 'hidden',
         )}
       >
@@ -112,7 +112,7 @@ export function ChatColumn({
       </div>
       <div
         className={clsx(
-          'flex-1 flex-col',
+          'flex-1 flex-col min-h-0',
           tab === 'dashboard' ? 'flex' : 'hidden',
         )}
       >
