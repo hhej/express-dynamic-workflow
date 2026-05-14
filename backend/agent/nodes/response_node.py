@@ -56,19 +56,22 @@ _FOOTER = "*Reasoning trace available below.*"
 _CAP_CALLOUT = "> ⚠ Cap/floor applied — review recommended"
 
 
-def _market_context_line(state: dict) -> Optional[str]:
+def _market_context_line(search_context: Optional[dict]) -> Optional[str]:
     """D-11 (Phase 5): "Market context: ..." prefix when search_context present.
 
-    Returns ``None`` when ``state.search_context`` is missing/None or
-    when its ``summary`` is empty/whitespace. Frontend may also render
-    this from the trace panel, but emitting the prose here keeps the
-    markdown self-contained for Langfuse trace inspection and any
-    non-FE consumers.
+    Returns ``None`` when ``search_context`` is missing/None or when its
+    ``summary`` is empty/whitespace. Frontend may also render this from
+    the trace panel, but emitting the prose here keeps the markdown
+    self-contained for Langfuse trace inspection and any non-FE consumers.
+
+    Quick task 260514-vrc: now takes ``search_context`` as an explicit
+    argument (not pulled from state) so the response_node main branch
+    can pass a render-gated local (None when search_agent did not run
+    this turn) without touching state itself. Helper stays pure.
     """
-    sc = state.get("search_context")
-    if not sc:
+    if not search_context:
         return None
-    summary = (sc.get("summary") or "").strip()
+    summary = (search_context.get("summary") or "").strip()
     if not summary:
         return None
     return f"> **Market context:** {summary}"
@@ -277,10 +280,6 @@ def response_node(state: dict) -> dict:
             "messages": prior_messages,
         }
 
-    errors = state.get("errors") or []
-    clarification_reason = state.get("clarification_reason")
-    surcharge_result: Optional[dict] = state.get("surcharge_result")
-
     # Phase 5 D-07: HITL deny short-circuit. When the user declined the
     # recommended surcharge at the hitl_gate (approval_decision='deny'),
     # render a 'partial' status with decline prose; do NOT include the
@@ -298,7 +297,10 @@ def response_node(state: dict) -> dict:
         markdown = "\n\n".join(parts).rstrip() + f"\n\n{_FOOTER}"
         # D-11 (Phase 5): preserve Market context prefix on the deny path
         # too — provenance applies regardless of accept/decline.
-        mc_line = _market_context_line(state)
+        # Quick task 260514-vrc: signature-compatibility update only — the
+        # deny branch still reads from state directly (its own dedicated
+        # state-handling is out of scope for the freshness gate).
+        mc_line = _market_context_line(state.get("search_context"))
         if mc_line:
             markdown = f"{mc_line}\n\n{markdown}"
         prior_steps = len(state.get("reasoning_trace") or [])
@@ -338,6 +340,72 @@ def response_node(state: dict) -> dict:
             "messages": prior_messages,
         }
 
+    # Quick task 260514-vrc: current-turn freshness gate.
+    #
+    # state.surcharge_result and state.search_context are turn-producing
+    # fields but state itself is thread-scoped (LangGraph SQLite checkpointer
+    # persists the whole AgentState across turns). Without an explicit
+    # null-at-turn-boundary path, a prior turn's surcharge_result leaks
+    # into the current turn's rendered markdown when the current turn does
+    # NOT route through pricing_agent (e.g., a follow-up "what's the news?"
+    # search-only turn after a pricing turn, or a clarify turn).
+    #
+    # We detect the current turn boundary by scanning reasoning_trace for
+    # the most recent agent=='response' entry (response_node always emits
+    # one at the END of a turn). Entries AFTER that index are the current
+    # turn; everything at-or-before is prior turns.
+    #
+    # The gate is LOCAL-ONLY — state.surcharge_result and state.search_context
+    # are never modified, so the FE trace panel + Langfuse trace +
+    # checkpointer replay paths see the same state they always did.
+    #
+    # Sibling defect: .planning/debug/999.12 (duplicate message_id). Same
+    # family of "AgentState fields meant to be turn-scoped behave as
+    # thread-scoped because no path explicitly nulls them at turn boundaries".
+    trace = state.get("reasoning_trace") or []
+    last_response_idx = -1
+    for i in range(len(trace) - 1, -1, -1):
+        entry = trace[i]
+        if isinstance(entry, dict) and entry.get("agent") == "response":
+            last_response_idx = i
+            break
+    current_turn_entries = trace[last_response_idx + 1:]
+    pricing_ran_this_turn = any(
+        isinstance(e, dict) and e.get("agent") == "pricing_agent"
+        for e in current_turn_entries
+    )
+    search_ran_this_turn = any(
+        isinstance(e, dict) and e.get("agent") == "search_agent"
+        for e in current_turn_entries
+    )
+
+    # Backward-compat shim: when reasoning_trace is EMPTY (no entries at
+    # all), preserve the pre-gate semantic where state.surcharge_result /
+    # state.search_context are trusted at face value. This covers:
+    #   (a) unit tests that build state directly without populating trace
+    #       (e.g., the existing test_renders_locked_markdown_structure
+    #       fixture sets reasoning_trace=[] and expects status='ok').
+    #   (b) any harness / replay path that synthesises state without
+    #       reconstructing the full trace.
+    # In production, every real turn produces at least one trace entry
+    # before response_node fires (planner always emits one), so this
+    # shim does NOT mask real state-leak bugs — it only preserves
+    # synthetic-fixture semantics.
+    if not trace:
+        surcharge_result_for_render: Optional[dict] = state.get("surcharge_result")
+        search_context_for_render: Optional[dict] = state.get("search_context")
+    else:
+        surcharge_result_for_render = (
+            state.get("surcharge_result") if pricing_ran_this_turn else None
+        )
+        search_context_for_render = (
+            state.get("search_context") if search_ran_this_turn else None
+        )
+
+    errors = state.get("errors") or []
+    clarification_reason = state.get("clarification_reason")
+    surcharge_result: Optional[dict] = surcharge_result_for_render
+
     # gap-3 fix (2026-05-03): when search_agent populated state.search_context
     # but no surcharge was computed (search-only flow), render news prose
     # instead of falling through to clarify. The Market context blockquote
@@ -348,7 +416,11 @@ def response_node(state: dict) -> dict:
     # was set by the D-04 guard. Errors still take precedence (status='partial')
     # so a Tavily failure path that left search_context as a graceful-warn dict
     # AND populated state.errors still renders the partial-error prose.
-    sc = state.get("search_context")
+    #
+    # Quick task 260514-vrc: read from the render-gated local so a prior
+    # turn's search_context cannot promote a non-search current turn to
+    # status='search_only'.
+    sc = search_context_for_render
     sc_has_content = bool(
         sc and ((sc.get("summary") or "").strip() or sc.get("sources"))
     )
@@ -403,7 +475,10 @@ def response_node(state: dict) -> dict:
     # state.search_context.summary is present. Sits ABOVE the cap callout
     # (provenance first, then warnings, then prose/table) so the user
     # sees the explanatory context before the rest of the breakdown.
-    mc_line = _market_context_line(state)
+    # Quick task 260514-vrc: pass the render-gated local so a prior
+    # turn's search summary cannot leak as a "Market context:" prefix on
+    # a non-search current turn.
+    mc_line = _market_context_line(search_context_for_render)
     if mc_line:
         markdown = f"{mc_line}\n\n{markdown}"
 
@@ -412,7 +487,7 @@ def response_node(state: dict) -> dict:
         "surcharge_result": surcharge_result,
         "capped": capped,
         "status": status,
-        "search_context": state.get("search_context"),  # Phase 8 D-07 — always present, None when state lacks it
+        "search_context": search_context_for_render,  # 260514-vrc — gated by current-turn freshness; None when search_agent did not run this turn
     }
 
     prior_steps = len(state.get("reasoning_trace") or [])

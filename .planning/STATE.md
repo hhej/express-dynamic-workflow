@@ -3,9 +3,9 @@ gsd_state_version: 1.0
 milestone: null
 milestone_name: ""
 status: between_milestones
-stopped_at: "v1.1 shipped 2026-05-12. Quick task 260514-uwo (chat UI demo-pragmatic fix: min-h-0 on ChatColumn tab bodies + duplicate React key band-aid + 999.12 BE-regression backlog) landed 2026-05-14 on docs/quick-260514-uwo-chat-ui-pragmatic-fix — pending PR → develop → main. W6 demo recording is next. BE duplicate message_id root-cause investigation deferred to .planning/debug/999.12-investigate-duplicate-message-id-regression-in-be-stamping.md, pick up via /gsd:debug post-demo."
-last_updated: "2026-05-14T15:23:13.587Z"
-last_activity: 2026-05-14 — Completed quick task 260514-uwo: chat UI demo-pragmatic fix (input flex overflow + duplicate React key band-aid + 999.12 backlog)
+stopped_at: "v1.1 shipped 2026-05-12. Quick task 260514-vrc (response_node fresh-truth gate: locally gate stale state.surcharge_result + state.search_context behind current-turn reasoning_trace scan; state never mutated; 3 new tests; cross-link to 999.12 sibling) landed 2026-05-14 on fix/quick-260514-vrc-response-node-fresh-truth-gate — pending PR → develop → main + orchestrator uvicorn restart for live re-verification. W6 demo recording is next. BE duplicate message_id root-cause investigation still deferred to .planning/debug/999.12 — picked up via /gsd:debug post-demo; now flagged as likely shared-family root cause with 260514-vrc."
+last_updated: "2026-05-14T17:30:00.000Z"
+last_activity: 2026-05-14 — Completed quick task 260514-vrc: response_node fresh-truth gate (render-time state-leak fix; sibling to 999.12)
 progress:
   total_phases: 0
   completed_phases: 0
@@ -311,10 +311,11 @@ None yet.
 | 260512-t3t | Fix ROADMAP.md drift on Phase 10 status (line 40 checkbox + progress table row) — flipped `[ ]` → `[x]` and `0/3 Planned` → `3/3 Complete — 2026-05-11` to match REQUIREMENTS.md (GUARD-07 Complete) and STATE.md (Phase 999.10 completed 2026-05-11); housekeeping closure flagged by v1.1 milestone audit | 2026-05-12 | a6c7c30 |  | [260512-t3t-fix-roadmap-md-drift-on-phase-10-status-](./quick/260512-t3t-fix-roadmap-md-drift-on-phase-10-status-/) |
 | 260512-t7q | Surface origin_hub_id in FIX-02 destination-less short-circuit trace entry (planner.py:316 string→dict with `trigger` + `origin_hub_id` keys) + new regression pytest; closes v1.1 audit cross-phase observability gap (Phase 9 hub × Phase 11 FIX-02). Backend pytest 358→359 green. | 2026-05-12 | 527fe62 |  | [260512-t7q-surface-origin-hub-id-in-fix-02-destinat](./quick/260512-t7q-surface-origin-hub-id-in-fix-02-destinat/) |
 | 260514-uwo | Chat UI demo-pragmatic fix: (1) add `min-h-0` to both `ChatColumn` tab bodies — real fix for chat input being pushed off-screen on long conversations (flex-column overflow gotcha); (2) revert `MessageList` assistant `<li>` key from `a-${m.id}` back to `a-${m.id}-${i}` as a W6-demo band-aid for the duplicate `message_id` regression React was warning about (preserves Debug 999.5 comment block verbatim + appends dated deferral note); (3) log `.planning/debug/999.12-investigate-duplicate-message-id-regression-in-be-stamping.md` as deferred BE root-cause investigation (two hypotheses: `_next_turn_idx` mis-count vs `_attach_message_ids` replay double-stamp). No BE changes; 145/145 frontend vitest green. | 2026-05-14 | dfe298b |  | [260514-uwo-fix-chat-input-flex-overflow-band-aid-du](./quick/260514-uwo-fix-chat-input-flex-overflow-band-aid-du/) |
+| 260514-vrc | Render-time state-leak fix in `response_node`: locally gate stale `state.surcharge_result` + `state.search_context` behind a current-turn freshness check (scan `reasoning_trace` for the latest `agent=='response'` boundary; null render-locals when corresponding agent did not run this turn). State dict is NEVER mutated. `_market_context_line` signature takes explicit `search_context` arg. Refusal + deny branches untouched (signature-compat update only). 3 new tests cover search-turn / clarify-turn / fresh-pricing happy path, each asserting state identity preserved. Backend pytest 359→362 collected, 357→360 passing (2 pre-existing unrelated failures unchanged). Cross-link appended to `.planning/debug/999.12-...-be-stamping.md` (sibling state-leak family). | 2026-05-14 | 3b8b079, ef947c8, 2d9e3ac |  | [260514-vrc-fix-response-node-state-leak-gate-stale-](./quick/260514-vrc-fix-response-node-state-leak-gate-stale-/) |
 
 ## Session Continuity
 
-Last session: 2026-05-14T15:23:08.416Z
-Stopped at: Completed quick task 260514-uwo (3 commits on docs/quick-260514-uwo-chat-ui-pragmatic-fix)
+Last session: 2026-05-14T17:30:00.000Z
+Stopped at: Completed quick task 260514-vrc (3 commits on fix/quick-260514-vrc-response-node-fresh-truth-gate)
 Resume file: None
 Next: Demo recording (W6); or close v1.1 milestone with milestone audit via /gsd:complete-milestone. Pre-existing ROADMAP.md drift on Phase 10 active-checklist + Progress table row logged to .planning/phases/999.11-.../deferred-items.md (out of scope for Plan 05; fix in housekeeping commit or milestone audit).

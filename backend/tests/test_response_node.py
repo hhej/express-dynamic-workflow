@@ -467,3 +467,223 @@ def test_response_deny_path_forwards_search_context_in_final_payload():
     }
     out = response_node(state)
     assert out["final_payload"]["search_context"] == state["search_context"]
+
+
+# ---------------------------------------------------------------------------
+# Quick task 260514-vrc — current-turn freshness gate for stale state-leak.
+# Sibling fix to .planning/debug/999.12 (duplicate message_id family).
+# Boundary heuristic: latest reasoning_trace entry where agent=='response'
+# marks the end of the PRIOR turn; entries AFTER that index are the CURRENT
+# turn. response_node renders surcharge_result / search_context ONLY when
+# pricing_agent / search_agent (respectively) appear in the current-turn
+# slice. State is never mutated — the gate is render-time only.
+# ---------------------------------------------------------------------------
+
+
+def test_response_node_gates_stale_surcharge_on_search_turn():
+    """260514-vrc: state.surcharge_result populated from a PRIOR turn must
+    NOT render in the current turn when only search_agent ran this turn.
+    Boundary: reasoning_trace = [..., pricing_agent, response, search_agent].
+    Expected: status='search_only', final_payload.surcharge_result=None,
+    markdown is the news prose (no breakdown table).
+    """
+    state = _ok_state()
+    state["surcharge_result"] = {
+        "surcharge_pct": 0.10,
+        "surcharge_amount": 12.0,
+        "total": 132.0,
+        "capped": False,
+    }
+    state["search_context"] = {
+        "query": "diesel news",
+        "summary": "Refinery shutdown nudges prices.",
+        "sources": [],
+        "fetched_at": "2026-05-14T10:00:00Z",
+    }
+    # Prior turn: pricing ran, response wrapped it up.
+    # Current turn: search_agent only.
+    state["reasoning_trace"] = [
+        {
+            "step": 1,
+            "agent": "pricing_agent",
+            "tool": "calculate_surcharge",
+            "tool_input": {},
+            "tool_output": {},
+            "reasoning": "prior turn pricing",
+            "timestamp": "2026-05-14T09:59:00Z",
+            "status": "ok",
+        },
+        {
+            "step": 2,
+            "agent": "response",
+            "tool": None,
+            "tool_input": {"status": "ok"},
+            "tool_output": {},
+            "reasoning": "prior turn response",
+            "timestamp": "2026-05-14T09:59:30Z",
+            "status": "ok",
+        },
+        {
+            "step": 3,
+            "agent": "search_agent",
+            "tool": "search_fuel_news",
+            "tool_input": {},
+            "tool_output": {},
+            "reasoning": "current turn search",
+            "timestamp": "2026-05-14T10:00:00Z",
+            "status": "ok",
+        },
+    ]
+
+    # Capture pre-call state identity to verify NO mutation.
+    pre_call_surcharge = state["surcharge_result"]
+    pre_call_search_ctx = state["search_context"]
+
+    result = response_node(state)
+    payload = result["final_payload"]
+    md = payload["markdown"]
+
+    # Gate fired: stale surcharge nulled in final_payload.
+    assert payload["status"] == "search_only", (
+        f"expected status='search_only' (stale surcharge gated, fresh search), got: {payload['status']!r}; md={md!r}"
+    )
+    assert payload["surcharge_result"] is None, (
+        f"stale surcharge_result leaked into final_payload: {payload['surcharge_result']!r}"
+    )
+
+    # Markdown has the news prose, NOT the breakdown table.
+    assert "Here's the latest market context" in md
+    assert "| Base rate |" not in md, f"stale base rate leaked into markdown: {md!r}"
+    assert "| Surcharge % |" not in md
+    assert "| Surcharge amount |" not in md
+    assert "| Total |" not in md
+    # Market context blockquote prepends (D-11 contract preserved).
+    assert md.startswith("> **Market context:** Refinery shutdown nudges prices.")
+
+    # State NOT mutated — same dict identity, same contents.
+    assert state["surcharge_result"] is pre_call_surcharge
+    assert state["search_context"] is pre_call_search_ctx
+    assert state["surcharge_result"]["total"] == 132.0
+
+
+def test_response_node_gates_stale_surcharge_on_clarify_turn():
+    """260514-vrc: state.surcharge_result from a PRIOR turn must NOT render
+    when the current turn has neither pricing_agent NOR search_agent
+    entries (pure clarify turn — planner asked for missing inputs).
+    Expected: status='clarify', final_payload.surcharge_result=None,
+    markdown is the clarify prose (no breakdown table).
+    """
+    state = _ok_state()
+    state["surcharge_result"] = {
+        "surcharge_pct": 0.10,
+        "surcharge_amount": 12.0,
+        "total": 132.0,
+        "capped": False,
+    }
+    state["clarification_reason"] = "missing_weight"
+    state["missing_fields"] = ["weight_kg"]
+    # Prior turn: pricing ran. Current turn: nothing (planner emitted clarify).
+    state["reasoning_trace"] = [
+        {
+            "step": 1,
+            "agent": "pricing_agent",
+            "tool": "calculate_surcharge",
+            "tool_input": {},
+            "tool_output": {},
+            "reasoning": "prior turn pricing",
+            "timestamp": "2026-05-14T09:59:00Z",
+            "status": "ok",
+        },
+        {
+            "step": 2,
+            "agent": "response",
+            "tool": None,
+            "tool_input": {"status": "ok"},
+            "tool_output": {},
+            "reasoning": "prior turn response",
+            "timestamp": "2026-05-14T09:59:30Z",
+            "status": "ok",
+        },
+        # Current turn: only a planner entry, no pricing, no search.
+        {
+            "step": 3,
+            "agent": "planner",
+            "tool": None,
+            "tool_input": {},
+            "tool_output": {"next_step": "clarify"},
+            "reasoning": "current turn — clarify",
+            "timestamp": "2026-05-14T10:00:00Z",
+            "status": "ok",
+        },
+    ]
+
+    pre_call_surcharge = state["surcharge_result"]
+
+    result = response_node(state)
+    payload = result["final_payload"]
+    md = payload["markdown"]
+
+    assert payload["status"] == "clarify", (
+        f"expected status='clarify' (stale surcharge gated, no fresh agents), got: {payload['status']!r}; md={md!r}"
+    )
+    assert payload["surcharge_result"] is None, (
+        f"stale surcharge_result leaked: {payload['surcharge_result']!r}"
+    )
+    # Clarify prose, no breakdown table.
+    assert "weight" in md.lower() or "provide" in md.lower()
+    assert "| Base rate |" not in md
+    assert "| Total |" not in md
+
+    # State unchanged.
+    assert state["surcharge_result"] is pre_call_surcharge
+    assert state["surcharge_result"]["total"] == 132.0
+
+
+def test_response_node_renders_fresh_pricing_when_pricing_ran_this_turn():
+    """260514-vrc defensive marker: the freshness gate must NOT regress
+    the single-turn happy path. When the current turn has a pricing_agent
+    entry (and no prior response entry), state.surcharge_result still
+    renders normally as status='ok' with the breakdown table.
+
+    This complements test_renders_locked_markdown_structure (which uses
+    an EMPTY reasoning_trace via the _ok_state fixture and exercises the
+    backward-compat shim) by also covering the EXPLICIT-trace happy
+    path — a single-turn flow where reasoning_trace has real entries
+    including the current-turn pricing_agent entry.
+    """
+    state = _ok_state()
+    # surcharge_result already set by _ok_state(). Trace records the
+    # current-turn pricing_agent entry; NO prior response entry.
+    state["reasoning_trace"] = [
+        {
+            "step": 1,
+            "agent": "planner",
+            "tool": None,
+            "tool_input": {},
+            "tool_output": {},
+            "reasoning": "planner",
+            "timestamp": "2026-05-14T10:00:00Z",
+            "status": "ok",
+        },
+        {
+            "step": 2,
+            "agent": "pricing_agent",
+            "tool": "calculate_surcharge",
+            "tool_input": {},
+            "tool_output": {},
+            "reasoning": "current turn pricing",
+            "timestamp": "2026-05-14T10:00:01Z",
+            "status": "ok",
+        },
+    ]
+
+    result = response_node(state)
+    payload = result["final_payload"]
+    md = payload["markdown"]
+
+    assert payload["status"] == "ok", (
+        f"expected status='ok' (fresh pricing this turn), got: {payload['status']!r}; md={md!r}"
+    )
+    assert payload["surcharge_result"] == state["surcharge_result"]
+    assert "| Base rate |" in md
+    assert "| Total |" in md
