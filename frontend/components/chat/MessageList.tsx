@@ -109,7 +109,15 @@ export function MessageList({
             // reconciliation bugs and breaks list-update animations / focus
             // retention. If a future regression ever lets a duplicate id slip
             // through, we WANT React to warn so we can chase the root cause.
-            key={`a-${m.id}`}
+            //
+            // Band-aided 2026-05-14 for W6 demo. Duplicate `message_id`
+            // regression detected during 11-turn full-demo run — root cause
+            // likely in BE `_next_turn_idx` (refused-turn counting?) or
+            // `_attach_message_ids` (replay double-stamp?). See
+            // `.planning/debug/999.12-investigate-duplicate-message-id-regression-in-be-stamping.md`
+            // backlog item. Remove the `-${i}` suffix once BE side is verified
+            // clean post-demo via /gsd:debug.
+            key={`a-${m.id}-${i}`}
             className="max-w-[85%] space-y-2 self-start glass-surface px-4 py-2 text-sm text-text-primary"
           >
             {renderAssistant(m, slotApproval, onApprove, onDeny, approvalErrorMessage)}
