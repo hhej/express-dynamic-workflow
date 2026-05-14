@@ -97,7 +97,10 @@ def _fuel_fresh(state: dict) -> bool:
 
 
 def _route_matches(
-    state: dict, origin: Optional[str], destination: Optional[str]
+    state: dict,
+    origin: Optional[str],
+    destination: Optional[str],
+    origin_hub_id: Optional[str] = None,
 ) -> bool:
     """True if state.route_data matches the (origin, destination) pair.
 
@@ -109,13 +112,23 @@ def _route_matches(
     routing, so we fall back to the legacy origin compare ONLY when
     neither side carries an ``origin_hub_id`` (e.g., pre-999.9 cached
     entries replayed in tests).
+
+    The optional ``origin_hub_id`` argument lets callers override the
+    state read with a freshly-merged hub value (e.g., ``merged_origin_hub_id``
+    in ``planner_node`` after the 999.1 merge). When omitted or None, the
+    function falls back to ``state.get("origin_hub_id")`` — preserving the
+    pre-Phase-11 behaviour for any caller that does not yet supply the
+    parameter. This closes the prose-override cache-leak: on turns where the
+    LLM extracts a new ``origin_hub_id`` from prose but ``state.origin_hub_id``
+    still holds the prior turn's value, the post-merge local is the only
+    fresh-truth source.
     """
     rd = state.get("route_data")
     if not rd or not destination:
         return False
     if rd.get("destination") != destination:
         return False
-    state_hub = state.get("origin_hub_id")
+    state_hub = origin_hub_id if origin_hub_id is not None else state.get("origin_hub_id")
     rd_hub = rd.get("origin_hub_id")
     if state_hub and rd_hub:
         return rd_hub == state_hub
@@ -539,7 +552,7 @@ def planner_node(state: dict) -> dict:
     if (
         next_step in ("fetch_fuel", "fetch_route")
         and not _fuel_fresh(state)
-        and not _route_matches(state, merged_origin, merged_destination)
+        and not _route_matches(state, merged_origin, merged_destination, merged_origin_hub_id)
         and merged_shipping
         and merged_weight is not None
         and (merged_origin or merged_origin_hub_id)
@@ -559,7 +572,7 @@ def planner_node(state: dict) -> dict:
     if next_step != "search_context":
         if next_step == "fetch_fuel" and _fuel_fresh(state):
             # Fuel is cached and fresh — advance to next logical step.
-            if _route_matches(state, merged_origin, merged_destination):
+            if _route_matches(state, merged_origin, merged_destination, merged_origin_hub_id):
                 # Route also cached: only need pricing (assuming inputs present).
                 if merged_shipping and merged_weight is not None:
                     next_step = "calculate_price"
@@ -568,7 +581,7 @@ def planner_node(state: dict) -> dict:
             else:
                 next_step = "fetch_route"
         elif next_step == "fetch_route" and _route_matches(
-            state, merged_origin, merged_destination
+            state, merged_origin, merged_destination, merged_origin_hub_id
         ):
             next_step = "calculate_price" if _fuel_fresh(state) else "fetch_fuel"
 

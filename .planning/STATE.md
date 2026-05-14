@@ -3,9 +3,9 @@ gsd_state_version: 1.0
 milestone: null
 milestone_name: ""
 status: between_milestones
-stopped_at: "v1.1 shipped 2026-05-12. Quick task 260514-vrc (response_node fresh-truth gate: locally gate stale state.surcharge_result + state.search_context behind current-turn reasoning_trace scan; state never mutated; 3 new tests; cross-link to 999.12 sibling) landed 2026-05-14 on fix/quick-260514-vrc-response-node-fresh-truth-gate — pending PR → develop → main + orchestrator uvicorn restart for live re-verification. W6 demo recording is next. BE duplicate message_id root-cause investigation still deferred to .planning/debug/999.12 — picked up via /gsd:debug post-demo; now flagged as likely shared-family root cause with 260514-vrc."
-last_updated: "2026-05-14T17:30:00.000Z"
-last_activity: 2026-05-14 — Completed quick task 260514-vrc: response_node fresh-truth gate (render-time state-leak fix; sibling to 999.12)
+stopped_at: "v1.1 shipped 2026-05-12. Quick task 260514-vrc (response_node fresh-truth gate: locally gate stale state.surcharge_result + state.search_context behind current-turn reasoning_trace scan; state never mutated; 3 new tests; cross-link to 999.12 sibling) landed 2026-05-14 on fix/quick-260514-vrc-response-node-fresh-truth-gate. Quick task 260514-wgg (_route_matches accepts merged origin_hub_id: cache-key predicate now reads the post-999.1-merge hub from the caller instead of stale state.origin_hub_id; 3 new tests pinning the fix + backward-compat; cross-link to 999.12 — family now has 3 confirmed siblings) landed 2026-05-14 on fix/quick-260514-wgg-route-matches-merged-hub — pending PR → develop → main + orchestrator uvicorn restart for live re-verification. W6 demo recording is next. BE duplicate message_id root-cause investigation still deferred to .planning/debug/999.12 — picked up via /gsd:debug post-demo; flagged as likely shared-family root cause with 260514-vrc + 260514-wgg."
+last_updated: "2026-05-14T19:00:00.000Z"
+last_activity: 2026-05-14 — Completed quick task 260514-wgg: _route_matches accepts merged origin_hub_id (sibling state-leak fix in 999.12 cluster)
 progress:
   total_phases: 0
   completed_phases: 0
@@ -29,7 +29,7 @@ Phase: —
 Plan: —
 Last completed: v1.1 milestone (Phases 9, 10, 11) — 2026-05-12
 Status: v1.1 milestone complete; between milestones
-Last activity: 2026-05-12 — Closed v1.1 milestone (archived ROADMAP + REQUIREMENTS + AUDIT to .planning/milestones/v1.1-*)
+Last activity: 2026-05-14 — Completed quick task 260514-wgg: _route_matches accepts merged origin_hub_id (sibling state-leak fix in 999.12 cluster)
 
 Progress: [██████████] 100% (v1.1 — 3 of 3 phases complete)
 

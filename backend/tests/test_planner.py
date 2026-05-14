@@ -1649,3 +1649,149 @@ async def test_tool_call_count_reducer_aggregates_parallel_writes(
         f"reducer lost a parallel write: got {final_state['tool_call_count']}, expected >= 2"
     )
 
+
+# ---------------------------------------------------------------------------
+# Phase 11.5 / quick-260514-wgg — _route_matches reads merged hub from caller
+#
+# The cache-check predicate at planner.py:99-126 used to read
+# state.get("origin_hub_id") directly, but the caller has already computed
+# merged_origin_hub_id (line 505 — the post-999.1-merge local that combines
+# parsed.origin_hub_id from THIS turn's prose with prior state). On
+# prose-override turns ("Ship 5kg from Bang Na to Nonthaburi" with dropdown
+# on HQ Lat Krabang), the predicate falsely matched a cached
+# (hq-lat-krabang, Nonthaburi) route_data and skipped route_agent.
+# Fix: _route_matches accepts an optional 4th arg origin_hub_id; all 3
+# in-file call sites pass merged_origin_hub_id. Backward-compat fallback
+# to state.get("origin_hub_id") is preserved when the parameter is omitted.
+#
+# Same family as quick-260514-vrc (response_node fresh-truth gate) — both
+# close holes where turn-scoped AgentState fields behave thread-scoped.
+# ---------------------------------------------------------------------------
+
+from backend.agent.nodes.planner import _route_matches  # noqa: E402
+
+
+def test_route_matches_uses_passed_origin_hub_id_over_state():
+    """Pinning test for the prose-override cache leak.
+
+    With state.origin_hub_id == route_data.origin_hub_id == 'hq-lat-krabang'
+    but caller passes origin_hub_id='branch-bang-na', the cache MUST miss.
+    Pre-fix: state_hub = state.get('origin_hub_id') wins -> match -> bug.
+    Post-fix: state_hub = passed param -> mismatch -> cache miss.
+    """
+    state = {
+        "origin_hub_id": "hq-lat-krabang",
+        "route_data": {
+            "origin": "Bangkok",
+            "destination": "Nonthaburi",
+            "origin_hub_id": "hq-lat-krabang",
+            "distance_km": 18.5,
+            "duration_min": 30,
+            "traffic_severity": 2,
+            "zone": "central-1",
+        },
+    }
+    # Passing a different hub MUST invalidate the cache check.
+    assert _route_matches(
+        state, None, "Nonthaburi", origin_hub_id="branch-bang-na"
+    ) is False
+
+
+def test_route_matches_falls_back_to_state_when_param_omitted():
+    """Backward-compat: when the 4th arg is omitted, _route_matches falls
+    back to state.get('origin_hub_id'). With matching state + route_data,
+    the cache MUST hit.
+
+    Exercises the `else state.get("origin_hub_id")` fallback branch of
+    `state_hub = origin_hub_id if origin_hub_id is not None else state.get(...)`.
+    Pins the invariant so a future refactor can't silently break callers
+    that do not yet pass the parameter.
+    """
+    state = {
+        "origin_hub_id": "hq-lat-krabang",
+        "route_data": {
+            "origin": "Bangkok",
+            "destination": "Nonthaburi",
+            "origin_hub_id": "hq-lat-krabang",
+            "distance_km": 18.5,
+            "duration_min": 30,
+            "traffic_severity": 2,
+            "zone": "central-1",
+        },
+    }
+    # No 4th arg — falls back to state. Same hub on both sides -> hit.
+    assert _route_matches(state, None, "Nonthaburi") is True
+
+
+def test_planner_invokes_route_agent_on_prose_origin_override(monkeypatch):
+    """Integration test for the prose-override cache leak end-to-end.
+
+    Setup: dropdown is on 'hq-lat-krabang'; prior turn cached a route for
+    (hq-lat-krabang, Nonthaburi); fuel is also fresh. User's prose says
+    'Ship 5kg bounce from Bang Na to Nonthaburi' and the LLM correctly
+    extracts origin_hub_id='branch-bang-na'.
+
+    Expected: planner_node must NOT route to calculate_price (which would
+    reuse the stale hq-lat-krabang route). It must route to fetch_route
+    (or fanout_fuel_route depending on the cascade ordering) so the route
+    is recomputed for the new origin hub.
+
+    Pre-fix: cache predicate saw state.origin_hub_id='hq-lat-krabang' and
+    matched the cached rd.origin_hub_id, routing to calculate_price.
+    Post-fix: predicate sees merged_origin_hub_id='branch-bang-na' and
+    misses, routing to fetch_route.
+    """
+    state = _user_state(
+        "Ship 5kg bounce from Bang Na to Nonthaburi",
+        shipping_type="bounce",  # FIX-02 short-circuit guard: prior logistics field
+        weight_kg=15.0,           # carried over from a prior surcharge turn
+        origin="Bangkok",
+        destination="Nonthaburi",
+        origin_hub_id="hq-lat-krabang",  # dropdown selection (prior turn)
+        fuel_data={
+            "price": 31.0,
+            "baseline": 29.94,
+            "delta_pct": 0.0354,
+            "date": "2026-05-14",
+            "unit": "THB/L",
+            "source": "eppo_live",
+            "fetched_at": _now_iso_z(),
+        },
+        route_data={
+            "origin": "Bangkok",
+            "destination": "Nonthaburi",
+            "origin_hub_id": "hq-lat-krabang",  # CACHED for the OLD hub
+            "distance_km": 18.5,
+            "duration_min": 30,
+            "traffic_severity": 2,
+            "zone": "central-1",
+        },
+    )
+    monkeypatch.setattr(
+        mod,
+        "get_chat_model",
+        lambda **_: _scripted_llm(
+            '{"user_intent": "surcharge_query", '
+            '"shipping_type": "bounce", "weight_kg": 5, '
+            '"origin": "Bang Na", "destination": "Nonthaburi", '
+            '"origin_hub_id": "branch-bang-na", '
+            '"missing_fields": [], '
+            '"next_step": "fetch_fuel", '
+            '"clarification_reason": null}'
+        ),
+    )
+
+    result = planner_node(state)
+
+    # The prose override picked up branch-bang-na; the cached route is for
+    # hq-lat-krabang. Cache MUST miss -> route_agent re-invoked.
+    # Acceptable post-fix next_steps: fetch_route (fuel is fresh) OR
+    # fanout_fuel_route (if the cache-skip cascade is bypassed for any
+    # reason). NOT calculate_price (that would mean the cache hit).
+    assert result["next_step"] in ("fetch_route", "fanout_fuel_route"), (
+        f"prose-override cache leak: expected re-route to route_agent, "
+        f"got next_step={result['next_step']!r}"
+    )
+    # And the merged hub surfaces correctly downstream.
+    assert result["origin_hub_id"] == "branch-bang-na"
+
