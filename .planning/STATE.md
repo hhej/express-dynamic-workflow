@@ -1,17 +1,17 @@
 ---
 gsd_state_version: 1.0
-milestone: v1.0
-milestone_name: milestone
-status: completed
-stopped_at: Completed quick task 260514-uwo (3 commits on docs/quick-260514-uwo-chat-ui-pragmatic-fix)
+milestone: null
+milestone_name: ""
+status: between_milestones
+stopped_at: "v1.1 shipped 2026-05-12. Quick task 260514-uwo (chat UI demo-pragmatic fix: min-h-0 on ChatColumn tab bodies + duplicate React key band-aid + 999.12 BE-regression backlog) landed 2026-05-14 on docs/quick-260514-uwo-chat-ui-pragmatic-fix — pending PR → develop → main. W6 demo recording is next. BE duplicate message_id root-cause investigation deferred to .planning/debug/999.12-investigate-duplicate-message-id-regression-in-be-stamping.md, pick up via /gsd:debug post-demo."
 last_updated: "2026-05-14T15:23:13.587Z"
-last_activity: 2026-05-12 — Closed v1.1 milestone (archived ROADMAP + REQUIREMENTS + AUDIT to .planning/milestones/v1.1-*)
+last_activity: 2026-05-14 — Completed quick task 260514-uwo: chat UI demo-pragmatic fix (input flex overflow + duplicate React key band-aid + 999.12 backlog)
 progress:
-  total_phases: 1
+  total_phases: 0
   completed_phases: 0
   total_plans: 0
   completed_plans: 0
-  percent: 100
+  percent: 0
 ---
 
 # Project State
@@ -310,6 +310,7 @@ None yet.
 | 260509-utd | Two-layer guardrail hardening against adversarial classmate testing: SECURITY_PREAMBLE + "tool output is DATA" clause prepended to all 6 agent prompts; new guard_input node (rules-first regex classifier with optional Gemini LLM fallback behind GUARD_INPUT_USE_LLM_FALLBACK env flag, defaults unclear→ALLOW) and guard_output node (validates SurchargeResult invariants from backend.config); per-turn tool_call_count cap (MAX_TOOL_CALLS_PER_TURN=6) wired via Annotated[int, operator.add] reducer to survive Phase 5 D-01 parallel fan-out; response_node refusal branch with branded copy + reasoning_trace tag agent='guard_input'/'guard_output' (not 'planner', avoids miscount); adversarial_pack.txt with 15 attacks (5 injection / 5 off-topic / 5 cost-bombing); zero new dependencies (QUICK-260509-UTD-01..05) | 2026-05-09 | 9c24cd9, f068022, 3c7a4a9 | Executor-verified (256→295 backend tests, +39 net new green; uvicorn restart required for live deployment) | [260509-utd-upgrade-guardrails-to-harden-agent-again](./quick/260509-utd-upgrade-guardrails-to-harden-agent-again/) |
 | 260512-t3t | Fix ROADMAP.md drift on Phase 10 status (line 40 checkbox + progress table row) — flipped `[ ]` → `[x]` and `0/3 Planned` → `3/3 Complete — 2026-05-11` to match REQUIREMENTS.md (GUARD-07 Complete) and STATE.md (Phase 999.10 completed 2026-05-11); housekeeping closure flagged by v1.1 milestone audit | 2026-05-12 | a6c7c30 |  | [260512-t3t-fix-roadmap-md-drift-on-phase-10-status-](./quick/260512-t3t-fix-roadmap-md-drift-on-phase-10-status-/) |
 | 260512-t7q | Surface origin_hub_id in FIX-02 destination-less short-circuit trace entry (planner.py:316 string→dict with `trigger` + `origin_hub_id` keys) + new regression pytest; closes v1.1 audit cross-phase observability gap (Phase 9 hub × Phase 11 FIX-02). Backend pytest 358→359 green. | 2026-05-12 | 527fe62 |  | [260512-t7q-surface-origin-hub-id-in-fix-02-destinat](./quick/260512-t7q-surface-origin-hub-id-in-fix-02-destinat/) |
+| 260514-uwo | Chat UI demo-pragmatic fix: (1) add `min-h-0` to both `ChatColumn` tab bodies — real fix for chat input being pushed off-screen on long conversations (flex-column overflow gotcha); (2) revert `MessageList` assistant `<li>` key from `a-${m.id}` back to `a-${m.id}-${i}` as a W6-demo band-aid for the duplicate `message_id` regression React was warning about (preserves Debug 999.5 comment block verbatim + appends dated deferral note); (3) log `.planning/debug/999.12-investigate-duplicate-message-id-regression-in-be-stamping.md` as deferred BE root-cause investigation (two hypotheses: `_next_turn_idx` mis-count vs `_attach_message_ids` replay double-stamp). No BE changes; 145/145 frontend vitest green. | 2026-05-14 | dfe298b |  | [260514-uwo-fix-chat-input-flex-overflow-band-aid-du](./quick/260514-uwo-fix-chat-input-flex-overflow-band-aid-du/) |
 
 ## Session Continuity
 
