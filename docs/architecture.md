@@ -241,7 +241,7 @@ pricing_agent -> guard_output -> { hitl_gate | response (guard_failed) }
 
 - **Rules-first regex classifier** (`backend/agent/nodes/guard_input.py:_classify`): matches `prompt_injection`, `off_topic`, `cost_bombing` against curated pattern lists. Fresh-turn only — follow-up turns skip classification (rationale: a follow-up already cleared the gate; the planner re-classifies intent per turn anyway).
 - **Optional Gemini LLM fallback** (`_llm_fallback`): when the regex pass returns `"unclear"` AND `GUARD_INPUT_USE_LLM_FALLBACK=true`, Gemini 2.0 Flash is asked to classify into the same `GuardCategory` Literal. Defaults to `ALLOW` on any error / parse failure (fail-open for the demo — the rules pass is the load-bearing layer; LLM fallback is defense-in-depth).
-- **Per-turn tool-call cap** (`MAX_TOOL_CALLS_PER_TURN`, default 6 — `backend/config.py:148`): when a follow-up turn's `state.tool_call_count` (an `Annotated[int, operator.add]` reducer that survives parallel fan-out) reaches the cap, `guard_input` refuses with category `tool_call_budget`. Prevents adversaries from cost-bombing the demo by chaining repeated tool invocations within a single chat thread.
+- **Per-turn tool-call cap** (`MAX_TOOL_CALLS_PER_TURN`, default 6 — `backend/config.py:148`): when a follow-up turn's `state.tool_call_count` (an `Annotated[int, operator.add]` reducer that survives parallel fan-out) reaches the cap, `guard_input` refuses with `category='cost_bombing'` (the cap shares the cost-bombing category with the rules-classifier `cost_bombing` matches; the `_is_fresh_turn` predicate at `guard_input.py:178-191` resets the counter on every fresh user turn so the cap is genuinely per-turn, not cumulative). Prevents adversaries from cost-bombing the demo by chaining repeated tool invocations within a single chat thread. Known fragility tracked at `.planning/debug/999.12` — the fresh-turn reset can mis-fire on certain multi-turn paths.
 - **Refusal short-circuit**: any refused category sets `state.guard_decision = {layer: 'input', refused: True, category, violations: []}` and routes to `response_node` (skipping planner). `response_node`'s refusal branch (lines 240–278 of `backend/agent/nodes/response_node.py`) renders the canonical `REFUSAL_COPY` verbatim with `status='refused'`. No tools fire, no LLM calls beyond the optional fallback classifier, no surcharge math.
 
 ### Layer 2: `guard_output` (Phase 5 / Quick 260509-utd — GUARD-03)
@@ -290,7 +290,7 @@ All 15 cases now return `status='refused'` + `REFUSAL_COPY` (pre-Phase-10, cases
 
 | Env var | Default | Effect |
 |---------|---------|--------|
-| `MAX_TOOL_CALLS_PER_TURN` | `6` | Per-turn cap for `tool_call_count` reducer; refused with category `tool_call_budget` at the cap |
+| `MAX_TOOL_CALLS_PER_TURN` | `6` | Per-turn cap for `tool_call_count` reducer; refused with `category='cost_bombing'` (shared with the rules-classifier cost-bombing category) when the running count reaches the cap on a non-fresh turn |
 | `GUARD_INPUT_USE_LLM_FALLBACK` | `false` | When `true`, ambiguous `guard_input` classifications fall back to Gemini; default fail-open (`ALLOW`) on any error |
 | `SURCHARGE_CAP` | `0.15` | `guard_output` invariant (15% max surcharge) |
 | `SURCHARGE_FLOOR` | `-0.05` | `guard_output` invariant (5% max discount) |
