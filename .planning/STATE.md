@@ -1,17 +1,17 @@
 ---
 gsd_state_version: 1.0
-milestone: null
-milestone_name: ""
-status: between_milestones
-stopped_at: "v1.1 (Real-World Routing & Demo Hardening) shipped 2026-05-12. 22/22 v1.1 requirements satisfied; 23/23 cross-phase wires PASS; 6/6 E2E flows operational; W6 demo gate cleared (5/5 fresh-uvicorn runs PASS_UNDER_30S on legit baseline diesel-price query). v1.1 archived to .planning/milestones/. No active milestone — code freeze for W5 / W6 final demo recording. Next: W6 demo or /gsd:new-milestone to begin v1.2/v2.0."
-last_updated: "2026-05-12T14:30:00.000Z"
-last_activity: 2026-05-12
+milestone: v1.0
+milestone_name: milestone
+status: completed
+stopped_at: Completed quick task 260514-uwo (3 commits on docs/quick-260514-uwo-chat-ui-pragmatic-fix)
+last_updated: "2026-05-14T15:23:13.587Z"
+last_activity: 2026-05-12 — Closed v1.1 milestone (archived ROADMAP + REQUIREMENTS + AUDIT to .planning/milestones/v1.1-*)
 progress:
-  total_phases: 0
+  total_phases: 1
   completed_phases: 0
   total_plans: 0
   completed_plans: 0
-  percent: 0
+  percent: 100
 ---
 
 # Project State
@@ -284,6 +284,7 @@ Recent decisions affecting current work:
 - [Phase 999.11]: Plan 04 no backend production code modified — chat.py, response_node.py, graph.py, planner.py untouched per must_haves.truths.3 'If RULED OUT: no backend code changes land'. Only files changed: backend/tests/test_api_chat.py (+89 lines test), 999.11-04-EVIDENCE.md (+58 lines closure note), 999.11-04-SUMMARY.md (new). Full backend pytest 358/358 GREEN (+1 over 357 baseline, zero regressions, zero flakes).
 - [Phase 999.11]: Plan 04 escalation NOT APPLICABLE — Phase 11 root cause is SINGULAR (hypothesis (b) planner re-loop CONFIRMED + FIXED at commit e550256 in Plan 03), CLOSED before Plan 04 ran. EVIDENCE.md 'Escalation: all three hypotheses RULED OUT' section header present for plan acceptance-criterion compliance, but marked NOT APPLICABLE inline. D-04 escalation clause (Langfuse traces + AgentState snapshots) NOT invoked. No Phase 999.12 follow-up needed. Plan 05 closes the phase with REQUIREMENTS stamp + live-bar gate.
 - [Phase 999.11]: Plan 05 Phase 11 closure — FIX-02 stamped Complete (Phase 11) in REQUIREMENTS.md (line 53 + traceability table line 125); ROADMAP.md Phase 11 detail block flipped Status to Complete (2026-05-11), active-phases checklist + Progress table row reflect 5/5 complete; STATE.md Current Position advanced to Phase 999.11 COMPLETE with v1.1 progress 3/3 phases (100%). D-09 live-bar gate honored via Plan 03's post-fix-baseline/summary.jsonl archive per user verdict (no backend code changed between e550256 and HEAD; archive remains representative). Phase-level 999.11-SUMMARY.md is the canonical wrap-up per plan output spec — no per-plan 999.11-05-SUMMARY.md authored. v1.1 milestone now ready for closure via /gsd:complete-milestone. (FIX-02)
+- [Phase quick-260514-uwo]: Quick task 260514-uwo: shipped FE band-aid (min-h-0 input-row fix + duplicate React key revert) for W6 demo. BE duplicate message_id root-cause hunt deferred to .planning/debug/999.12-investigate-duplicate-message-id-regression-in-be-stamping.md, picked up via /gsd:debug post-demo.
 
 ### Pending Todos
 
@@ -312,7 +313,7 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-05-11T17:30:00.000Z
-Stopped at: Completed Phase 999.11 (Phase 11 / v1.1 — Live SSE Hang Root-Cause Fix). Root cause: hypothesis (b) planner re-loop CONFIRMED + FIXED at commit e550256 (destination-less short-circuit in planner_node); hypotheses (c) cold-start and (a) SSE termination cleanly RULED OUT. Backend pytest 355 -> 358 (+3: D-10 pin + 2 defense-in-depth). 5/5 live-bar runs PASS_UNDER_30S at ~7.6-7.9s (D-09 demo gate cleared). FIX-02 marked Complete (Phase 11) in REQUIREMENTS.md with 'Validated in v1.1: Phase 11' suffix. Branch: develop. Next: v1.1 milestone closure (run /gsd:complete-milestone) or W6 demo recording.
+Last session: 2026-05-14T15:23:08.416Z
+Stopped at: Completed quick task 260514-uwo (3 commits on docs/quick-260514-uwo-chat-ui-pragmatic-fix)
 Resume file: None
 Next: Demo recording (W6); or close v1.1 milestone with milestone audit via /gsd:complete-milestone. Pre-existing ROADMAP.md drift on Phase 10 active-checklist + Progress table row logged to .planning/phases/999.11-.../deferred-items.md (out of scope for Plan 05; fix in housekeeping commit or milestone audit).
